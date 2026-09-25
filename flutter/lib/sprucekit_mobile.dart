@@ -10,6 +10,7 @@ export 'pigeon/oid4vp.g.dart';
 export 'pigeon/vcalm.g.dart';
 export 'pigeon/oid4vp_mdoc.g.dart';
 export 'pigeon/mdl_presentation.g.dart';
+export 'src/mdl_presentation_nfc.dart';
 // `wrapResponse` is a Pigeon-internal helper duplicated across .g.dart files
 // when @FlutterApi or @async callbacks are used. Hide here to avoid an
 // ambiguous_export clash with mdl_presentation.g.dart's copy.

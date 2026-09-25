@@ -5,7 +5,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:sprucekit_mobile/sprucekit_mobile.dart';
 
-/// Demo screen for ISO 18013-5 mDL sharing via QR code
+/// Demo screen for ISO 18013-5 mDL sharing via QR code or NFC tap
 class MdlShareDemo extends StatefulWidget {
   const MdlShareDemo({super.key});
 
@@ -20,6 +20,9 @@ class _MdlShareDemoState extends State<MdlShareDemo>
   final _spruceUtils = SpruceUtils();
 
   MdlPresentationState _state = MdlPresentationState.uninitialized;
+
+  /// Last update, kept for the NFC getters (isWaitingForNfcTap and friends).
+  MdlPresentationStateUpdate? _lastUpdate;
   String? _qrCodeUri;
   String? _error;
   List<MdlItemsRequest>? _itemsRequests;
@@ -32,12 +35,16 @@ class _MdlShareDemoState extends State<MdlShareDemo>
   bool _bluetoothGranted = false;
   bool _bluetoothEnabled = false;
 
+  /// True when the phone can answer a reader tap (Android with NFC on).
+  bool _nfcAvailable = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     MdlPresentationCallback.setUp(this);
     _checkBluetoothStatus();
+    _checkNfcAvailability();
   }
 
   @override
@@ -51,6 +58,16 @@ class _MdlShareDemoState extends State<MdlShareDemo>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _checkBluetoothStatus();
+      _checkNfcAvailability();
+    }
+  }
+
+  Future<void> _checkNfcAvailability() async {
+    final available = await _mdlPresentation.isNfcPresentationAvailable();
+    if (mounted) {
+      setState(() {
+        _nfcAvailable = available;
+      });
     }
   }
 
@@ -165,7 +182,8 @@ class _MdlShareDemoState extends State<MdlShareDemo>
     }
   }
 
-  Future<void> _startPresentation() async {
+  /// Starts a QR session, or arms the NFC tap when [nfc] is true.
+  Future<void> _startPresentation({bool nfc = false}) async {
     if (_packId == null || _credentialId == null) {
       setState(() {
         _error = 'No mDL available. Generate one first.';
@@ -192,10 +210,15 @@ class _MdlShareDemoState extends State<MdlShareDemo>
     });
 
     try {
-      final result = await _mdlPresentation.initializeQrPresentation(
-        _packId!,
-        _credentialId!,
-      );
+      final result = nfc
+          ? await _mdlPresentation.initializeNfcPresentation(
+              _packId!,
+              _credentialId!,
+            )
+          : await _mdlPresentation.initializeQrPresentation(
+              _packId!,
+              _credentialId!,
+            );
 
       if (result is MdlPresentationError) {
         setState(() {
@@ -238,6 +261,7 @@ class _MdlShareDemoState extends State<MdlShareDemo>
     _mdlPresentation.cancel();
     setState(() {
       _state = MdlPresentationState.uninitialized;
+      _lastUpdate = null;
       _qrCodeUri = null;
       _itemsRequests = null;
       _selectedNamespaces = {};
@@ -274,6 +298,7 @@ class _MdlShareDemoState extends State<MdlShareDemo>
   void onStateChange(MdlPresentationStateUpdate update) {
     setState(() {
       _state = update.state;
+      _lastUpdate = update;
       _qrCodeUri = update.qrCodeUri;
       _error = update.error;
 
@@ -323,7 +348,24 @@ class _MdlShareDemoState extends State<MdlShareDemo>
       return _buildStartPresentationView();
     }
 
-    // Step 3: Initializing
+    // Step 3: Initializing, or an NFC tap in progress
+    if (_lastUpdate?.isWaitingForNfcTap ?? false) {
+      return _buildNfcWaitingView();
+    }
+
+    if (_lastUpdate?.isConnectingViaNfc ?? false) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Tap received, connecting over Bluetooth...'),
+          ],
+        ),
+      );
+    }
+
     if (_state == MdlPresentationState.initializing) {
       return const Center(
         child: Column(
@@ -340,6 +382,11 @@ class _MdlShareDemoState extends State<MdlShareDemo>
     // Step 4: QR code ready
     if (_state == MdlPresentationState.engagingQrCode && _qrCodeUri != null) {
       return _buildQrCodeView();
+    }
+
+    // Step 4b: NFC turned off while waiting for the tap
+    if (_lastUpdate?.isNfcUnavailable ?? false) {
+      return _buildNfcUnavailableView();
     }
 
     // Step 5: Connected, waiting for request or selecting namespaces
@@ -524,7 +571,97 @@ class _MdlShareDemoState extends State<MdlShareDemo>
               ),
             ),
           ),
+          if (_nfcAvailable) ...[
+            const SizedBox(height: 16),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Or share with a tap',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Hold the phone on an NFC reader. The tap replaces the QR '
+                      'scan. The data still moves over Bluetooth.',
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: () => _startPresentation(nfc: true),
+                      icon: const Icon(Icons.nfc),
+                      label: const Text('Tap to Share'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildNfcWaitingView() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.nfc, size: 80, color: Theme.of(context).primaryColor),
+            const SizedBox(height: 24),
+            Text(
+              'Hold your phone near the reader',
+              style: Theme.of(context).textTheme.headlineSmall,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'You will see a consent dialog after the reader requests '
+              'your data.',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            OutlinedButton.icon(
+              onPressed: _cancelPresentation,
+              icon: const Icon(Icons.close),
+              label: const Text('Cancel'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNfcUnavailableView() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.nfc, size: 80, color: Colors.orange.shade600),
+            const SizedBox(height: 24),
+            Text(
+              'NFC was turned off',
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Turn NFC on to share with a tap, or share with the QR code.',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: _startPresentation,
+              icon: const Icon(Icons.qr_code),
+              label: const Text('Use QR Code'),
+            ),
+          ],
+        ),
       ),
     );
   }

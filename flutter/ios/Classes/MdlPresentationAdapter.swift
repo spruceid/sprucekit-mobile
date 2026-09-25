@@ -61,6 +61,20 @@ class MdlPresentationAdapter: NSObject, MdlPresentation {
         completion(.success(MdlPresentationSuccess(message: "Presentation initialized")))
     }
 
+    /// The plugin does not implement NFC engagement on iOS. The Dart side
+    /// starts in QR when this is false.
+    func isNfcPresentationAvailable() throws -> Bool {
+        return false
+    }
+
+    func initializeNfcPresentation(
+        packId: String,
+        credentialId: String,
+        completion: @escaping (Result<MdlPresentationResult, Error>) -> Void
+    ) {
+        completion(.success(MdlPresentationError(message: "NFC presentation is not supported on iOS")))
+    }
+
     func getQrCodeUri() throws -> String? {
         return currentState.qrCodeUri
     }
@@ -162,7 +176,7 @@ private class PresentationDelegate: MdocProximityPresentationManager.Delegate {
             }
 
         case .connectingViaNfc:
-            // Unreachable via the plugin's pigeon today; map to the nearest existing state for now.
+            // Not emitted by this adapter. Kept for exhaustiveness.
             adapter?.updateState(MdlPresentationStateUpdate(state: .initializing))
 
         case .connected:

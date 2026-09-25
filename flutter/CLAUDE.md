@@ -36,6 +36,11 @@ dart run pigeon --input pigeons/credential_pack.dart
 dart run pigeon --input pigeons/mdl_presentation.dart
 dart run pigeon --input pigeons/spruce_utils.dart
 dart run pigeon --input pigeons/dc_api.dart
+
+# Plugin Kotlin unit tests and example manifest merge, against the published SDK
+# (needs a Gradle install; `flutter build apk` in example/ also generates a wrapper)
+cd example && flutter pub get && cd android
+SPRUCEKIT_SDK_FROM_SOURCE=false gradle :sprucekit_mobile:testDebugUnitTest :app:processDebugMainManifest
 ```
 
 ## Key Patterns
@@ -71,7 +76,7 @@ dart run pigeon --input pigeons/dc_api.dart
   3. Build the example: `cd flutter/example && flutter build apk`
   4. **Before pushing**, revert all three changes in `build.gradle` (re-comment `mavenLocal()`, remove `exclude`, restore version to `0.14.14`).
 
-  The Flutter CI only runs Dart analysis (`flutter analyze`) — Kotlin compilation is not checked in CI, so the PR will pass even before the SDK is published.
+  The Flutter CI compiles the plugin's Kotlin against the published SDK and runs its unit tests, so a PR that needs an unpublished SDK function fails CI until the SDK is released.
 
 - **Adding a new Rust function to the iOS adapter**: The Flutter example iOS app uses local pods (`:path => '../../../'` in `flutter/example/ios/Podfile`), so it picks up local Rust and Swift SDK changes automatically — no publishing step needed. However, you must rebuild the xcframework:
   1. Clean and rebuild the Rust iOS framework + Swift bindings:

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sprucekit_nfc_hce_service_desc">Share a mobile document with a tap</string>
+    <string name="sprucekit_nfc_hce_group_desc">ISO 18013-5 mobile document</string>
+</resources>

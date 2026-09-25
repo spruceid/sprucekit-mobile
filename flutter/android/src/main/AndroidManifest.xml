@@ -1,4 +1,17 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.spruceid.sprucekit_mobile">
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- NFC tap-to-share (ISO 18013-5 device engagement over host card
+         emulation). The feature is optional so the app still installs on
+         phones without NFC. Those phones use QR engagement only. The HCE
+         service itself is opt-in: the app declares it in its own manifest,
+         see README.md. -->
+    <uses-permission android:name="android.permission.NFC" />
+    <uses-feature
+        android:name="android.hardware.nfc"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.nfc.hce"
+        android:required="false" />
 </manifest>

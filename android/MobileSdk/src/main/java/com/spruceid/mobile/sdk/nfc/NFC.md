@@ -57,6 +57,10 @@ For non-Compose hosts, the underlying `NfcReaderEngagement` class can be driven 
 
 ## Holder (HCE) NFC engagement
 
+> Flutter apps that use the `sprucekit_mobile` plugin declare the plugin's
+> `NfcPresentationService` instead of writing their own. The plugin makes the
+> preferred-service calls. See `flutter/README.md`.
+
 ### Creating the service handler
 
 You must create a class that inherits from SpruceKit's `BaseNfcPresentationService` for handling NFC messages.

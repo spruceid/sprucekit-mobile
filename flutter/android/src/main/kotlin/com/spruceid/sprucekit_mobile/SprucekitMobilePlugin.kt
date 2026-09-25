@@ -12,8 +12,9 @@ import java.util.concurrent.CopyOnWriteArrayList
  * Flutter plugin providing access to SpruceKit Mobile SDK functionality.
  *
  * Implements [ActivityAware] so that adapters which need an [android.app.Activity]
- * reference (currently [MdlReaderAdapter] for NFC reader-mode) can receive
- * the binding when the plugin attaches to a host Activity.
+ * reference ([MdlReaderAdapter] for NFC reader-mode, [MdlPresentationAdapter]
+ * for the NFC preferred-service call) can receive the binding when the plugin
+ * attaches to a host Activity.
  */
 class SprucekitMobilePlugin : FlutterPlugin, ActivityAware {
     companion object {
@@ -107,23 +108,32 @@ class SprucekitMobilePlugin : FlutterPlugin, ActivityAware {
             // try to invoke the Flutter binary messenger after it's gone.
             mdlReaderAdapter.dispose()
         }
+        if (::mdlPresentationAdapter.isInitialized) {
+            // Detaches the HCE service listener so a reader tap after the
+            // engine is gone reaches nothing.
+            mdlPresentationAdapter.dispose()
+        }
     }
 
     // ----- ActivityAware -----
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
         mdlReaderAdapter.setActivityBinding(binding)
+        mdlPresentationAdapter.setActivityBinding(binding)
     }
 
     override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
         mdlReaderAdapter.setActivityBinding(binding)
+        mdlPresentationAdapter.setActivityBinding(binding)
     }
 
     override fun onDetachedFromActivityForConfigChanges() {
         mdlReaderAdapter.setActivityBinding(null)
+        mdlPresentationAdapter.setActivityBinding(null)
     }
 
     override fun onDetachedFromActivity() {
         mdlReaderAdapter.setActivityBinding(null)
+        mdlPresentationAdapter.setActivityBinding(null)
     }
 }
