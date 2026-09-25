@@ -20,7 +20,6 @@ use openid4vp::{
         iso_18013_7::DcApiHandover,
         metadata::WalletMetadata,
         object::ParsingErrorContext,
-        util::ReqwestClient,
     },
     wallet::Wallet,
 };
@@ -28,6 +27,7 @@ use prepare_response::vp_token;
 use requested_values::find_match;
 use serde_json::json;
 
+use crate::http_client::HttpClient;
 use crate::{credential::mdoc::Mdoc, crypto::KeyStore};
 
 use super::iso_18013_7::{
@@ -46,13 +46,13 @@ pub struct InProgressRequestDcApi {
 }
 
 struct WalletActivity {
-    http_client: ReqwestClient,
+    http_client: HttpClient,
     origin: String,
     wallet_metadata: WalletMetadata,
 }
 
 impl Wallet for WalletActivity {
-    type HttpClient = ReqwestClient;
+    type HttpClient = HttpClient;
 
     fn http_client(&self) -> &Self::HttpClient {
         &self.http_client
@@ -130,7 +130,7 @@ pub async fn handle_dc_api_request(
     request_json: String,
 ) -> Result<InProgressRequestDcApi, DcApiError> {
     let wallet_activity = WalletActivity {
-        http_client: ReqwestClient::new().map_err(DcApiError::internal_error)?,
+        http_client: HttpClient::shared(),
         origin: origin.clone(),
         wallet_metadata: default_metadata(),
     };

@@ -22,7 +22,7 @@ use openid4vp::{
         iso_18013_7::compute_jwk_thumbprint,
         metadata::WalletMetadata,
         object::{ParsingErrorContext, UntypedObject},
-        util::{AsyncHttpClient, ReqwestClient},
+        util::AsyncHttpClient,
     },
     wallet::Wallet as OpenId4vpWallet,
 };
@@ -52,7 +52,6 @@ use openidvp_draft18::{
             AuthorizationResponse as Draft18AuthorizationResponse,
             JwtAuthorizationResponse as Draft18JwtAuthorizationResponse,
         },
-        util::ReqwestClient as Draft18ReqwestClient,
     },
     verifier::client::X509SanVariant,
     wallet::Wallet as Draft18Wallet,
@@ -71,6 +70,7 @@ use super::{
     },
     ApprovedResponse180137,
 };
+use crate::http_client::HttpClient;
 use crate::{credential::mdoc::Mdoc, crypto::KeyStore};
 
 #[deprecated(
@@ -150,9 +150,8 @@ struct Draft18AnnexBHandover(ByteStr, ByteStr, String);
 pub struct Oid4vp180137Facade {
     credentials: Vec<Arc<Mdoc>>,
     keystore: Arc<dyn KeyStore>,
-    v1_http_client: ReqwestClient,
+    http_client: HttpClient,
     v1_metadata: WalletMetadata,
-    draft18_http_client: Draft18ReqwestClient,
     draft18_metadata: Draft18WalletMetadata,
 }
 
@@ -184,11 +183,8 @@ impl Oid4vp180137Facade {
         Ok(Arc::new(Self {
             credentials,
             keystore,
-            v1_http_client: ReqwestClient::new()
-                .map_err(|e| Oid4vp180137FacadeError::InvalidRequest(format!("{e:#}")))?,
+            http_client: HttpClient::shared(),
             v1_metadata: v1_facade_metadata(),
-            draft18_http_client: Draft18ReqwestClient::new()
-                .map_err(|e| Oid4vp180137FacadeError::InvalidRequest(format!("{e:#}")))?,
             draft18_metadata: draft18_default_metadata(),
         }))
     }
@@ -554,14 +550,14 @@ impl Oid4vp180137Facade {
 }
 
 impl OpenId4vpWallet for Oid4vp180137Facade {
-    type HttpClient = ReqwestClient;
+    type HttpClient = HttpClient;
 
     fn metadata(&self) -> &WalletMetadata {
         &self.v1_metadata
     }
 
     fn http_client(&self) -> &Self::HttpClient {
-        &self.v1_http_client
+        &self.http_client
     }
 }
 
@@ -611,14 +607,14 @@ impl RequestVerifier for Oid4vp180137Facade {
 }
 
 impl Draft18Wallet for Oid4vp180137Facade {
-    type HttpClient = Draft18ReqwestClient;
+    type HttpClient = HttpClient;
 
     fn metadata(&self) -> &Draft18WalletMetadata {
         &self.draft18_metadata
     }
 
     fn http_client(&self) -> &Self::HttpClient {
-        &self.draft18_http_client
+        &self.http_client
     }
 }
 
@@ -1742,7 +1738,7 @@ mod tests {
             .await;
 
         let resolved = resolve_url_request_once(
-            &ReqwestClient::new().unwrap(),
+            &HttpClient::shared(),
             Url::parse(&format!(
                 "mdoc-openid4vp://?client_id=redirect_uri%3Ahttps%3A%2F%2Fwallet.example%2Fcallback&request_uri={}",
                 urlencoding::encode(&format!("{}/request.jwt", server.uri()))
@@ -1773,7 +1769,7 @@ mod tests {
             .await;
 
         let resolved = resolve_url_request_once(
-            &ReqwestClient::new().unwrap(),
+            &HttpClient::shared(),
             Url::parse(&format!(
                 "mdoc-openid4vp://?client_id=tools.vii.us01.mattr.global&client_id_scheme=x509_san_dns&request_uri={}",
                 urlencoding::encode(&format!("{}/request.jwt", server.uri()))

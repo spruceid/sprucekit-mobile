@@ -1,7 +1,7 @@
-use std::{collections::HashMap, future::Future, pin::Pin, sync::Arc};
+use std::{future::Future, pin::Pin, sync::Arc};
 
 use oid4vci::oauth2::{
-    http::{HeaderMap, Response, StatusCode},
+    http::{Response, StatusCode},
     HttpRequest as ExtHttpRequest, HttpResponse as ExtHttpResponse,
     SyncHttpClient as ExtSyncHttpClient,
 };
@@ -9,6 +9,8 @@ use oid4vci::oauth2::{
 pub use mobile_toolkit::http_client::{
     AsyncHttpClient, HttpClientError, HttpRequest, HttpResponse,
 };
+
+pub(crate) use crate::http_client::headermap_to_hashmap;
 
 fn ext_request_to_http(req: ExtHttpRequest) -> Result<HttpRequest, HttpClientError> {
     Ok(HttpRequest {
@@ -116,23 +118,4 @@ impl<'c> oid4vci::oauth2::AsyncHttpClient<'c> for Oid4vciHttpClient {
             Ok::<_, HttpClientError>(response)
         })
     }
-}
-
-pub(crate) fn headermap_to_hashmap(
-    headers: &HeaderMap,
-) -> Result<HashMap<String, String>, HttpClientError> {
-    headers
-        .keys()
-        .map(|k| {
-            Ok((
-                k.to_string(),
-                headers
-                    .get_all(k)
-                    .iter()
-                    .map(|v| v.to_str().map_err(|_| HttpClientError::HeaderParse))
-                    .collect::<Result<Vec<_>, _>>()?
-                    .join(","),
-            ))
-        })
-        .collect()
 }

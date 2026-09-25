@@ -22,7 +22,6 @@ use openid4vp::{
         iso_18013_7::get_encryption_jwk_thumbprint,
         metadata::WalletMetadata,
         object::ParsingErrorContext,
-        util::ReqwestClient,
     },
     wallet::Wallet as OpenID4VPWallet,
 };
@@ -32,6 +31,7 @@ use serde_json::json;
 use url::Url;
 use uuid::Uuid;
 
+use crate::http_client::HttpClient;
 use crate::{credential::mdoc::Mdoc, crypto::KeyStore};
 
 /// Handler for OpenID4VP requests according to the profile in ISO/IEC 18013-7 Annex B.
@@ -40,7 +40,7 @@ use crate::{credential::mdoc::Mdoc, crypto::KeyStore};
 #[derive(uniffi::Object, Clone)]
 pub struct OID4VP180137 {
     credentials: Vec<Arc<Mdoc>>,
-    http_client: ReqwestClient,
+    http_client: HttpClient,
     keystore: Arc<dyn KeyStore>,
     metadata: WalletMetadata,
 }
@@ -81,10 +81,6 @@ impl fmt::Display for OID4VP180137Error {
 }
 
 impl OID4VP180137Error {
-    fn initialization(error: anyhow::Error) -> Self {
-        Self::Initialization(format!("{error:#}"))
-    }
-
     fn invalid_request(error: anyhow::Error) -> Self {
         Self::InvalidRequest(format!("{error:#}"))
     }
@@ -104,8 +100,7 @@ impl OID4VP180137 {
         Ok(Self {
             credentials,
             keystore,
-            http_client: openid4vp::core::util::ReqwestClient::new()
-                .map_err(OID4VP180137Error::initialization)?,
+            http_client: HttpClient::shared(),
             metadata: default_metadata(),
         })
     }
@@ -219,7 +214,7 @@ impl InProgressRequest180137 {
 }
 
 impl OpenID4VPWallet for OID4VP180137 {
-    type HttpClient = ReqwestClient;
+    type HttpClient = HttpClient;
 
     fn metadata(&self) -> &WalletMetadata {
         &self.metadata

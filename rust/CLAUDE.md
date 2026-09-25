@@ -78,6 +78,7 @@ export CLASSPATH="./jna-5.14.0.jar:./kotlinx-coroutines-core-jvm-1.6.4.jar"
 - **`cborld.rs`** -- CBOR-LD context support
 - **`context.rs`** -- JSON-LD context handling
 - **`logger.rs`** -- logging abstraction
+- **`http_client.rs`** -- shared HTTP transport. The platform registers its native client with `configure_http_client`. All Rust HTTP requests go through `HttpClient::shared()`, with a `reqwest` fallback for tests.
 - **`w3c_vc_barcodes.rs`** -- W3C VC barcode support
 
 ## Key Patterns

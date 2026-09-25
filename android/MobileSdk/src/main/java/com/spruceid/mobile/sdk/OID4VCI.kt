@@ -5,7 +5,7 @@ import com.spruceid.mobile.toolkit.AsyncHttpClient
 import com.spruceid.mobile.toolkit.HttpRequest
 import com.spruceid.mobile.toolkit.HttpResponse
 import io.ktor.client.HttpClient
-import io.ktor.client.engine.cio.CIO
+import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.request.request
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.readRawBytes
@@ -13,7 +13,8 @@ import io.ktor.http.HttpMethod
 import io.ktor.util.toMap
 import kotlinx.coroutines.runBlocking
 
-private val ktorClient = HttpClient(CIO)
+// OkHttp obeys the proxy settings and the trust store of the device. CIO does not.
+private val ktorClient = HttpClient(OkHttp)
 
 private suspend fun ktorHttpClient(request: HttpRequest): HttpResponse {
     val res = ktorClient.request(request.url) {
