@@ -113,24 +113,32 @@ internal class MdlPresentationAdapter(
         callback(Result.success(MdlPresentationSuccess("Presentation initialized")))
     }
 
-    override fun isNfcPresentationAvailable(): Boolean = nfcUnavailableReason() == null
+    override fun isNfcPresentationAvailable(): Boolean =
+        getNfcAvailability() == MdlNfcAvailability.AVAILABLE
 
     /**
-     * Null when the phone can answer a reader tap. Otherwise the reason, as
-     * the error message for Dart. Each case has its own text so the wallet
-     * can tell "turn NFC on" from "this phone cannot".
+     * The device and build checks come first, so [MdlNfcAvailability.TURNED_OFF]
+     * means that the user can fix the problem in the NFC settings.
      */
-    private fun nfcUnavailableReason(): String? {
+    override fun getNfcAvailability(): MdlNfcAvailability {
         val adapter = NfcAdapter.getDefaultAdapter(context)
-            ?: return "NFC is not supported on this device"
+            ?: return MdlNfcAvailability.NO_ADAPTER
         if (!context.packageManager.hasSystemFeature(PackageManager.FEATURE_NFC_HOST_CARD_EMULATION)) {
-            return "NFC host card emulation is not supported on this device"
+            return MdlNfcAvailability.NO_HOST_CARD_EMULATION
         }
-        if (!isNfcServiceDeclared()) {
-            return "The NFC presentation service is not declared in the app manifest"
-        }
-        if (!adapter.isEnabled) return "NFC is turned off"
-        return null
+        if (!isNfcServiceDeclared()) return MdlNfcAvailability.SERVICE_NOT_DECLARED
+        if (!adapter.isEnabled) return MdlNfcAvailability.TURNED_OFF
+        return MdlNfcAvailability.AVAILABLE
+    }
+
+    /** Null when the phone can answer a reader tap. Otherwise the error message for Dart. */
+    private fun nfcUnavailableReason(): String? = when (getNfcAvailability()) {
+        MdlNfcAvailability.AVAILABLE -> null
+        MdlNfcAvailability.TURNED_OFF -> "NFC is turned off"
+        MdlNfcAvailability.UNSUPPORTED_PLATFORM -> "NFC presentation is not supported on this platform"
+        MdlNfcAvailability.NO_ADAPTER -> "NFC is not supported on this device"
+        MdlNfcAvailability.NO_HOST_CARD_EMULATION -> "NFC host card emulation is not supported on this device"
+        MdlNfcAvailability.SERVICE_NOT_DECLARED -> "The NFC presentation service is not declared in the app manifest"
     }
 
     /**

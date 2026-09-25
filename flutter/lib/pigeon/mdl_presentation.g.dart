@@ -157,6 +157,28 @@ enum MdlNfcPhase {
   unavailable,
 }
 
+/// Whether an NFC tap presentation can start on this device, and why not
+///
+/// Returned by [MdlPresentation.getNfcAvailability]. Only [turnedOff] is a
+/// state that the user can change. The other failures are properties of the
+/// platform, the device, or the app build.
+enum MdlNfcAvailability {
+  /// NFC is on, and [MdlPresentation.initializeNfcPresentation] can arm a tap.
+  available,
+  /// The device supports NFC presentation, but NFC is turned off. The user
+  /// can turn it on in the system settings.
+  turnedOff,
+  /// The platform has no NFC tap presentation. The value on iOS.
+  unsupportedPlatform,
+  /// The device has no NFC adapter.
+  noAdapter,
+  /// The device has an NFC adapter but cannot emulate a card.
+  noHostCardEmulation,
+  /// The app manifest does not declare the plugin's NFC service. See
+  /// README.md.
+  serviceNotDeclared,
+}
+
 /// Requested item from a namespace
 class MdlNamespaceItem {
   MdlNamespaceItem({
@@ -467,23 +489,26 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is MdlNfcPhase) {
       buffer.putUint8(130);
       writeValue(buffer, value.index);
-    }    else if (value is MdlNamespaceItem) {
+    }    else if (value is MdlNfcAvailability) {
       buffer.putUint8(131);
-      writeValue(buffer, value.encode());
-    }    else if (value is MdlNamespaceRequest) {
+      writeValue(buffer, value.index);
+    }    else if (value is MdlNamespaceItem) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
-    }    else if (value is MdlItemsRequest) {
+    }    else if (value is MdlNamespaceRequest) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    }    else if (value is MdlPresentationStateUpdate) {
+    }    else if (value is MdlItemsRequest) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    }    else if (value is MdlPresentationSuccess) {
+    }    else if (value is MdlPresentationStateUpdate) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is MdlPresentationError) {
+    }    else if (value is MdlPresentationSuccess) {
       buffer.putUint8(136);
+      writeValue(buffer, value.encode());
+    }    else if (value is MdlPresentationError) {
+      buffer.putUint8(137);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -500,16 +525,19 @@ class _PigeonCodec extends StandardMessageCodec {
         final value = readValue(buffer) as int?;
         return value == null ? null : MdlNfcPhase.values[value];
       case 131:
-        return MdlNamespaceItem.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : MdlNfcAvailability.values[value];
       case 132:
-        return MdlNamespaceRequest.decode(readValue(buffer)!);
+        return MdlNamespaceItem.decode(readValue(buffer)!);
       case 133:
-        return MdlItemsRequest.decode(readValue(buffer)!);
+        return MdlNamespaceRequest.decode(readValue(buffer)!);
       case 134:
-        return MdlPresentationStateUpdate.decode(readValue(buffer)!);
+        return MdlItemsRequest.decode(readValue(buffer)!);
       case 135:
-        return MdlPresentationSuccess.decode(readValue(buffer)!);
+        return MdlPresentationStateUpdate.decode(readValue(buffer)!);
       case 136:
+        return MdlPresentationSuccess.decode(readValue(buffer)!);
+      case 137:
         return MdlPresentationError.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -594,7 +622,8 @@ class MdlPresentation {
   ///
   /// True when the device has an NFC adapter that is turned on, supports
   /// host card emulation, and the app manifest declares the plugin's NFC
-  /// service. Always false on iOS.
+  /// service. Always false on iOS. Same as [getNfcAvailability] returning
+  /// [MdlNfcAvailability.available].
   Future<bool> isNfcPresentationAvailable() async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.MdlPresentation.isNfcPresentationAvailable$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -612,6 +641,29 @@ class MdlPresentation {
     )
     ;
     return pigeonVar_replyValue! as bool;
+  }
+
+  /// Whether this device can present over an NFC tap, and the reason when it
+  /// cannot
+  ///
+  /// [MdlNfcAvailability.unsupportedPlatform] on iOS.
+  Future<MdlNfcAvailability> getNfcAvailability() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.MdlPresentation.getNfcAvailability$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as MdlNfcAvailability;
   }
 
   /// Arm an NFC tap based presentation session

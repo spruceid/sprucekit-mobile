@@ -228,6 +228,28 @@ enum MdlNfcPhase: Int {
   case unavailable = 2
 }
 
+/// Whether an NFC tap presentation can start on this device, and why not
+///
+/// Returned by [MdlPresentation.getNfcAvailability]. Only [turnedOff] is a
+/// state that the user can change. The other failures are properties of the
+/// platform, the device, or the app build.
+enum MdlNfcAvailability: Int {
+  /// NFC is on, and [MdlPresentation.initializeNfcPresentation] can arm a tap.
+  case available = 0
+  /// The device supports NFC presentation, but NFC is turned off. The user
+  /// can turn it on in the system settings.
+  case turnedOff = 1
+  /// The platform has no NFC tap presentation. The value on iOS.
+  case unsupportedPlatform = 2
+  /// The device has no NFC adapter.
+  case noAdapter = 3
+  /// The device has an NFC adapter but cannot emulate a card.
+  case noHostCardEmulation = 4
+  /// The app manifest does not declare the plugin's NFC service. See
+  /// README.md.
+  case serviceNotDeclared = 5
+}
+
 /// Requested item from a namespace
 ///
 /// Generated class from Pigeon that represents data sent in messages.
@@ -496,16 +518,22 @@ private class MdlPresentationPigeonCodecReader: FlutterStandardReader {
       }
       return nil
     case 131:
-      return MdlNamespaceItem.fromList(self.readValue() as! [Any?])
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return MdlNfcAvailability(rawValue: enumResultAsInt)
+      }
+      return nil
     case 132:
-      return MdlNamespaceRequest.fromList(self.readValue() as! [Any?])
+      return MdlNamespaceItem.fromList(self.readValue() as! [Any?])
     case 133:
-      return MdlItemsRequest.fromList(self.readValue() as! [Any?])
+      return MdlNamespaceRequest.fromList(self.readValue() as! [Any?])
     case 134:
-      return MdlPresentationStateUpdate.fromList(self.readValue() as! [Any?])
+      return MdlItemsRequest.fromList(self.readValue() as! [Any?])
     case 135:
-      return MdlPresentationSuccess.fromList(self.readValue() as! [Any?])
+      return MdlPresentationStateUpdate.fromList(self.readValue() as! [Any?])
     case 136:
+      return MdlPresentationSuccess.fromList(self.readValue() as! [Any?])
+    case 137:
       return MdlPresentationError.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -521,23 +549,26 @@ private class MdlPresentationPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? MdlNfcPhase {
       super.writeByte(130)
       super.writeValue(value.rawValue)
-    } else if let value = value as? MdlNamespaceItem {
+    } else if let value = value as? MdlNfcAvailability {
       super.writeByte(131)
-      super.writeValue(value.toList())
-    } else if let value = value as? MdlNamespaceRequest {
+      super.writeValue(value.rawValue)
+    } else if let value = value as? MdlNamespaceItem {
       super.writeByte(132)
       super.writeValue(value.toList())
-    } else if let value = value as? MdlItemsRequest {
+    } else if let value = value as? MdlNamespaceRequest {
       super.writeByte(133)
       super.writeValue(value.toList())
-    } else if let value = value as? MdlPresentationStateUpdate {
+    } else if let value = value as? MdlItemsRequest {
       super.writeByte(134)
       super.writeValue(value.toList())
-    } else if let value = value as? MdlPresentationSuccess {
+    } else if let value = value as? MdlPresentationStateUpdate {
       super.writeByte(135)
       super.writeValue(value.toList())
-    } else if let value = value as? MdlPresentationError {
+    } else if let value = value as? MdlPresentationSuccess {
       super.writeByte(136)
+      super.writeValue(value.toList())
+    } else if let value = value as? MdlPresentationError {
+      super.writeByte(137)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -613,8 +644,14 @@ protocol MdlPresentation {
   ///
   /// True when the device has an NFC adapter that is turned on, supports
   /// host card emulation, and the app manifest declares the plugin's NFC
-  /// service. Always false on iOS.
+  /// service. Always false on iOS. Same as [getNfcAvailability] returning
+  /// [MdlNfcAvailability.available].
   func isNfcPresentationAvailable() throws -> Bool
+  /// Whether this device can present over an NFC tap, and the reason when it
+  /// cannot
+  ///
+  /// [MdlNfcAvailability.unsupportedPlatform] on iOS.
+  func getNfcAvailability() throws -> MdlNfcAvailability
   /// Arm an NFC tap based presentation session
   ///
   /// The BLE session starts when a reader taps the phone. The engagement
@@ -679,7 +716,8 @@ class MdlPresentationSetup {
     ///
     /// True when the device has an NFC adapter that is turned on, supports
     /// host card emulation, and the app manifest declares the plugin's NFC
-    /// service. Always false on iOS.
+    /// service. Always false on iOS. Same as [getNfcAvailability] returning
+    /// [MdlNfcAvailability.available].
     let isNfcPresentationAvailableChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.MdlPresentation.isNfcPresentationAvailable\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       isNfcPresentationAvailableChannel.setMessageHandler { _, reply in
@@ -692,6 +730,23 @@ class MdlPresentationSetup {
       }
     } else {
       isNfcPresentationAvailableChannel.setMessageHandler(nil)
+    }
+    /// Whether this device can present over an NFC tap, and the reason when it
+    /// cannot
+    ///
+    /// [MdlNfcAvailability.unsupportedPlatform] on iOS.
+    let getNfcAvailabilityChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.MdlPresentation.getNfcAvailability\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      getNfcAvailabilityChannel.setMessageHandler { _, reply in
+        do {
+          let result = try api.getNfcAvailability()
+          reply(wrapResult(result))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      getNfcAvailabilityChannel.setMessageHandler(nil)
     }
     /// Arm an NFC tap based presentation session
     ///

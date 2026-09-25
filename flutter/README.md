@@ -71,10 +71,21 @@ The NFC detail rides on the existing `MdlPresentationState` values, so a
 | `isConnectingViaNfc` | `initializing` | The tap delivered the BLE carrier. Connection in progress. |
 | `isNfcUnavailable` | `error` | NFC was turned off while waiting. Fall back to QR. |
 
-`isNfcPresentationAvailable` is true on Android when NFC is on, the phone
-supports host card emulation, and the service is in the merged manifest. It is
-always false on iOS, and `initializeNfcPresentation` returns an error there.
-When it is false, `initializeNfcPresentation` names the reason: NFC turned
-off, no NFC or no host card emulation on the phone, or the service removed.
+`getNfcAvailability` tells the wallet whether a tap can start, and the reason
+when it cannot:
+
+| `MdlNfcAvailability` | Meaning | What the wallet shows |
+|---|---|---|
+| `available` | NFC is on and a tap can be armed. | The tap screen. |
+| `turnedOff` | The phone supports it, but NFC is off. | A hint to turn NFC on, with the system settings. |
+| `unsupportedPlatform` | iOS. | No tap option. |
+| `noAdapter` | The phone has no NFC. | No tap option. |
+| `noHostCardEmulation` | The phone has NFC but cannot emulate a card. | No tap option. |
+| `serviceNotDeclared` | The app manifest does not declare the service. | No tap option. Fix the manifest. |
+
+`isSupported` on the value is true for `available` and `turnedOff`, which are
+the two cases where a tap option makes sense. `isNfcPresentationAvailable` is
+the same as `available`. `initializeNfcPresentation` returns an error with the
+reason in words when the value is not `available`.
 A phone that leaves the reader before the handover finishes stays armed, so
 the user taps again without a restart.
