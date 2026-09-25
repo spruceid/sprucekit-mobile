@@ -19,14 +19,13 @@ allprojects {
     repositories {
         // Uncomment mavenLocal() when testing against a locally-built SDK artifact.
         // See flutter/CLAUDE.md → "Adding a new Rust function to the Android adapter".
-        mavenLocal()
+        // mavenLocal()
         google()
         mavenCentral()
     }
 }
 
 apply plugin: "com.android.library"
-apply plugin: "kotlin-android"
 apply plugin: "org.jetbrains.kotlin.plugin.compose"
 
 android {
@@ -39,17 +38,8 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     buildFeatures {
         compose = true
-    }
-
-    sourceSets {
-        main.java.srcDirs += "src/main/kotlin"
-        test.java.srcDirs += "src/test/kotlin"
     }
 
     defaultConfig {
@@ -94,5 +84,12 @@ android {
                showStandardStreams = true
             }
         }
+    }
+}
+
+// Registered by the KGP Flutter applies on AGP < 9, and by built-in Kotlin on 9+.
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
 }
