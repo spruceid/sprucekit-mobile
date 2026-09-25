@@ -13,3 +13,12 @@ extension MdlPresentationNfcUpdate on MdlPresentationStateUpdate {
   /// NFC was turned off while waiting for the tap. Fall back to QR.
   bool get isNfcUnavailable => nfcPhase == MdlNfcPhase.unavailable;
 }
+
+/// Readers for [MdlPresentation.getNfcAvailability].
+extension MdlNfcAvailabilityReaders on MdlNfcAvailability {
+  /// The device and the app can present over NFC, now or after the user
+  /// turns NFC on. Use it to decide whether to offer the tap option.
+  bool get isSupported =>
+      this == MdlNfcAvailability.available ||
+      this == MdlNfcAvailability.turnedOff;
+}

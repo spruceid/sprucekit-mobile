@@ -111,6 +111,33 @@ enum MdlNfcPhase {
   unavailable,
 }
 
+/// Whether an NFC tap presentation can start on this device, and why not
+///
+/// Returned by [MdlPresentation.getNfcAvailability]. Only [turnedOff] is a
+/// state that the user can change. The other failures are properties of the
+/// platform, the device, or the app build.
+enum MdlNfcAvailability {
+  /// NFC is on, and [MdlPresentation.initializeNfcPresentation] can arm a tap.
+  available,
+
+  /// The device supports NFC presentation, but NFC is turned off. The user
+  /// can turn it on in the system settings.
+  turnedOff,
+
+  /// The platform has no NFC tap presentation. The value on iOS.
+  unsupportedPlatform,
+
+  /// The device has no NFC adapter.
+  noAdapter,
+
+  /// The device has an NFC adapter but cannot emulate a card.
+  noHostCardEmulation,
+
+  /// The app manifest does not declare the plugin's NFC service. See
+  /// README.md.
+  serviceNotDeclared,
+}
+
 /// State update event from the presentation session
 class MdlPresentationStateUpdate {
   /// Current state
@@ -181,8 +208,15 @@ abstract class MdlPresentation {
   ///
   /// True when the device has an NFC adapter that is turned on, supports
   /// host card emulation, and the app manifest declares the plugin's NFC
-  /// service. Always false on iOS.
+  /// service. Always false on iOS. Same as [getNfcAvailability] returning
+  /// [MdlNfcAvailability.available].
   bool isNfcPresentationAvailable();
+
+  /// Whether this device can present over an NFC tap, and the reason when it
+  /// cannot
+  ///
+  /// [MdlNfcAvailability.unsupportedPlatform] on iOS.
+  MdlNfcAvailability getNfcAvailability();
 
   /// Arm an NFC tap based presentation session
   ///

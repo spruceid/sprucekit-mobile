@@ -67,6 +67,10 @@ class MdlPresentationAdapter: NSObject, MdlPresentation {
         return false
     }
 
+    func getNfcAvailability() throws -> MdlNfcAvailability {
+        return .unsupportedPlatform
+    }
+
     func initializeNfcPresentation(
         packId: String,
         credentialId: String,

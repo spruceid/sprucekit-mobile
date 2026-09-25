@@ -42,4 +42,14 @@ void main() {
       expect(update.isNfcUnavailable, isTrue);
     });
   });
+
+  group('MdlNfcAvailabilityReaders', () {
+    test('only available and turnedOff are supported', () {
+      final supported = MdlNfcAvailability.values.where((a) => a.isSupported);
+      expect(supported, [
+        MdlNfcAvailability.available,
+        MdlNfcAvailability.turnedOff,
+      ]);
+    });
+  });
 }
