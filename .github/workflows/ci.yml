@@ -219,7 +219,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: "8.13"
+          gradle-version: "9.1.0"
 
       # Compiles the plugin's Kotlin against the published SDK, runs its unit
       # tests, and merges the example manifest, which checks the opt-in NFC

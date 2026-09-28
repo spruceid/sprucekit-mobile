@@ -5,7 +5,7 @@ homepage: https://github.com/spruceid/sprucekit-mobile
 
 environment:
   sdk: ^3.10.0
-  flutter: '>=3.3.0'
+  flutter: ">=3.44.0"
 
 dependencies:
   flutter:
