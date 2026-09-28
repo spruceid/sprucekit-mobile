@@ -607,35 +607,31 @@ pub fn verify_device_response(
 mod tests {
     use super::*;
 
+    /// A representative, deterministically-encoded session-transcript-shaped value:
+    /// a 3-element array of `[ #6.24(bstr), {1: 2}, "QR" ]`.
+    const BARE_TRANSCRIPT: [u8; 13] = [
+        0x83, // array(3)
+        0xd8, 0x18, 0x43, 0x01, 0x02, 0x03, // 24(h'010203')
+        0xa1, 0x01, 0x02, // map: {1: 2}
+        0x62, 0x51, 0x52, // text: "QR"
+    ];
+
     /// Device authentication verifies a signature over a `DeviceAuthentication` structure that
     /// embeds the `SessionTranscript`. For verification to succeed against an externally-supplied
     /// transcript, [`ProvidedSessionTranscript`] must re-encode it byte-for-byte — so a transparent
     /// decode/encode round-trip of deterministic CBOR must be the identity.
     #[test]
     fn provided_session_transcript_roundtrips_cbor_verbatim() {
-        // A representative, deterministically-encoded session-transcript-shaped value:
-        // a 3-element array of [ #6.24(bstr), {1: 2}, "QR" ].
-        let bytes: Vec<u8> = vec![
-            0x83, // array(3)
-            0xd8, 0x18, 0x43, 0x01, 0x02, 0x03, // 24(h'010203')
-            0xa1, 0x01, 0x02, // map: {1: 2}
-            0x62, 0x51, 0x52, // text: "QR"
-        ];
-
         let transcript: ProvidedSessionTranscript =
-            isomdl::cbor::from_slice(&bytes).expect("decode session transcript");
+            isomdl::cbor::from_slice(&BARE_TRANSCRIPT).expect("decode session transcript");
         let reencoded = isomdl::cbor::to_vec(&transcript).expect("encode session transcript");
 
         assert_eq!(
-            bytes, reencoded,
+            BARE_TRANSCRIPT.to_vec(),
+            reencoded,
             "session transcript must round-trip byte-for-byte"
         );
     }
-
-    /// The same session-transcript-shaped fixture as above: `[ #6.24(h'010203'), {1: 2}, "QR" ]`.
-    const BARE_TRANSCRIPT: [u8; 13] = [
-        0x83, 0xd8, 0x18, 0x43, 0x01, 0x02, 0x03, 0xa1, 0x01, 0x02, 0x62, 0x51, 0x52,
-    ];
 
     /// A bare `SessionTranscript` is used byte-for-byte.
     #[test]
