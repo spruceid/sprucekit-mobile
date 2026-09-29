@@ -31,7 +31,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.ParagraphStyle
@@ -49,6 +48,7 @@ import com.spruceid.mobile.sdk.KeyManager
 import com.spruceid.mobile.sdk.rs.CredentialRequirement
 import com.spruceid.mobile.sdk.rs.DidMethod
 import com.spruceid.mobile.sdk.rs.DidMethodUtils
+import com.spruceid.mobile.sdk.rs.defaultLdJsonContext
 import com.spruceid.mobile.sdk.rs.Draft18Holder
 import com.spruceid.mobile.sdk.rs.Draft18PermissionRequest
 import com.spruceid.mobile.sdk.rs.Draft18PermissionResponse
@@ -180,7 +180,6 @@ fun HandleOID4VPView(
     }
     var state by remember { mutableStateOf(OID4VPState.None) }
     var error by remember { mutableStateOf<OID4VPError?>(null) }
-    val ctx = LocalContext.current
 
     // Track selective disclosure progress for multiple credentials
     var currentDisclosureIndex by remember { mutableIntStateOf(0) }
@@ -290,7 +289,7 @@ fun HandleOID4VPView(
                                     trustedDids,
                                     signer,
                                     DEFAULT_SIGNING_KEY_ID,
-                                    getVCPlaygroundOID4VCIContext(ctx),
+                                    defaultLdJsonContext(),
                                     KeyManager()
                                 )
                             val tempPermissionRequest = holder!!.authorizationRequest(newurl)
@@ -328,7 +327,7 @@ fun HandleOID4VPView(
                                     trustedDids,
                                     signer,
                                     DEFAULT_SIGNING_KEY_ID,
-                                    getVCPlaygroundOID4VCIContext(ctx)
+                                    defaultLdJsonContext()
                                 )
                             val tempPermissionRequest = draft18Holder!!.authorizationRequest(newurl)
                             val permissionRequestCredentials = tempPermissionRequest.credentials()
