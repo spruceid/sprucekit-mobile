@@ -107,6 +107,11 @@ impl JwtVc {
 }
 
 impl JwtVc {
+    /// The W3C VCDM credential in the JWT's `vc` claim, as issued.
+    pub(crate) fn vc_claim(&self) -> Option<&serde_json::Value> {
+        self.payload_json.get("vc")
+    }
+
     pub(crate) fn to_compact_jws_bytes(&self) -> Vec<u8> {
         self.jws.as_bytes().to_vec()
     }
@@ -201,6 +206,11 @@ impl CredentialPresentation for JwtVc {
         options: &'a PresentationOptions<'a>,
         _selected_fields: Option<Vec<String>>,
     ) -> Result<VpTokenItem, OID4VPError> {
+        // OID4VP 1.0 Appendix B.1: without Holder Binding, return the VC.
+        if !options.require_holder_binding {
+            return Ok(VpTokenItem::String(self.jws.as_str().to_owned()));
+        }
+
         let vm = options.verification_method_id().await?.to_string();
         let holder_id = options.subject();
 
