@@ -235,6 +235,14 @@ impl Mdoc {
         Self { inner, key_alias }
     }
 
+    /// Whether the mdoc holds the data element `element` in `namespace`.
+    pub(crate) fn has_element(&self, namespace: &str, element: &str) -> bool {
+        self.document()
+            .namespaces
+            .get(namespace)
+            .is_some_and(|elements| elements.contains_key(element))
+    }
+
     /// Check if the mdoc satisfies a DCQL credential query.
     /// Used for OID4VP 1.0 flow with mso_mdoc format.
     pub fn satisfies_dcql_query(&self, credential_query: &DcqlCredentialQuery) -> bool {
@@ -371,12 +379,10 @@ impl Mdoc {
             }
         }
 
-        let revealed_namespaces: NonEmptyMap<String, NonEmptyVec<Tag24<IssuerSignedItem>>> =
-            NonEmptyMap::maybe_new(revealed_namespaces).ok_or_else(|| {
-                OID4VPError::CredentialEncoding(CredentialEncodingError::VpToken(
-                    "No fields selected for mdoc presentation".into(),
-                ))
-            })?;
+        // No selected field discloses no data element: none is mandatory
+        // (OID4VP 1.0 §6.4.1), and `IssuerSigned.nameSpaces` is optional.
+        let revealed_namespaces: Option<NonEmptyMap<String, NonEmptyVec<Tag24<IssuerSignedItem>>>> =
+            NonEmptyMap::maybe_new(revealed_namespaces);
 
         // Create Handover per OID4VP 1.0 §B.2.6.1 (Invocation via Redirects)
         let jwk_thumbprint = get_encryption_jwk_thumbprint(options.request);
