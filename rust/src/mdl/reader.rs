@@ -458,6 +458,36 @@ struct ProvidedSessionTranscript(ciborium::Value);
 
 impl isomdl::definitions::session::SessionTranscript for ProvidedSessionTranscript {}
 
+impl ProvidedSessionTranscript {
+    /// Decodes a CBOR-encoded `SessionTranscript`, also accepting `SessionTranscriptBytes`
+    /// (`#6.24(bstr .cbor SessionTranscript)`), which some platforms hand the reader instead
+    /// (e.g. Apple's ProximityReader `sessionTranscript`).
+    ///
+    /// isomdl embeds the transcript in `DeviceAuthentication` as-is and wraps it in Tag24 itself
+    /// for the EMacKey salt, so it must be the bare array: a tagged transcript would never pass
+    /// device authentication.
+    fn from_cbor(bytes: &[u8]) -> Result<Self, MDLReaderResponseError> {
+        let decode = |bytes: &[u8]| {
+            isomdl::cbor::from_slice::<ciborium::Value>(bytes).map_err(|e| {
+                MDLReaderResponseError::Generic {
+                    value: format!("unable to decode session transcript: {e:?}"),
+                }
+            })
+        };
+        match decode(bytes)? {
+            ciborium::Value::Tag(24, inner) => match *inner {
+                ciborium::Value::Bytes(inner) => Ok(Self(decode(&inner)?)),
+                other => Err(MDLReaderResponseError::Generic {
+                    value: format!(
+                        "unable to decode session transcript: tag 24 must wrap a byte string, got {other:?}"
+                    ),
+                }),
+            },
+            transcript => Ok(Self(transcript)),
+        }
+    }
+}
+
 /// The result of verifying a `DeviceResponse` against an externally-supplied session transcript.
 ///
 /// Mirrors [`MDLReaderResponseData`] but carries no reader [`MDLSessionManager`], since the
@@ -521,11 +551,7 @@ pub fn verify_device_response(
             }
         })?;
 
-    let session_transcript: ciborium::Value = isomdl::cbor::from_slice(&session_transcript)
-        .map_err(|e| MDLReaderResponseError::Generic {
-            value: format!("unable to decode session transcript: {e:?}"),
-        })?;
-    let session_transcript = ProvidedSessionTranscript(session_transcript);
+    let session_transcript = ProvidedSessionTranscript::from_cbor(&session_transcript)?;
 
     let registry =
         build_registry(trust_anchor_registry).map_err(|e| MDLReaderResponseError::Generic {
@@ -581,29 +607,67 @@ pub fn verify_device_response(
 mod tests {
     use super::*;
 
+    /// A representative, deterministically-encoded session-transcript-shaped value:
+    /// a 3-element array of `[ #6.24(bstr), {1: 2}, "QR" ]`.
+    const BARE_TRANSCRIPT: [u8; 13] = [
+        0x83, // array(3)
+        0xd8, 0x18, 0x43, 0x01, 0x02, 0x03, // 24(h'010203')
+        0xa1, 0x01, 0x02, // map: {1: 2}
+        0x62, 0x51, 0x52, // text: "QR"
+    ];
+
     /// Device authentication verifies a signature over a `DeviceAuthentication` structure that
     /// embeds the `SessionTranscript`. For verification to succeed against an externally-supplied
     /// transcript, [`ProvidedSessionTranscript`] must re-encode it byte-for-byte — so a transparent
     /// decode/encode round-trip of deterministic CBOR must be the identity.
     #[test]
     fn provided_session_transcript_roundtrips_cbor_verbatim() {
-        // A representative, deterministically-encoded session-transcript-shaped value:
-        // a 3-element array of [ #6.24(bstr), {1: 2}, "QR" ].
-        let bytes: Vec<u8> = vec![
-            0x83, // array(3)
-            0xd8, 0x18, 0x43, 0x01, 0x02, 0x03, // 24(h'010203')
-            0xa1, 0x01, 0x02, // map: {1: 2}
-            0x62, 0x51, 0x52, // text: "QR"
-        ];
-
         let transcript: ProvidedSessionTranscript =
-            isomdl::cbor::from_slice(&bytes).expect("decode session transcript");
+            isomdl::cbor::from_slice(&BARE_TRANSCRIPT).expect("decode session transcript");
         let reencoded = isomdl::cbor::to_vec(&transcript).expect("encode session transcript");
 
         assert_eq!(
-            bytes, reencoded,
+            BARE_TRANSCRIPT.to_vec(),
+            reencoded,
             "session transcript must round-trip byte-for-byte"
         );
+    }
+
+    /// A bare `SessionTranscript` is used byte-for-byte.
+    #[test]
+    fn provided_session_transcript_accepts_bare_transcript() {
+        let transcript =
+            ProvidedSessionTranscript::from_cbor(&BARE_TRANSCRIPT).expect("decode transcript");
+        assert_eq!(
+            isomdl::cbor::to_vec(&transcript).unwrap(),
+            BARE_TRANSCRIPT.to_vec()
+        );
+    }
+
+    /// `SessionTranscriptBytes` (`#6.24(bstr .cbor SessionTranscript)`) is unwrapped to exactly
+    /// the bare transcript bytes, which is what device authentication must sign over.
+    #[test]
+    fn provided_session_transcript_unwraps_tag24() {
+        let mut tagged = vec![0xd8, 0x18, 0x40 | BARE_TRANSCRIPT.len() as u8]; // 24(bstr(13))
+        tagged.extend_from_slice(&BARE_TRANSCRIPT);
+
+        let transcript =
+            ProvidedSessionTranscript::from_cbor(&tagged).expect("decode tagged transcript");
+        assert_eq!(
+            isomdl::cbor::to_vec(&transcript).unwrap(),
+            BARE_TRANSCRIPT.to_vec()
+        );
+    }
+
+    /// Tag 24 must wrap a byte string.
+    #[test]
+    fn provided_session_transcript_rejects_tag24_without_bytes() {
+        // 24([]) — tag 24 around an empty array instead of a bstr.
+        let result = ProvidedSessionTranscript::from_cbor(&[0xd8, 0x18, 0x80]);
+        assert!(matches!(
+            result,
+            Err(MDLReaderResponseError::Generic { .. })
+        ));
     }
 
     /// An invalid CBOR device response surfaces as an error rather than panicking.
