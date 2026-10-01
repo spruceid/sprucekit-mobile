@@ -37,33 +37,37 @@ class _MdlReaderDemoState extends State<MdlReaderDemo>
   bool _bluetoothGranted = false;
 
   /// Default query — exercises the commonly-rendered mDL + AAMVA fields.
-  /// Outer key = namespace, inner key = element name, value = intent-to-retain.
-  static const Map<String, Map<String, bool>> _defaultQuery = {
-    'org.iso.18013.5.1': {
-      'given_name': false,
-      'family_name': false,
-      'birth_date': false,
-      'issue_date': false,
-      'expiry_date': false,
-      'document_number': false,
-      'portrait': false,
-      'age_over_18': false,
-      'age_over_21': false,
-      'driving_privileges': false,
-      'issuing_country': false,
-      'issuing_authority': false,
-    },
-    'org.iso.18013.5.1.aamva': {
-      'domestic_driving_privileges': false,
-      'EDL_credential': false,
-      'sex': false,
+  /// Outer key = doctype, then namespace, then element name; value =
+  /// intent-to-retain. One `DocRequest` is built per doctype, so adding a
+  /// second doctype here asks for both credentials in one exchange.
+  static const Map<String, Map<String, Map<String, bool>>> _defaultQuery = {
+    'org.iso.18013.5.1.mDL': {
+      'org.iso.18013.5.1': {
+        'given_name': false,
+        'family_name': false,
+        'birth_date': false,
+        'issue_date': false,
+        'expiry_date': false,
+        'document_number': false,
+        'portrait': false,
+        'age_over_18': false,
+        'age_over_21': false,
+        'driving_privileges': false,
+        'issuing_country': false,
+        'issuing_authority': false,
+      },
+      'org.iso.18013.5.1.aamva': {
+        'domestic_driving_privileges': false,
+        'EDL_credential': false,
+        'sex': false,
+      },
     },
   };
 
-  /// IACA trust anchors (PEM). Empty list → no chain validation
-  /// (issuerAuthentication will be `invalid` or `unchecked`). Demo leaves
-  /// empty so the trust path is exercised but visibly fails — see the
-  /// trust badge in the response view.
+  /// IACA trust anchors (PEM). Empty list → no chain validation, which shows
+  /// up as an entry in [MdlReadResponse.errors]. Demo leaves empty so the
+  /// trust path is exercised but visibly fails — see the trust badge in the
+  /// response view.
   static const List<String> _trustedRoots = [];
 
   @override
@@ -388,24 +392,27 @@ class _ResponseView extends StatelessWidget {
   final MdlReadResponse response;
   final VoidCallback onReset;
 
-  bool get _trusted =>
-      response.issuerAuthentication == MdlAuthenticationStatus.valid &&
-      response.deviceAuthentication == MdlAuthenticationStatus.valid;
+  /// The verified items are drawn solely from documents that passed every
+  /// check, and a document that failed always contributes at least one entry
+  /// to [MdlReadResponse.errors] — so their absence is the success signal.
+  bool get _trusted => response.errors == null;
 
   Color get _trustColor => _trusted ? Colors.green : Colors.red.shade700;
 
-  /// Decoded `verifiedResponseJson` shaped as `namespace → element → value`.
-  /// Values are JSON primitives, nested maps, or lists. We keep them as
-  /// `dynamic` and let [_ElementRow] format them.
-  Map<String, dynamic> get _decodedNamespaces {
+  /// Decoded `verifiedResponseJson`: one entry per verified document, each
+  /// `{"docType": ..., "namespaces": {namespace → element → value}}`.
+  /// Element values are JSON primitives, nested maps, or lists. We keep them
+  /// as `dynamic` and let [_ElementRow] format them.
+  List<Map<String, dynamic>> get _decodedDocuments {
     try {
       final decoded = jsonDecode(response.verifiedResponseJson);
-      if (decoded is Map<String, dynamic>) return decoded;
-      if (decoded is Map) {
-        return decoded.map((k, v) => MapEntry(k.toString(), v));
+      if (decoded is List) {
+        return decoded.whereType<Map>().map((document) {
+          return document.map((k, v) => MapEntry(k.toString(), v));
+        }).toList();
       }
     } catch (_) {}
-    return const {};
+    return const [];
   }
 
   @override
@@ -437,11 +444,6 @@ class _ResponseView extends StatelessWidget {
                           color: _trustColor,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'issuer: ${response.issuerAuthentication.name}'
-                        '   device: ${response.deviceAuthentication.name}',
-                      ),
                     ],
                   ),
                 ),
@@ -450,20 +452,37 @@ class _ResponseView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        if (response.docTypes.isNotEmpty)
+        if (response.failedDocTypes.isNotEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Text(
-              'docTypes: ${response.docTypes.join(", ")}',
+              'could not verify: ${response.failedDocTypes.join(", ")}',
               style: const TextStyle(color: Colors.grey),
             ),
           ),
         const SizedBox(height: 12),
-        for (final entry in _decodedNamespaces.entries)
-          _NamespaceCard(
-            namespace: entry.key,
-            elements: entry.value as Map<String, dynamic>,
+        // One block per verified document, never merged: two documents may
+        // share a namespace, and merging would let one overwrite the other.
+        for (final document in _decodedDocuments) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            child: Text(
+              '${document["docType"]}',
+              style: const TextStyle(
+                fontFamily: 'monospace',
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
+          for (final entry
+              in (document['namespaces'] as Map? ?? const {}).entries)
+            _NamespaceCard(
+              namespace: entry.key.toString(),
+              elements: (entry.value as Map).map(
+                (k, v) => MapEntry(k.toString(), v),
+              ),
+            ),
+        ],
         if (response.errors != null) _ErrorsPanel(json: response.errors!),
         const SizedBox(height: 24),
         Center(

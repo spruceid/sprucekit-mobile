@@ -5,21 +5,27 @@ import android.content.Context
 import android.util.Log
 import com.spruceid.mobile.sdk.ble.BleConnectionStateMachineInstanceType
 import com.spruceid.mobile.sdk.ble.Transport
-import com.spruceid.mobile.sdk.rs.MDocItem
 import com.spruceid.mobile.sdk.rs.MdlReaderResponseData
 import com.spruceid.mobile.sdk.rs.MdlReaderResponseException
 import com.spruceid.mobile.sdk.rs.MdlSessionManager
+import com.spruceid.mobile.sdk.rs.VerifiedDocument
 import com.spruceid.mobile.sdk.rs.establishSession
 import com.spruceid.mobile.sdk.rs.ReaderHandover
 import java.util.UUID
 
+/**
+ * @param requestedItems data elements to request, keyed by document type, then namespace, then
+ *   element identifier. One `DocRequest` is built per document type, so a reader can ask for
+ *   several credentials in one exchange. At least one document type is required: a request
+ *   naming none is answered with nothing rather than an error.
+ */
 class IsoMdlReader(
     val callback: BLESessionStateDelegate,
     handover: ReaderHandover,
-    requestedItems: Map<String, Map<String, Boolean>>,
+    requestedItems: Map<String, Map<String, Map<String, Boolean>>>,
     trustAnchorRegistry: List<String>?,
     platformBluetooth: BluetoothManager,
-    context: Context
+    context: Context,
 ) {
     private lateinit var session: MdlSessionManager
     private lateinit var bleManager: Transport
@@ -27,7 +33,7 @@ class IsoMdlReader(
     constructor(
         callback: BLESessionStateDelegate,
         uri: String,
-        requestedItems: Map<String, Map<String, Boolean>>,
+        requestedItems: Map<String, Map<String, Map<String, Boolean>>>,
         trustAnchorRegistry: List<String>?,
         platformBluetooth: BluetoothManager,
         context: Context,
@@ -42,7 +48,8 @@ class IsoMdlReader(
 
     init {
         try {
-            val sessionData = establishSession(handover, requestedItems, trustAnchorRegistry)
+            val sessionData =
+                establishSession(handover, requestedItems, trustAnchorRegistry)
 
             session = sessionData.state
             try {
@@ -100,10 +107,11 @@ class IsoMdlReader(
         }
     }
 
-    fun handleResponse(response: ByteArray): Map<String, Map<String, MDocItem>> {
+    fun handleResponse(response: ByteArray): List<VerifiedDocument> {
         try {
-            val responseData = com.spruceid.mobile.sdk.rs.handleResponse(session, response)
-            return responseData.verifiedResponse
+            val responseData =
+                com.spruceid.mobile.sdk.rs.handleResponse(session, response)
+            return responseData.documents
         } catch (e: MdlReaderResponseException) {
             throw e
         }
@@ -111,16 +119,15 @@ class IsoMdlReader(
 
     fun handleMdlReaderResponseData(response: ByteArray): MdlReaderResponseData {
         try {
-            val data = com.spruceid.mobile.sdk.rs.handleResponse(session, response)
+            val data =
+                com.spruceid.mobile.sdk.rs.handleResponse(session, response)
             // Diagnostic: surface what handleResponse produced so a capture can
             // tell "empty/failed parse" from "parsed but unverified". `errors`
             // is the JSON-encoded per-category error map from isomdl.
             Log.d(
                 "IsoMdlReader",
-                "handleResponse: docTypes=${data.docTypes}, " +
-                    "issuerAuth=${data.issuerAuthentication}, " +
-                    "deviceAuth=${data.deviceAuthentication}, " +
-                    "namespaces=${data.verifiedResponse.keys}, " +
+                "handleResponse: verified=${data.documents.map { it.docType }}, " +
+                    "failed=${data.failedDocTypes}, " +
                     "errors=${data.errors}"
             )
             return data

@@ -5,7 +5,24 @@ import SpruceIDMobileSdkRs
 import SwiftUI
 
 struct VerifyMDoc: Hashable {
-    var checkAgeOver18: Bool = false
+    var profile: MDocVerificationProfile = .mdl
+}
+
+/// What the mdoc reader asks for: which document type, and which data elements.
+public enum MDocVerificationProfile: Hashable {
+    /// ISO 18013-5 mobile driver's license.
+    case mdl
+    /// ISO 18013-5 mobile driver's license, requesting only `age_over_18`.
+    case mdlAgeOver18
+
+    /// Requested data elements, keyed by document type, then namespace, then element identifier.
+    /// The value is the reader's intent to retain the element.
+    var requestedItems: [String: [String: [String: Bool]]] {
+        switch self {
+        case .mdl: return [mdlDocType: defaultElements]
+        case .mdlAgeOver18: return [mdlDocType: ageOver18Elements]
+        }
+    }
 }
 
 let defaultElements = [
@@ -79,6 +96,9 @@ let ageOver18Elements = [
     ]
 ]
 
+/// ISO 18013-5 mobile driver's license doctype.
+let mdlDocType = "org.iso.18013.5.1.mDL"
+
 private enum EngagementTab: Int, Hashable {
     case qr = 0
     case nfc = 1
@@ -86,7 +106,7 @@ private enum EngagementTab: Int, Hashable {
 
 public struct VerifyMDocView: View {
     @Binding var path: NavigationPath
-    var checkAgeOver18: Bool = false
+    var profile: MDocVerificationProfile = .mdl
 
     @State private var handover: ReaderHandover?
     @State private var selectedTab: EngagementTab = .qr
@@ -97,9 +117,9 @@ public struct VerifyMDocView: View {
     var trustedCertificates = TrustedCertificatesDataStore.shared
         .getAllCertificates()
 
-    public init(path: Binding<NavigationPath>, checkAgeOver18: Bool = false) {
+    public init(path: Binding<NavigationPath>, profile: MDocVerificationProfile = .mdl) {
         self._path = path
-        self.checkAgeOver18 = checkAgeOver18
+        self.profile = profile
     }
 
     public var body: some View {
@@ -107,8 +127,7 @@ public struct VerifyMDocView: View {
             if let handover {
                 MDocReaderView(
                     handover: handover,
-                    requestedItems: !checkAgeOver18
-                        ? defaultElements : ageOver18Elements,
+                    requestedItems: profile.requestedItems,
                     trustAnchorRegistry: trustedCertificates.map { $0.content },
                     onCancel: onCancel,
                     path: $path
@@ -217,7 +236,7 @@ public struct MDocReaderView: View {
 
     init(
         handover: ReaderHandover,
-        requestedItems: [String: [String: Bool]],
+        requestedItems: [String: [String: [String: Bool]]],
         trustAnchorRegistry: [String]?,
         onCancel: @escaping () -> Void,
         path: Binding<NavigationPath>
@@ -300,12 +319,8 @@ public struct MDocReaderView: View {
                 )
             case .receivedResponse(let r):
                 VerifierMdocResultView(
-                    result: r.data.verifiedResponse,
-                    docTypes: r.data.docTypes,
-                    issuerAuthenticationStatus: r.data
-                        .issuerAuthentication,
-                    deviceAuthenticationStatus: r.data
-                        .deviceAuthentication,
+                    documents: r.data.documents,
+                    failedDocTypes: r.data.failedDocTypes,
                     responseProcessingErrors: r.data.errors,
                     onClose: {
                         onCancel()
@@ -362,7 +377,7 @@ class MDocScanViewDelegate: ObservableObject & MdocProximityReader.Delegate {
 
     init(
         handover: ReaderHandover,
-        requestedItems: [String: [String: Bool]],
+        requestedItems: [String: [String: [String: Bool]]],
         trustAnchorRegistry: [String]?
     ) {
         self.mdocReader = MdocProximityReader(

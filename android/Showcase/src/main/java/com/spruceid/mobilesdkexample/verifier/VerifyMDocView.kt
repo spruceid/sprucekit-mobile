@@ -54,9 +54,8 @@ import com.spruceid.mobile.sdk.IsoMdlReader
 import com.spruceid.mobile.sdk.getBluetoothManager
 import com.spruceid.mobile.sdk.getPermissions
 import com.spruceid.mobile.sdk.nfc.rememberNfcReaderEngagement
-import com.spruceid.mobile.sdk.rs.AuthenticationStatus
-import com.spruceid.mobile.sdk.rs.MDocItem
 import com.spruceid.mobile.sdk.rs.ReaderHandover
+import com.spruceid.mobile.sdk.rs.VerifiedDocument
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.ScanningComponent
@@ -149,6 +148,28 @@ val ageOver18Elements: Map<String, Map<String, Boolean>> =
         )
     )
 
+/** ISO 18013-5 mobile driver's license doctype. */
+const val MDL_DOC_TYPE = "org.iso.18013.5.1.mDL"
+
+/** What the mdoc reader asks for: which document type, and which data elements. */
+enum class MDocVerificationProfile {
+    /** ISO 18013-5 mobile driver's license. */
+    MDL,
+
+    /** ISO 18013-5 mobile driver's license, requesting only `age_over_18`. */
+    MDL_AGE_OVER_18;
+
+    /**
+     * Requested data elements, keyed by document type, then namespace, then element identifier.
+     * The value is the reader's intent to retain the element.
+     */
+    val requestedItems: Map<String, Map<String, Map<String, Boolean>>>
+        get() = when (this) {
+            MDL -> mapOf(MDL_DOC_TYPE to defaultElements)
+            MDL_AGE_OVER_18 -> mapOf(MDL_DOC_TYPE to ageOver18Elements)
+        }
+}
+
 enum class State {
     ENABLE_BLUETOOTH,
     SCANNING,
@@ -163,7 +184,7 @@ enum class State {
 @Composable
 fun VerifyMDocView(
     navController: NavController,
-    checkAgeOver18: Boolean = false
+    profile: MDocVerificationProfile = MDocVerificationProfile.MDL
 ) {
     val verificationActivityLogsViewModel: VerificationActivityLogsViewModel =
         activityHiltViewModel()
@@ -176,10 +197,8 @@ fun VerifyMDocView(
         mutableStateOf(State.ENABLE_BLUETOOTH)
     }
 
-    var result by remember { mutableStateOf<Map<String, Map<String, MDocItem>>?>(null) }
-    var docTypes by remember { mutableStateOf<List<String>>(emptyList()) }
-    var issuerAuthenticationStatus by remember { mutableStateOf<AuthenticationStatus?>(null) }
-    var deviceAuthenticationStatus by remember { mutableStateOf<AuthenticationStatus?>(null) }
+    var documents by remember { mutableStateOf<List<VerifiedDocument>>(emptyList()) }
+    var failedDocTypes by remember { mutableStateOf<List<String>>(emptyList()) }
     var responseProcessingErrors by remember { mutableStateOf<String?>(null) }
 
     var isBluetoothEnabled by remember {
@@ -232,10 +251,8 @@ fun VerifyMDocView(
             if (state.containsKey("mdl")) {
                 val response = reader?.handleMdlReaderResponseData(state["mdl"] as ByteArray)
                 if (response != null) {
-                    result = response.verifiedResponse
-                    docTypes = response.docTypes
-                    issuerAuthenticationStatus = response.issuerAuthentication
-                    deviceAuthenticationStatus = response.deviceAuthentication
+                    documents = response.documents
+                    failedDocTypes = response.failedDocTypes
                     responseProcessingErrors = response.errors
                 }
                 scanProcessState = State.DONE
@@ -268,16 +285,12 @@ fun VerifyMDocView(
                 reader = IsoMdlReader(
                     bleCallback,
                     handover,
-                    if (checkAgeOver18) {
-                        ageOver18Elements
-                    } else {
-                        defaultElements
-                    },
+                    profile.requestedItems,
                     trustedCertificatesViewModel.trustedCertificates.value.map {
                         it.content
                     },
                     bluetooth!!,
-                    context.applicationContext
+                    context.applicationContext,
                 )
             } catch (e: Exception) {
                 e.localizedMessage?.let { Toast.showError(it) }
@@ -372,10 +385,8 @@ fun VerifyMDocView(
 
         State.TRANSMITTING -> LoadingView("Verifying...", "Cancel", ::back)
         State.DONE -> VerifierMDocResultView(
-            result = result!!,
-            docTypes = docTypes,
-            issuerAuthenticationStatus = issuerAuthenticationStatus ?: AuthenticationStatus.UNCHECKED,
-            deviceAuthenticationStatus = deviceAuthenticationStatus ?: AuthenticationStatus.UNCHECKED,
+            documents = documents,
+            failedDocTypes = failedDocTypes,
             responseProcessingErrors = responseProcessingErrors,
             onClose = ::back,
             logVerification = { title, issuer, status ->
