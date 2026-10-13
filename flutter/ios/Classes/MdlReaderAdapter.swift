@@ -34,7 +34,7 @@ class MdlReaderAdapter: NSObject, MdlReader {
     }
 
     func startNfcReader(
-        query: [String: [String: Bool]],
+        query: [String: [String: [String: Bool]]],
         trustedRoots: [String]
     ) throws {
         cleanupInternal()
@@ -94,7 +94,11 @@ class MdlReaderAdapter: NSObject, MdlReader {
             .first()
             .receive(on: DispatchQueue.main)
             .sink { [weak self, weak observable] handover in
-                self?.onHandover(handover, query: query, trustedRoots: trustedRoots)
+                self?.onHandover(
+                    handover,
+                    query: query,
+                    trustedRoots: trustedRoots
+                )
                 observable?.consumeHandover()
             }
             .store(in: &cancellables)
@@ -104,12 +108,16 @@ class MdlReaderAdapter: NSObject, MdlReader {
 
     func startQrReader(
         qrUri: String,
-        query: [String: [String: Bool]],
+        query: [String: [String: [String: Bool]]],
         trustedRoots: [String]
     ) throws {
         cleanupInternal()
         let handover = ReaderHandover.newQr(qr: qrUri)
-        onHandover(handover, query: query, trustedRoots: trustedRoots)
+        onHandover(
+            handover,
+            query: query,
+            trustedRoots: trustedRoots
+        )
     }
 
     func cancel() throws {
@@ -121,7 +129,7 @@ class MdlReaderAdapter: NSObject, MdlReader {
 
     private func onHandover(
         _ handover: ReaderHandover,
-        query: [String: [String: Bool]],
+        query: [String: [String: [String: Bool]]],
         trustedRoots: [String]
     ) {
         updateState(MdlReaderStateUpdate(state: .bleConnecting))
@@ -195,7 +203,7 @@ class MdlReaderAdapter: NSObject, MdlReader {
 
     /// Serialize ``MdlReaderResponseData`` into the Pigeon wire shape.
     ///
-    /// `verifiedResponse` is JSON-encoded via the Rust-side
+    /// The verified documents are JSON-encoded via the Rust-side
     /// ``verifiedResponseAsJsonString`` rather than transported as a typed
     /// nested map. See ``MdlReadResponse`` doc for the rationale (Pigeon
     /// recursive-type OOM + nested-Map cast bug).
@@ -208,19 +216,9 @@ class MdlReaderAdapter: NSObject, MdlReader {
         }
         return MdlReadResponse(
             verifiedResponseJson: verifiedJson,
-            docTypes: data.docTypes,
-            issuerAuthentication: toPigeon(data.issuerAuthentication),
-            deviceAuthentication: toPigeon(data.deviceAuthentication),
+            failedDocTypes: data.failedDocTypes,
             errors: data.errors
         )
-    }
-
-    private func toPigeon(_ s: AuthenticationStatus) -> MdlAuthenticationStatus {
-        switch s {
-        case .valid: return .valid
-        case .invalid: return .invalid
-        case .unchecked: return .unchecked
-        }
     }
 }
 

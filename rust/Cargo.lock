@@ -307,13 +307,13 @@ dependencies = [
 
 [[package]]
 name = "async-trait"
-version = "0.1.89"
+version = "0.1.92"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9035ad2d096bed7955a320ee7e2230574d28fd3c3a0f186cbea1ff3c7eed5dbb"
+checksum = "82f6aeea286b8eb4dd3431a1be1b59d290ace00f5bfd8e2a159bc2a05e2c1667"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 3.0.9",
 ]
 
 [[package]]
@@ -1277,7 +1277,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ab67060fc6b8ef687992d439ca0fa36e7ed17e9a0b16b25b601e8757df720de"
 dependencies = [
  "data-encoding",
- "syn 2.0.117",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -2736,7 +2736,7 @@ dependencies = [
 [[package]]
 name = "isomdl"
 version = "0.2.0"
-source = "git+https://github.com/spruceid/isomdl?rev=3ad4471#3ad4471337cc203515c0a8572af7a57612633475"
+source = "git+https://github.com/spruceid/isomdl?rev=fd2612d#fd2612df263e46481c2b0be6129432160ef60e02"
 dependencies = [
  "aes",
  "aes-gcm",
@@ -2756,7 +2756,7 @@ dependencies = [
  "hex",
  "hkdf",
  "hmac",
- "isomdl-macros 0.1.0 (git+https://github.com/spruceid/isomdl?rev=3ad4471)",
+ "isomdl-macros 0.1.0 (git+https://github.com/spruceid/isomdl?rev=fd2612d)",
  "ndef-rs",
  "p256",
  "p384",
@@ -2782,7 +2782,7 @@ dependencies = [
 [[package]]
 name = "isomdl-macros"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/isomdl?rev=3ad4471#3ad4471337cc203515c0a8572af7a57612633475"
+source = "git+https://github.com/spruceid/isomdl?rev=7608053#76080536badc867d2d674acfca9e5bae6809a54c"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2792,7 +2792,7 @@ dependencies = [
 [[package]]
 name = "isomdl-macros"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/isomdl?rev=7608053#76080536badc867d2d674acfca9e5bae6809a54c"
+source = "git+https://github.com/spruceid/isomdl?rev=fd2612d#fd2612df263e46481c2b0be6129432160ef60e02"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6608,6 +6608,17 @@ name = "syn"
 version = "2.0.117"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e665b8803e7b1d2a727f4023456bbbbe74da67099c585258af0ad9c5013b9b99"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "unicode-ident",
+]
+
+[[package]]
+name = "syn"
+version = "3.0.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d78c8dee4c7bf0e14673097256fed6142ce9d3b85a408189d07482442145823b"
 dependencies = [
  "proc-macro2",
  "quote",

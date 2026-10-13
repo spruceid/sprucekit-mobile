@@ -204,7 +204,7 @@ struct HandleOID4VPView: View {
                     trustedDids: trustedDids,
                     signer: signer,
                     keyId: DEFAULT_SIGNING_KEY_ID,
-                    contextMap: getVCPlaygroundOID4VCIContext(),
+                    contextMap: defaultLdJsonContext(),
                     keystore: KeyManager()
                 )
                 let tmpPermissionRequest = try await holder!.authorizationRequest(req: Url(newurl))
@@ -242,7 +242,7 @@ struct HandleOID4VPView: View {
                     trustedDids: trustedDids,
                     signer: signer,
                     keyId: DEFAULT_SIGNING_KEY_ID,
-                    contextMap: getVCPlaygroundOID4VCIContext()
+                    contextMap: defaultLdJsonContext()
                 )
                 let tmpPermissionRequest = try await draft18Holder!.authorizationRequest(req: newurl)
                 let permissionRequestCredentials = tmpPermissionRequest.credentials()
