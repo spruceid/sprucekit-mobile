@@ -447,6 +447,9 @@ fun credentialPackHasMdoc(credentialPack: CredentialPack): Boolean {
  *  Works for both mdoc doctypes and dc+sd-jwt vct values (shared namespace). */
 private val knownCredentialTypeDisplayNames = mapOf(
     "org.iso.18013.5.1.mDL" to "Mobile Driver's License",
+    // ISO/IEC TS 23220-4 Annex C spells the doctype with a lowercase `id`, but the capitalized
+    // form is also in use, and doctype matching is case-sensitive.
+    "org.iso.23220.photoid.1" to "Photo ID",
     "org.iso.23220.photoID.1" to "Photo ID",
     "org.iso.7367.1.mVRC" to "Mobile Vehicle Registration Certificate",
     "eu.europa.ec.eudi.pid.1" to "EU Personal ID",

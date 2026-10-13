@@ -44,14 +44,19 @@ private data class MDocResultSection(
 )
 
 /**
- * The issuing authority a document claims, or null. This is the document's own claim about its
- * issuer, digest-verified along with every other element.
+ * The issuing authority a document claims, or null.
+ *
+ * The element identifier is namespace-specific: ISO 18013-5 uses `issuing_authority`, ISO 23220-2
+ * uses `issuing_authority_unicode`. This is the document's own claim about its issuer,
+ * digest-verified along with every other element.
  */
 private fun claimedIssuer(namespaces: JSONObject): String? {
     for (key in namespaces.keys()) {
         try {
-            val authority = namespaces.getJSONObject(key).optString("issuing_authority", "")
-            if (authority.isNotBlank()) {
+            val namespace = namespaces.getJSONObject(key)
+            val authority = listOf("issuing_authority", "issuing_authority_unicode")
+                .firstNotNullOfOrNull { namespace.optString(it, "").ifBlank { null } }
+            if (authority != null) {
                 return authority
             }
         } catch (_: Exception) {
