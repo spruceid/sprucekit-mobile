@@ -90,6 +90,14 @@ fun SetupNavGraph(
             )
         }
         composable(
+            route = Screen.VerifyPhotoIdScreen.route,
+        ) {
+            VerifyMDocView(
+                navController,
+                profile = MDocVerificationProfile.PHOTO_ID
+            )
+        }
+        composable(
             route = Screen.VerifyKioskScreen.route,
         ) {
             VerifyKioskView(navController)
