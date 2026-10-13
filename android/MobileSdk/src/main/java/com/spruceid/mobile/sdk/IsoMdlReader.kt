@@ -8,6 +8,7 @@ import com.spruceid.mobile.sdk.ble.Transport
 import com.spruceid.mobile.sdk.rs.MdlReaderResponseData
 import com.spruceid.mobile.sdk.rs.MdlReaderResponseException
 import com.spruceid.mobile.sdk.rs.MdlSessionManager
+import com.spruceid.mobile.sdk.rs.MdocCertificateProfiles
 import com.spruceid.mobile.sdk.rs.VerifiedDocument
 import com.spruceid.mobile.sdk.rs.establishSession
 import com.spruceid.mobile.sdk.rs.ReaderHandover
@@ -18,6 +19,11 @@ import java.util.UUID
  *   element identifier. One `DocRequest` is built per document type, so a reader can ask for
  *   several credentials in one exchange. At least one document type is required: a request
  *   naming none is answered with nothing rather than an error.
+ * @param certificateProfiles certificate validation rules per doctype. Null validates every
+ *   doctype under the ISO/IEC 18013-5 mDL profile, which is the behaviour every caller had
+ *   before this was configurable. Supplying a map also means a doctype absent from it is
+ *   refused rather than validated under a guess, so it must cover every doctype in
+ *   [requestedItems].
  */
 class IsoMdlReader(
     val callback: BLESessionStateDelegate,
@@ -26,6 +32,7 @@ class IsoMdlReader(
     trustAnchorRegistry: List<String>?,
     platformBluetooth: BluetoothManager,
     context: Context,
+    private val certificateProfiles: Map<String, MdocCertificateProfiles>? = null
 ) {
     private lateinit var session: MdlSessionManager
     private lateinit var bleManager: Transport
@@ -37,6 +44,7 @@ class IsoMdlReader(
         trustAnchorRegistry: List<String>?,
         platformBluetooth: BluetoothManager,
         context: Context,
+        certificateProfiles: Map<String, MdocCertificateProfiles>? = null,
     ) : this(
         callback,
         ReaderHandover.newQr(uri),
@@ -44,6 +52,7 @@ class IsoMdlReader(
         trustAnchorRegistry,
         platformBluetooth,
         context,
+        certificateProfiles,
     )
 
     init {
@@ -110,7 +119,7 @@ class IsoMdlReader(
     fun handleResponse(response: ByteArray): List<VerifiedDocument> {
         try {
             val responseData =
-                com.spruceid.mobile.sdk.rs.handleResponse(session, response)
+                com.spruceid.mobile.sdk.rs.handleResponse(session, response, certificateProfiles)
             return responseData.documents
         } catch (e: MdlReaderResponseException) {
             throw e
@@ -120,7 +129,7 @@ class IsoMdlReader(
     fun handleMdlReaderResponseData(response: ByteArray): MdlReaderResponseData {
         try {
             val data =
-                com.spruceid.mobile.sdk.rs.handleResponse(session, response)
+                com.spruceid.mobile.sdk.rs.handleResponse(session, response, certificateProfiles)
             // Diagnostic: surface what handleResponse produced so a capture can
             // tell "empty/failed parse" from "parsed but unverified". `errors`
             // is the JSON-encoded per-category error map from isomdl.
