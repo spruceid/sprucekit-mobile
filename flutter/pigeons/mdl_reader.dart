@@ -57,15 +57,6 @@ enum MdlReaderState {
   error,
 }
 
-/// Outcome of authenticity checks. Mirrors Rust `AuthenticationStatus` 1:1.
-///
-/// - [valid] — signature verified AND certificate chain validated to a
-///   trust anchor in the registry passed to start.
-/// - [invalid] — signature failed OR chain validation failed.
-/// - [unchecked] — not yet validated (e.g. parsing failed before validation
-///   could run, or no trust anchors provided).
-enum MdlAuthenticationStatus { valid, invalid, unchecked }
-
 /// Verified response from a successful read.
 ///
 /// The verified items are transported as a JSON string (the canonical Rust
@@ -77,50 +68,65 @@ enum MdlAuthenticationStatus { valid, invalid, unchecked }
 ///      itself via map/array variants) hit an OOM in Pigeon's type analyzer.
 ///
 /// Consumers should `jsonDecode(verifiedResponseJson)` to get a
-/// `Map<String, dynamic>` shaped like:
+/// `List<dynamic>`, one entry per verified document, shaped like:
 /// ```
-/// {
-///   "org.iso.18013.5.1": {
-///     "given_name": "ALICE",
-///     "age_over_21": true,
-///     "portrait": [255, 216, ...],         // JPEG bytes as int array
-///     "driving_privileges": [ { ... } ],
+/// [
+///   {
+///     "docType": "org.iso.18013.5.1.mDL",
+///     "namespaces": {
+///       "org.iso.18013.5.1": {
+///         "given_name": "ALICE",
+///         "age_over_21": true,
+///         "portrait": [255, 216, ...],         // JPEG bytes as int array
+///         "driving_privileges": [ { ... } ],
+///       },
+///       "org.iso.18013.5.1.aamva": { ... },
+///     },
 ///   },
-///   "org.iso.18013.5.1.aamva": { ... },
-/// }
+/// ]
 /// ```
+/// A list rather than a map keyed by doctype: a response may legally carry
+/// several documents, two of which may share a doctype, and keying on it
+/// would drop one of them. Each `docType` comes from that document's
+/// signature-verified MSO, not from the holder's label.
 /// Numeric integer values come through as Dart `int`, booleans as `bool`,
 /// strings as `String`, nested objects as `Map<String, dynamic>`, arrays as
 /// `List<dynamic>`. Byte strings (e.g. `portrait`) arrive as a list of
 /// integers in [0, 255] which can be wrapped with `Uint8List.fromList(...)`.
 class MdlReadResponse {
-  /// JSON-encoded `Map<namespace, Map<element, value>>`. See class docs for
-  /// the shape and how to decode.
+  /// JSON-encoded `List<{docType, namespaces}>`, one entry per document that
+  /// passed every check. See class docs for the shape and how to decode.
   String verifiedResponseJson;
 
-  /// Document types (doctypes) from the presented credentials.
-  /// E.g. `["org.iso.18013.5.1.mDL"]`.
-  List<String> docTypes;
+  /// Doctypes claimed by documents that were evaluated and did not pass.
+  ///
+  /// Unauthenticated labels, carried only so the UI can name what it could
+  /// not verify; the reasons are in [errors]. Never decide anything on these.
+  List<String> failedDocTypes;
 
-  /// Outcome of issuer (MSO) signature + cert-chain-to-trust-anchor validation.
-  MdlAuthenticationStatus issuerAuthentication;
-
-  /// Outcome of device authentication (replay protection).
-  MdlAuthenticationStatus deviceAuthentication;
-
-  /// JSON-encoded `Map<String, List<String>>` of per-category errors, or null
-  /// when no errors. Categories include `issuer_authentication_errors`,
-  /// `device_authentication_errors`, `certificate_errors`, `parsing_errors`.
-  /// CRL `revocation_errors` are surfaced here as well (non-fatal).
+  /// JSON-encoded diagnostics, or null when nothing went wrong. Shaped as:
+  /// ```
+  /// {
+  ///   "response": ["..."],                       // response-level failures
+  ///   "documents": { "<claimed doctype>": ["..."] },  // per-document reasons
+  ///   "unrequested": ["<claimed doctype>"]       // arrived unasked, not validated
+  /// }
+  /// ```
+  /// The per-document entries carry the reason a document failed, which the
+  /// response-level list does not: a document failing on its own contributes
+  /// only a bare "documents failed" there.
+  ///
+  /// This is the only signal that something went wrong: the verified items are
+  /// drawn solely from documents that passed every check, and a document that
+  /// failed always contributes at least one reason here. Non-null means show
+  /// it; the verified items should be displayed either way.
   ///
   /// Consumers can `jsonDecode(errors)` if non-null to inspect specifics.
   String? errors;
 
   MdlReadResponse({
     required this.verifiedResponseJson,
-    required this.docTypes,
-    required this.issuerAuthentication,
-    required this.deviceAuthentication,
+    required this.failedDocTypes,
     this.errors,
   });
 }
@@ -191,21 +197,24 @@ abstract class MdlReader {
   /// [MdlReaderCallback.onStateChange]. Any in-flight session is implicitly
   /// cancelled before the new one starts.
   ///
-  /// @param query Requested items, shaped as namespace → element name →
-  ///   `intentToRetain`. For example:
+  /// @param query Requested items, shaped as doctype → namespace → element
+  ///   name → `intentToRetain`. One `DocRequest` is built per doctype, so a
+  ///   reader can ask for several credentials in one exchange. For example:
   ///   ```
   ///   {
-  ///     "org.iso.18013.5.1": { "given_name": false, "portrait": false },
-  ///     "org.iso.18013.5.1.aamva": { "EDL_credential": false },
+  ///     "org.iso.18013.5.1.mDL": {
+  ///       "org.iso.18013.5.1": { "given_name": false, "portrait": false },
+  ///       "org.iso.18013.5.1.aamva": { "EDL_credential": false },
+  ///     },
   ///   }
   ///   ```
-  ///   The doctype (e.g. `"org.iso.18013.5.1.mDL"`) is derived from the
-  ///   namespaces by the SDK; it is not passed separately.
+  ///   At least one doctype is required: a request naming none is answered
+  ///   with nothing rather than an error.
   /// @param trustedRoots List of PEM-encoded IACA root certificates. Empty
-  ///   list disables chain validation; [MdlAuthenticationStatus.invalid]
-  ///   (or [unchecked]) will be returned in that case.
+  ///   list disables chain validation, which surfaces as an entry in
+  ///   [MdlReadResponse.errors].
   void startNfcReader(
-    Map<String, Map<String, bool>> query,
+    Map<String, Map<String, Map<String, bool>>> query,
     List<String> trustedRoots,
   );
 
@@ -222,7 +231,7 @@ abstract class MdlReader {
   /// @param trustedRoots See [startNfcReader].
   void startQrReader(
     String qrUri,
-    Map<String, Map<String, bool>> query,
+    Map<String, Map<String, Map<String, bool>>> query,
     List<String> trustedRoots,
   );
 

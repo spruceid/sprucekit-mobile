@@ -118,7 +118,9 @@ final class NfcHolderSelfTestRunner: ObservableObject {
             reader = MdocProximityReader(
                 fromHandover: readerHandover,
                 delegate: readerDelegate,
-                requestedItems: ["org.iso.18013.5.1": ["given_name": false, "family_name": false]],
+                requestedItems: [
+                    mdlDocType: ["org.iso.18013.5.1": ["given_name": false, "family_name": false]]
+                ],
                 trustAnchorRegistry: TrustedCertificatesDataStore.shared.getAllCertificates().map { $0.content },
                 l2capUsage: .disableL2CAP
             )

@@ -7,17 +7,23 @@ import SpruceIDMobileSdkRs
 public class MdocProximityReader {
     private let handover: ReaderHandover,
                 delegate: Delegate,
-                requestedItems: [String: [String: Bool]],
+                requestedItems: [String: [String: [String: Bool]]],
                 trustAnchorRegistry: [String]?,
                 l2capUsage: L2CAPUsage
 
     private var handle: DelegateWrapper?
 
     /// Start a reading session from a holder-presented QR code.
+    ///
+    /// - Parameters:
+    ///   - requestedItems: data elements to request, keyed by document type, then namespace, then
+    ///     element identifier. One `DocRequest` is built per document type, so a reader can ask
+    ///     for several credentials in one exchange. At least one document type is required: a
+    ///     request naming none is answered with nothing rather than an error.
     public convenience init(
         fromHolderQrCode payload: String,
         delegate: Delegate,
-        requestedItems: [String: [String: Bool]],
+        requestedItems: [String: [String: [String: Bool]]],
         trustAnchorRegistry: [String]? = nil,
         l2capUsage: L2CAPUsage = .disableL2CAP,
     ) {
@@ -31,10 +37,16 @@ public class MdocProximityReader {
     }
 
     /// Start a reading session from a pre-built handover (e.g. produced by an NFC engagement).
+    ///
+    /// - Parameters:
+    ///   - requestedItems: data elements to request, keyed by document type, then namespace, then
+    ///     element identifier. One `DocRequest` is built per document type, so a reader can ask
+    ///     for several credentials in one exchange. At least one document type is required: a
+    ///     request naming none is answered with nothing rather than an error.
     public init(
         fromHandover handover: ReaderHandover,
         delegate: Delegate,
-        requestedItems: [String: [String: Bool]],
+        requestedItems: [String: [String: [String: Bool]]],
         trustAnchorRegistry: [String]? = nil,
         l2capUsage: L2CAPUsage = .disableL2CAP,
     ) {
@@ -62,7 +74,10 @@ public class MdocProximityReader {
             return
         }
 
-        let handle = DelegateWrapper(delegate: delegate, session: session)
+        let handle = DelegateWrapper(
+            delegate: delegate,
+            session: session,
+        )
         let transport: Transport
 
         if let mdocCentral = session.state.bleCentralClientDetails().first {
@@ -130,7 +145,10 @@ public class MdocProximityReader {
             }
         }
 
-        init(delegate: Delegate, session: MdlReaderSessionData) {
+        init(
+            delegate: Delegate,
+            session: MdlReaderSessionData,
+        ) {
             backgroundQueue.suspend()
             inner = delegate
             self.session = session
@@ -230,7 +248,10 @@ public class MdocProximityReader {
             guard case .connected = state else { return }
             let response: Response
             do {
-                response = try Response(data: handleResponse(state: session.state, response: message))
+                response = try Response(data: handleResponse(
+                    state: session.state,
+                    response: message
+                ))
             } catch let err {
                 print("failed to parse the response")
                 self.state = .error

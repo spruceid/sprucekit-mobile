@@ -25,8 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.spruceid.mobile.sdk.convertToJson
-import com.spruceid.mobile.sdk.rs.AuthenticationStatus
-import com.spruceid.mobile.sdk.rs.MDocItem
+import com.spruceid.mobile.sdk.rs.VerifiedDocument
 import com.spruceid.mobilesdkexample.credentials.genericObjectDisplayer
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
@@ -34,36 +33,64 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.utils.ErrorToast
 import com.spruceid.mobilesdkexample.utils.SimpleAlertDialog
-import com.spruceid.mobilesdkexample.utils.WarningToast
 import com.spruceid.mobilesdkexample.utils.credentialTypeDisplayName
+import org.json.JSONObject
+
+/** One verified document, prepared for display. */
+private data class MDocResultSection(
+    val title: String,
+    val issuer: String?,
+    val elements: JSONObject,
+)
+
+/**
+ * The issuing authority a document claims, or null. This is the document's own claim about its
+ * issuer, digest-verified along with every other element.
+ */
+private fun claimedIssuer(namespaces: JSONObject): String? {
+    for (key in namespaces.keys()) {
+        try {
+            val authority = namespaces.getJSONObject(key).optString("issuing_authority", "")
+            if (authority.isNotBlank()) {
+                return authority
+            }
+        } catch (_: Exception) {
+        }
+    }
+    return null
+}
 
 @Composable
 fun VerifierMDocResultView(
-    result: Map<String, Map<String, MDocItem>>,
-    docTypes: List<String>,
-    issuerAuthenticationStatus: AuthenticationStatus,
-    deviceAuthenticationStatus: AuthenticationStatus,
+    documents: List<VerifiedDocument>,
+    failedDocTypes: List<String>,
     responseProcessingErrors: String? = null,
     onClose: () -> Unit,
     logVerification: (String, String, String) -> Unit,
 ) {
-    val mdoc by remember { mutableStateOf(convertToJson(result)) }
-    val title = credentialTypeDisplayName(docTypes.firstOrNull() ?: "")
-    var issuer by remember { mutableStateOf<String?>(null) }
+    // One section per verified document, in the order the holder returned them. Kept apart
+    // rather than merged into one map: two documents may share a namespace, and merging would
+    // let one silently overwrite the other's elements.
+    val sections by remember {
+        mutableStateOf(
+            documents.map { document ->
+                val elements = convertToJson(document.namespaces)
+                MDocResultSection(
+                    title = credentialTypeDisplayName(document.docType),
+                    issuer = claimedIssuer(elements),
+                    elements = elements,
+                )
+            }
+        )
+    }
+    // A response where every document failed has nothing verified to name, so fall back to the
+    // claimed labels -- otherwise the failure that matters most renders untitled.
+    val title = sections.firstOrNull()?.title
+        ?: credentialTypeDisplayName(failedDocTypes.firstOrNull() ?: "")
+    val issuer = sections.firstOrNull()?.issuer
 
     LaunchedEffect(Unit) {
-        // Try to find issuing_authority from any namespace
-        for (key in mdoc.keys()) {
-            try {
-                val namespace = mdoc.getJSONObject(key)
-                val authority = namespace.optString("issuing_authority", "")
-                if (authority.isNotBlank()) {
-                    issuer = authority
-                    break
-                }
-            } catch (_: Exception) {
-            }
-        }
+        // One log entry per response, as before, named after the first verified document.
         // @TODO: Log verification with real status
         logVerification(title, issuer ?: "", "VALID")
     }
@@ -106,27 +133,37 @@ fun VerifierMDocResultView(
                 .verticalScroll(rememberScrollState())
         ) {
             Column(Modifier.padding(vertical = 16.dp)) {
+                // Whatever was verified is always shown; anything that went wrong is always
+                // reported alongside it. Elements come only from documents that passed every
+                // check, and a document that failed always contributes at least one error here.
                 SimpleAlertDialog(
                     message = responseProcessingErrors,
                     trigger = {
-                        when (deviceAuthenticationStatus) {
-                            AuthenticationStatus.VALID -> null
-                            AuthenticationStatus.INVALID -> ErrorToast("Device not authenticated")
-                            AuthenticationStatus.UNCHECKED -> WarningToast("Device not checked")
-                        }
-                        when (issuerAuthenticationStatus) {
-                            AuthenticationStatus.VALID -> null
-                            AuthenticationStatus.INVALID -> ErrorToast("Issuer not authenticated")
-                            AuthenticationStatus.UNCHECKED -> WarningToast("Issuer not checked")
+                        if (responseProcessingErrors != null) {
+                            ErrorToast("Verification errors")
                         }
                     }
                 )
             }
 
-            genericObjectDisplayer(
-                mdoc,
-                listOf()
-            )
+            sections.forEach { section ->
+                // A single document is already named by the header, so only label sections when
+                // there is more than one to tell apart.
+                if (sections.size > 1) {
+                    Text(
+                        text = section.title,
+                        fontFamily = Inter,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 16.sp,
+                        color = ColorStone950,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                }
+                genericObjectDisplayer(
+                    section.elements,
+                    listOf()
+                )
+            }
         }
 
         Button(

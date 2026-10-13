@@ -212,19 +212,6 @@ enum MdlReaderState: Int {
   case error = 8
 }
 
-/// Outcome of authenticity checks. Mirrors Rust `AuthenticationStatus` 1:1.
-///
-/// - [valid] — signature verified AND certificate chain validated to a
-///   trust anchor in the registry passed to start.
-/// - [invalid] — signature failed OR chain validation failed.
-/// - [unchecked] — not yet validated (e.g. parsing failed before validation
-///   could run, or no trust anchors provided).
-enum MdlAuthenticationStatus: Int {
-  case valid = 0
-  case invalid = 1
-  case unchecked = 2
-}
-
 /// Verified response from a successful read.
 ///
 /// The verified items are transported as a JSON string (the canonical Rust
@@ -236,18 +223,27 @@ enum MdlAuthenticationStatus: Int {
 ///      itself via map/array variants) hit an OOM in Pigeon's type analyzer.
 ///
 /// Consumers should `jsonDecode(verifiedResponseJson)` to get a
-/// `Map<String, dynamic>` shaped like:
+/// `List<dynamic>`, one entry per verified document, shaped like:
 /// ```
-/// {
-///   "org.iso.18013.5.1": {
-///     "given_name": "ALICE",
-///     "age_over_21": true,
-///     "portrait": [255, 216, ...],         // JPEG bytes as int array
-///     "driving_privileges": [ { ... } ],
+/// [
+///   {
+///     "docType": "org.iso.18013.5.1.mDL",
+///     "namespaces": {
+///       "org.iso.18013.5.1": {
+///         "given_name": "ALICE",
+///         "age_over_21": true,
+///         "portrait": [255, 216, ...],         // JPEG bytes as int array
+///         "driving_privileges": [ { ... } ],
+///       },
+///       "org.iso.18013.5.1.aamva": { ... },
+///     },
 ///   },
-///   "org.iso.18013.5.1.aamva": { ... },
-/// }
+/// ]
 /// ```
+/// A list rather than a map keyed by doctype: a response may legally carry
+/// several documents, two of which may share a doctype, and keying on it
+/// would drop one of them. Each `docType` comes from that document's
+/// signature-verified MSO, not from the holder's label.
 /// Numeric integer values come through as Dart `int`, booleans as `bool`,
 /// strings as `String`, nested objects as `Map<String, dynamic>`, arrays as
 /// `List<dynamic>`. Byte strings (e.g. `portrait`) arrive as a list of
@@ -255,20 +251,30 @@ enum MdlAuthenticationStatus: Int {
 ///
 /// Generated class from Pigeon that represents data sent in messages.
 struct MdlReadResponse: Hashable {
-  /// JSON-encoded `Map<namespace, Map<element, value>>`. See class docs for
-  /// the shape and how to decode.
+  /// JSON-encoded `List<{docType, namespaces}>`, one entry per document that
+  /// passed every check. See class docs for the shape and how to decode.
   var verifiedResponseJson: String
-  /// Document types (doctypes) from the presented credentials.
-  /// E.g. `["org.iso.18013.5.1.mDL"]`.
-  var docTypes: [String]
-  /// Outcome of issuer (MSO) signature + cert-chain-to-trust-anchor validation.
-  var issuerAuthentication: MdlAuthenticationStatus
-  /// Outcome of device authentication (replay protection).
-  var deviceAuthentication: MdlAuthenticationStatus
-  /// JSON-encoded `Map<String, List<String>>` of per-category errors, or null
-  /// when no errors. Categories include `issuer_authentication_errors`,
-  /// `device_authentication_errors`, `certificate_errors`, `parsing_errors`.
-  /// CRL `revocation_errors` are surfaced here as well (non-fatal).
+  /// Doctypes claimed by documents that were evaluated and did not pass.
+  ///
+  /// Unauthenticated labels, carried only so the UI can name what it could
+  /// not verify; the reasons are in [errors]. Never decide anything on these.
+  var failedDocTypes: [String]
+  /// JSON-encoded diagnostics, or null when nothing went wrong. Shaped as:
+  /// ```
+  /// {
+  ///   "response": ["..."],                       // response-level failures
+  ///   "documents": { "<claimed doctype>": ["..."] },  // per-document reasons
+  ///   "unrequested": ["<claimed doctype>"]       // arrived unasked, not validated
+  /// }
+  /// ```
+  /// The per-document entries carry the reason a document failed, which the
+  /// response-level list does not: a document failing on its own contributes
+  /// only a bare "documents failed" there.
+  ///
+  /// This is the only signal that something went wrong: the verified items are
+  /// drawn solely from documents that passed every check, and a document that
+  /// failed always contributes at least one reason here. Non-null means show
+  /// it; the verified items should be displayed either way.
   ///
   /// Consumers can `jsonDecode(errors)` if non-null to inspect specifics.
   var errors: String? = nil
@@ -277,25 +283,19 @@ struct MdlReadResponse: Hashable {
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ pigeonVar_list: [Any?]) -> MdlReadResponse? {
     let verifiedResponseJson = pigeonVar_list[0] as! String
-    let docTypes = pigeonVar_list[1] as! [String]
-    let issuerAuthentication = pigeonVar_list[2] as! MdlAuthenticationStatus
-    let deviceAuthentication = pigeonVar_list[3] as! MdlAuthenticationStatus
-    let errors: String? = nilOrValue(pigeonVar_list[4])
+    let failedDocTypes = pigeonVar_list[1] as! [String]
+    let errors: String? = nilOrValue(pigeonVar_list[2])
 
     return MdlReadResponse(
       verifiedResponseJson: verifiedResponseJson,
-      docTypes: docTypes,
-      issuerAuthentication: issuerAuthentication,
-      deviceAuthentication: deviceAuthentication,
+      failedDocTypes: failedDocTypes,
       errors: errors
     )
   }
   func toList() -> [Any?] {
     return [
       verifiedResponseJson,
-      docTypes,
-      issuerAuthentication,
-      deviceAuthentication,
+      failedDocTypes,
       errors,
     ]
   }
@@ -303,15 +303,13 @@ struct MdlReadResponse: Hashable {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return deepEqualsMdlReader(lhs.verifiedResponseJson, rhs.verifiedResponseJson) && deepEqualsMdlReader(lhs.docTypes, rhs.docTypes) && deepEqualsMdlReader(lhs.issuerAuthentication, rhs.issuerAuthentication) && deepEqualsMdlReader(lhs.deviceAuthentication, rhs.deviceAuthentication) && deepEqualsMdlReader(lhs.errors, rhs.errors)
+    return deepEqualsMdlReader(lhs.verifiedResponseJson, rhs.verifiedResponseJson) && deepEqualsMdlReader(lhs.failedDocTypes, rhs.failedDocTypes) && deepEqualsMdlReader(lhs.errors, rhs.errors)
   }
 
   func hash(into hasher: inout Hasher) {
     hasher.combine("MdlReadResponse")
     deepHashMdlReader(value: verifiedResponseJson, hasher: &hasher)
-    deepHashMdlReader(value: docTypes, hasher: &hasher)
-    deepHashMdlReader(value: issuerAuthentication, hasher: &hasher)
-    deepHashMdlReader(value: deviceAuthentication, hasher: &hasher)
+    deepHashMdlReader(value: failedDocTypes, hasher: &hasher)
     deepHashMdlReader(value: errors, hasher: &hasher)
   }
 }
@@ -373,14 +371,8 @@ private class MdlReaderPigeonCodecReader: FlutterStandardReader {
       }
       return nil
     case 130:
-      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
-      if let enumResultAsInt = enumResultAsInt {
-        return MdlAuthenticationStatus(rawValue: enumResultAsInt)
-      }
-      return nil
-    case 131:
       return MdlReadResponse.fromList(self.readValue() as! [Any?])
-    case 132:
+    case 131:
       return MdlReaderStateUpdate.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -393,14 +385,11 @@ private class MdlReaderPigeonCodecWriter: FlutterStandardWriter {
     if let value = value as? MdlReaderState {
       super.writeByte(129)
       super.writeValue(value.rawValue)
-    } else if let value = value as? MdlAuthenticationStatus {
-      super.writeByte(130)
-      super.writeValue(value.rawValue)
     } else if let value = value as? MdlReadResponse {
-      super.writeByte(131)
+      super.writeByte(130)
       super.writeValue(value.toList())
     } else if let value = value as? MdlReaderStateUpdate {
-      super.writeByte(132)
+      super.writeByte(131)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -506,20 +495,23 @@ protocol MdlReader {
   /// [MdlReaderCallback.onStateChange]. Any in-flight session is implicitly
   /// cancelled before the new one starts.
   ///
-  /// @param query Requested items, shaped as namespace → element name →
-  ///   `intentToRetain`. For example:
+  /// @param query Requested items, shaped as doctype → namespace → element
+  ///   name → `intentToRetain`. One `DocRequest` is built per doctype, so a
+  ///   reader can ask for several credentials in one exchange. For example:
   ///   ```
   ///   {
-  ///     "org.iso.18013.5.1": { "given_name": false, "portrait": false },
-  ///     "org.iso.18013.5.1.aamva": { "EDL_credential": false },
+  ///     "org.iso.18013.5.1.mDL": {
+  ///       "org.iso.18013.5.1": { "given_name": false, "portrait": false },
+  ///       "org.iso.18013.5.1.aamva": { "EDL_credential": false },
+  ///     },
   ///   }
   ///   ```
-  ///   The doctype (e.g. `"org.iso.18013.5.1.mDL"`) is derived from the
-  ///   namespaces by the SDK; it is not passed separately.
+  ///   At least one doctype is required: a request naming none is answered
+  ///   with nothing rather than an error.
   /// @param trustedRoots List of PEM-encoded IACA root certificates. Empty
-  ///   list disables chain validation; [MdlAuthenticationStatus.invalid]
-  ///   (or [unchecked]) will be returned in that case.
-  func startNfcReader(query: [String: [String: Bool]], trustedRoots: [String]) throws
+  ///   list disables chain validation, which surfaces as an entry in
+  ///   [MdlReadResponse.errors].
+  func startNfcReader(query: [String: [String: [String: Bool]]], trustedRoots: [String]) throws
   /// Start a QR-engagement reader session from a pre-scanned QR code URI.
   ///
   /// The URI typically starts with `mdoc:` (per ISO 18013-5 §8.2.2.3) and
@@ -531,7 +523,7 @@ protocol MdlReader {
   ///   device.
   /// @param query See [startNfcReader].
   /// @param trustedRoots See [startNfcReader].
-  func startQrReader(qrUri: String, query: [String: [String: Bool]], trustedRoots: [String]) throws
+  func startQrReader(qrUri: String, query: [String: [String: [String: Bool]]], trustedRoots: [String]) throws
   /// Cancel any in-flight session and tear down NFC / BLE handles.
   ///
   /// Idempotent. After [cancel] the reader transitions to
@@ -573,24 +565,27 @@ class MdlReaderSetup {
     /// [MdlReaderCallback.onStateChange]. Any in-flight session is implicitly
     /// cancelled before the new one starts.
     ///
-    /// @param query Requested items, shaped as namespace → element name →
-    ///   `intentToRetain`. For example:
+    /// @param query Requested items, shaped as doctype → namespace → element
+    ///   name → `intentToRetain`. One `DocRequest` is built per doctype, so a
+    ///   reader can ask for several credentials in one exchange. For example:
     ///   ```
     ///   {
-    ///     "org.iso.18013.5.1": { "given_name": false, "portrait": false },
-    ///     "org.iso.18013.5.1.aamva": { "EDL_credential": false },
+    ///     "org.iso.18013.5.1.mDL": {
+    ///       "org.iso.18013.5.1": { "given_name": false, "portrait": false },
+    ///       "org.iso.18013.5.1.aamva": { "EDL_credential": false },
+    ///     },
     ///   }
     ///   ```
-    ///   The doctype (e.g. `"org.iso.18013.5.1.mDL"`) is derived from the
-    ///   namespaces by the SDK; it is not passed separately.
+    ///   At least one doctype is required: a request naming none is answered
+    ///   with nothing rather than an error.
     /// @param trustedRoots List of PEM-encoded IACA root certificates. Empty
-    ///   list disables chain validation; [MdlAuthenticationStatus.invalid]
-    ///   (or [unchecked]) will be returned in that case.
+    ///   list disables chain validation, which surfaces as an entry in
+    ///   [MdlReadResponse.errors].
     let startNfcReaderChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.MdlReader.startNfcReader\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       startNfcReaderChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
-        let queryArg = args[0] as! [String: [String: Bool]]
+        let queryArg = args[0] as! [String: [String: [String: Bool]]]
         let trustedRootsArg = args[1] as! [String]
         do {
           try api.startNfcReader(query: queryArg, trustedRoots: trustedRootsArg)
@@ -618,7 +613,7 @@ class MdlReaderSetup {
       startQrReaderChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
         let qrUriArg = args[0] as! String
-        let queryArg = args[1] as! [String: [String: Bool]]
+        let queryArg = args[1] as! [String: [String: [String: Bool]]]
         let trustedRootsArg = args[2] as! [String]
         do {
           try api.startQrReader(qrUri: qrUriArg, query: queryArg, trustedRoots: trustedRootsArg)
