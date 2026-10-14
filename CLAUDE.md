@@ -23,7 +23,7 @@ Changes to the Rust layer require regenerating bindings before platform work:
 
 - **iOS**: `cd rust && ./build-ios.sh`
   - CI enforces the generated `rust/MobileSdkRs/Sources/MobileSdkRs/` Swift files are committed via `git diff --exit-code`
-- **Android**: Bindings regenerated automatically by the Gradle cargo-ndk plugin during build
+- **Android**: Bindings regenerated automatically during the Gradle build (`buildCargoNdk` and `bindGen` tasks in `android/MobileSdkRs/build.gradle`)
 - **Flutter**: Wraps native SDKs (not Rust directly). Rebuild the relevant native SDK, then `pod install` (iOS) or Gradle rebuild (Android).
 
 ## CI
