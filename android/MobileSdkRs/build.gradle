@@ -1,7 +1,6 @@
 plugins {
     id 'com.android.library'
     id 'org.jetbrains.kotlin.android'
-    id 'com.github.willir.rust.cargo-ndk-android'
     id 'maven-publish'
     id 'signing'
     id 'com.gradleup.nmcp'
@@ -64,12 +63,44 @@ dependencies {
     implementation 'org.jetbrains.kotlin:kotlin-stdlib:2.1.0'
 }
 
-apply plugin: 'com.github.willir.rust.cargo-ndk-android'
+tasks.register('buildCargoNdk', Exec) {
+    def rustTargetAbis = [
+            "arm"   : "armeabi-v7a",
+            "arm64" : "arm64-v8a",
+            "x86"   : "x86",
+            "x86_64": "x86_64",
+    ]
+    // `-Prust-target=<id>` restricts the build to a single target.
+    def rustTarget = findProperty("rust-target")
+    def abis = rustTargetAbis.values()
+    if (rustTarget != null) {
+        def abi = rustTargetAbis[rustTarget.toString()]
+        if (abi == null) {
+            throw new GradleException("Unknown rust-target '${rustTarget}', expected one of ${rustTargetAbis.keySet()}")
+        }
+        abis = [abi]
+    }
 
-cargoNdk {
-    module =  "../rust"
-    targetDirectory = "target"
-    targets = ["arm", "arm64", "x86", "x86_64"]
+    dependsOn(tasks.named("bindGen"))
+    onlyIf { rustUpdated(name) }
+    doLast { onSuccess(name) }
+
+    workingDir rootDir.toPath().toString() + "/../rust"
+    commandLine(["cargo", "ndk"] + abis.collectMany { ["-t", it] } + [
+            "--platform", android.defaultConfig.minSdk.toString(),
+            "-o", "${projectDir}/src/main/jniLibs",
+            "build", "--release",
+    ])
+
+    def localProperties = rootProject.file("local.properties")
+    if (localProperties.exists()) {
+        def properties = new Properties()
+        localProperties.withInputStream { properties.load(it) }
+        def ndkDir = properties.getProperty("ndk.dir")
+        if (ndkDir != null) {
+            environment "ANDROID_NDK_HOME", ndkDir
+        }
+    }
 }
 
 def markerFile(taskName) {
@@ -138,16 +169,14 @@ afterEvaluate {
         }
 
         tasks.named("generate${productFlavor}${buildType}Assets") {
-            it.dependsOn(tasks.named("buildCargoNdk${variant.name.capitalize()}"))
+            it.dependsOn(tasks.named("buildCargoNdk"))
+        }
+
+        tasks.named("merge${productFlavor}${buildType}JniLibFolders") {
+            it.dependsOn(tasks.named("buildCargoNdk"))
         }
     }
 
-    (tasks.withType(CargoNdkBuildTask)).configureEach {
-        def name = it.name
-        it.dependsOn(tasks.named("bindGen"))
-        it.onlyIf { rustUpdated(name) }
-        it.doLast { onSuccess(name) }
-    }
     tasks.named("bindGen").configure {
         def name = it.name
         it.onlyIf { rustUpdated(name) }
@@ -155,7 +184,6 @@ afterEvaluate {
     }
 }
 
-import com.github.willir.rust.CargoNdkBuildTask
 import org.apache.tools.ant.taskdefs.condition.Os
 tasks.register('bindGen', Exec) {
     def outDir = "${projectDir}/src/main/java"
