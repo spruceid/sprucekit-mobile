@@ -37,6 +37,8 @@ class Transport(
 
     internal val transportBLE: TransportBle = TransportBle()
 
+    private var callback: BLESessionStateDelegate? = null
+
     /**
      * Initialize BLE Transport according to ISO 18013-5 Section 8.3.3.1.1
      *
@@ -66,6 +68,7 @@ class Transport(
         encodedEDeviceKeyBytes: ByteArray = ByteArray(0)
     ) {
         logger.i("Initializing transport: $deviceRetrieval/$deviceRetrievalOption")
+        this.callback = callback
 
         /**
          * ISO 18013-5 Section 6.3.2.5 Table 2: Transport Protocol Selection
@@ -131,7 +134,9 @@ class Transport(
     fun send(payload: ByteArray) {
         // Check state before sending
         if (!stateMachine.isInState(BleConnectionStateMachine.State.CONNECTED)) {
-            logger.w("Cannot send data - not connected (state: ${stateMachine.getState()})")
+            val message = "Cannot send data - not connected (state: ${stateMachine.getState()})"
+            logger.w(message)
+            callback?.update(BleSessionUpdates.error(message))
             return
         }
 

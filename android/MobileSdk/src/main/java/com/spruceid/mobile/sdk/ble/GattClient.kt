@@ -1012,43 +1012,48 @@ class GattClient(
      * 4. Clear all references to prevent memory leaks
      */
     fun disconnect() {
-        if (stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTING)) {
-            try {
-                // Signal L2CAP write thread to exit BEFORE closing socket
-                // This ensures the write thread terminates even if read thread never started
-                // or already exited without sending the exit signal
-                if (l2capSocket != null && l2capSocket?.isConnected == true) {
-                    reportLog("Sending exit signal to L2CAP write thread")
-                    responseData.add(ByteArray(0))
-                }
-
-                // Close L2CAP socket
-                try {
-                    l2capSocket?.close()
-                } catch (e: IOException) {
-                    reportLog("Error closing L2CAP socket: ${e.message}")
-                }
-
-                if (gattClient != null) {
-                    gattClient?.disconnect()
-                    gattClient?.close()
-                    gattClient = null
-
-                    callback.onState(BleStates.DisconnectGattClient.string)
-                    reportLog("Gatt Client disconnected.")
-                }
-
-                stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTED)
-            } catch (error: SecurityException) {
-                stateMachine.transitionTo(BleConnectionStateMachine.State.ERROR, error.message)
-                errorHandler.handleError(error, "disconnect") {
-                    callback.onError(it)
-                }
-            } finally {
-                // Ensure resources are cleaned up
-                l2capSocket = null
-                gattClient = null
+        if (gattClient == null && l2capSocket == null) {
+            return
+        }
+        // Close even when the transition fails. Transport.terminate() moves the shared state
+        // machine to DISCONNECTING first, and a GATT left open here keeps receiving the next
+        // session's messages and disconnects it.
+        stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTING)
+        try {
+            // Signal L2CAP write thread to exit BEFORE closing socket
+            // This ensures the write thread terminates even if read thread never started
+            // or already exited without sending the exit signal
+            if (l2capSocket != null && l2capSocket?.isConnected == true) {
+                reportLog("Sending exit signal to L2CAP write thread")
+                responseData.add(ByteArray(0))
             }
+
+            // Close L2CAP socket
+            try {
+                l2capSocket?.close()
+            } catch (e: IOException) {
+                reportLog("Error closing L2CAP socket: ${e.message}")
+            }
+
+            if (gattClient != null) {
+                gattClient?.disconnect()
+                gattClient?.close()
+                gattClient = null
+
+                callback.onState(BleStates.DisconnectGattClient.string)
+                reportLog("Gatt Client disconnected.")
+            }
+
+            stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTED)
+        } catch (error: SecurityException) {
+            stateMachine.transitionTo(BleConnectionStateMachine.State.ERROR, error.message)
+            errorHandler.handleError(error, "disconnect") {
+                callback.onError(it)
+            }
+        } finally {
+            // Ensure resources are cleaned up
+            l2capSocket = null
+            gattClient = null
         }
     }
 

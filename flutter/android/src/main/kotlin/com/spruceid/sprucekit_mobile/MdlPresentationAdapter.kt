@@ -12,6 +12,7 @@ import android.nfc.NfcAdapter
 import android.nfc.cardemulation.CardEmulation
 import android.os.Bundle
 import android.util.Log
+import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import com.spruceid.mobile.sdk.BLESessionStateDelegate
@@ -47,7 +48,8 @@ internal class MdlPresentationAdapter(
 
     private val coroutineScope = CoroutineScope(Dispatchers.Main)
 
-    private var presentation: IsoMdlPresentation? = null
+    @VisibleForTesting
+    internal var presentation: IsoMdlPresentation? = null
     private var flutterCallback: MdlPresentationCallback? = null
     private var currentState: MdlPresentationStateUpdate = MdlPresentationStateUpdate(state = MdlPresentationState.UNINITIALIZED)
     private var itemsRequests: List<ItemsRequest> = emptyList()
@@ -224,10 +226,13 @@ internal class MdlPresentationAdapter(
             return
         }
 
+        // The SDK only queues the response here. SUCCESS comes from the
+        // transport's "success" update when the last chunk is written, see
+        // handleStateUpdate. A caller that tears down on SUCCESS before then
+        // cuts the transfer.
         try {
             updateState(MdlPresentationStateUpdate(state = MdlPresentationState.SENDING_RESPONSE))
             presentation?.submitNamespaces(selectedNamespaces)
-            updateState(MdlPresentationStateUpdate(state = MdlPresentationState.SUCCESS))
             callback(Result.success(MdlPresentationSuccess("Response submitted")))
         } catch (e: Exception) {
             Log.e(TAG, "Failed to submit namespaces", e)
@@ -508,7 +513,8 @@ internal class MdlPresentationAdapter(
         }
     }
 
-    private fun handleStateUpdate(state: Map<String, Any>) {
+    @VisibleForTesting
+    internal fun handleStateUpdate(state: Map<String, Any>) {
         when {
             state.containsKey("timeout") -> {
                 releaseNfcAfterSession()
@@ -545,6 +551,10 @@ internal class MdlPresentationAdapter(
                     state = MdlPresentationState.SELECTING_NAMESPACES,
                     itemsRequests = mdlItemsRequests
                 ))
+            }
+
+            state.containsKey("success") -> {
+                updateState(MdlPresentationStateUpdate(state = MdlPresentationState.SUCCESS))
             }
 
             state.containsKey("error") -> {
