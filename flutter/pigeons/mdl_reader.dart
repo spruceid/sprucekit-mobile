@@ -10,7 +10,7 @@ import 'package:pigeon/pigeon.dart';
       errorClassName: 'MdlReaderFlutterError',
       package: 'com.spruceid.sprucekit_mobile',
     ),
-    swiftOut: 'ios/Classes/MdlReader.g.swift',
+    swiftOut: 'ios/sprucekit_mobile/Sources/sprucekit_mobile/MdlReader.g.swift',
     swiftOptions: SwiftOptions(errorClassName: 'MdlReaderPigeonError'),
     dartPackageName: 'sprucekit_mobile',
   ),

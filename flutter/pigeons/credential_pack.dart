@@ -10,7 +10,7 @@ import 'package:pigeon/pigeon.dart';
       errorClassName: 'CredentialPackFlutterError',
       package: 'com.spruceid.sprucekit_mobile',
     ),
-    swiftOut: 'ios/Classes/CredentialPack.g.swift',
+    swiftOut: 'ios/sprucekit_mobile/Sources/sprucekit_mobile/CredentialPack.g.swift',
     swiftOptions: SwiftOptions(errorClassName: 'CredentialPackPigeonError'),
     dartPackageName: 'sprucekit_mobile',
   ),

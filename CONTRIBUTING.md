@@ -131,11 +131,14 @@ To develop the Flutter plugin against local SDK changes:
    ```bash
    cd flutter/example
    flutter pub get
-   cd ios && pod install && cd ..
-   flutter run
+   SPRUCEKIT_SDK_FROM_SOURCE=1 flutter run
    ```
 
-After making changes to Rust code, rebuild and run `pod install` again.
+`SPRUCEKIT_SDK_FROM_SOURCE=1` makes the iOS build use the SDK in this
+repository. For a launch from an IDE, set the variable in the launch
+configuration. See `flutter/CLAUDE.md`.
+
+After a change to the Rust code, build the Rust layer again and run the app again.
 
 #### Regenerating Pigeon bindings
 

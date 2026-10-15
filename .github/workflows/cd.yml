@@ -171,6 +171,7 @@ jobs:
           sed -i '' "s/^version:.*/version: ${{ github.event.inputs.version }}/" flutter/pubspec.yaml
           sed -i '' "s/s.version.*/s.version          = '${{ github.event.inputs.version }}'/" flutter/ios/sprucekit_mobile.podspec
           sed -i '' "s/s.dependency 'SpruceIDMobileSdk'.*/s.dependency 'SpruceIDMobileSdk', '~> ${{ github.event.inputs.version }}'/" flutter/ios/sprucekit_mobile.podspec
+          sed -i '' "s/exact: \"[0-9.]*\"/exact: \"${{ github.event.inputs.version }}\"/" flutter/ios/sprucekit_mobile/Package.swift
 
       - name: Push changes and tag
         id: commit

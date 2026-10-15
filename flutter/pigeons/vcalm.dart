@@ -10,7 +10,7 @@ import 'package:pigeon/pigeon.dart';
       errorClassName: 'VcalmFlutterError',
       package: 'com.spruceid.sprucekit_mobile',
     ),
-    swiftOut: 'ios/Classes/Vcalm.g.swift',
+    swiftOut: 'ios/sprucekit_mobile/Sources/sprucekit_mobile/Vcalm.g.swift',
     swiftOptions: SwiftOptions(errorClassName: 'VcalmPigeonError'),
     dartPackageName: 'sprucekit_mobile',
   ),

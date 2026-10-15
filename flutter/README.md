@@ -5,6 +5,38 @@ SDKs over Pigeon platform channels. See the [example app](./example) for
 every API in use, and [CLAUDE.md](./CLAUDE.md) for the layout and the
 generation commands.
 
+## iOS installation
+
+The plugin supports Swift Package Manager and CocoaPods. Flutter selects
+one from your app settings. Flutter 3.47 uses Swift Package Manager by
+default.
+
+- **Swift Package Manager:** the plugin gets the SpruceKit Mobile SDK from
+  the GitHub release with exactly the plugin version. Your app needs no
+  setup for the SDK.
+- **CocoaPods:** the plugin depends on the `SpruceIDMobileSdk` pod at the
+  same version.
+
+### Upgrade from a release with CocoaPods only
+
+With Swift Package Manager, the plugin does not come from your Podfile.
+
+1. Remove the `SpruceIDMobileSdk`, `SpruceIDMobileSdkRs` and
+   `SpruceIDMobileSdkRsRustFramework` pods from your Podfile. If they stay,
+   the SDK links two times.
+2. If an app extension uses the SDK, add the package
+   `https://github.com/spruceid/sprucekit-mobile` to the extension in
+   Xcode. Use exactly the plugin version, because the plugin pins that
+   version.
+
+To keep CocoaPods, add this to the `pubspec.yaml` of your app:
+
+```yaml
+flutter:
+  config:
+    enable-swift-package-manager: false
+```
+
 ## NFC tap-to-share (Android)
 
 `MdlPresentation.initializeNfcPresentation` presents an mDL after a reader

@@ -12,7 +12,7 @@ Flutter plugin (`sprucekit_mobile`) wrapping the iOS and Android SpruceKit Mobil
 - **`lib/pigeon/`** -- generated Dart code (do not edit, regenerate from `pigeons/`)
 - **`lib/src/scanner.dart`** -- native Platform View scanner widget (QR, MRZ, PDF417)
 - **`pigeons/`** -- Pigeon API definitions (source of truth for cross-platform APIs)
-- **`ios/Classes/`** -- Swift host API implementations + generated Pigeon code
+- **`ios/sprucekit_mobile/`** -- Swift package (`Package.swift`) with the Swift host API implementations and the generated Pigeon code in `Sources/sprucekit_mobile/`. The podspec in `ios/` uses the same sources.
 - **`android/src/main/kotlin/`** -- Kotlin host API implementations + generated Pigeon code
 - **`example/`** -- Example app demonstrating all plugin capabilities
 
@@ -49,9 +49,9 @@ SPRUCEKIT_SDK_FROM_SOURCE=false gradle :sprucekit_mobile:testDebugUnitTest :app:
 
 - The **Scanner** widget is a native Platform View (not Pigeon-based), communicating via `MethodChannel` per instance
 - All cross-platform API changes start in `pigeons/` source files, then regenerate with `dart run pigeon`
-- Generated code lands in three places: `lib/pigeon/` (Dart), `ios/Classes/` (Swift `.g.swift`), `android/src/main/kotlin/` (Kotlin `.g.kt`)
+- Generated code lands in three places: `lib/pigeon/` (Dart), `ios/sprucekit_mobile/Sources/sprucekit_mobile/` (Swift `.g.swift`), `android/src/main/kotlin/` (Kotlin `.g.kt`)
 - Native adapter classes (e.g., `Oid4vciAdapter.swift`, `Oid4vciAdapter.kt`) implement the generated Pigeon host APIs by delegating to the native SDKs
-- For releases, the plugin depends on **published** native SDK versions (Maven Central for Android, CocoaPods for iOS). For local dev, it uses source builds.
+- For releases, the plugin depends on **published** native SDK versions: Maven Central for Android, and for iOS the GitHub release (SPM) or the `SpruceIDMobileSdk` pod (CocoaPods). For local dev, Android uses source builds by default. iOS uses them only with `SPRUCEKIT_SDK_FROM_SOURCE=1`.
 - **Adding a new Rust function to the Android adapter**: the Flutter plugin references the *published* `mobilesdkrs` artifact, so a newly-added Rust function won't be available until the next SDK release. To build the Flutter example locally against your local SDK:
   1. Publish the local SDK to Maven Local:
      ```bash
@@ -80,21 +80,27 @@ SPRUCEKIT_SDK_FROM_SOURCE=false gradle :sprucekit_mobile:testDebugUnitTest :app:
 
   The Flutter CI compiles the plugin's Kotlin against the published SDK and runs its unit tests, so a PR that needs an unpublished SDK function fails CI until the SDK is released.
 
-- **Adding a new Rust function to the iOS adapter**: The Flutter example iOS app uses local pods (`:path => '../../../'` in `flutter/example/ios/Podfile`), so it picks up local Rust and Swift SDK changes automatically — no publishing step needed. However, you must rebuild the xcframework:
-  1. Clean and rebuild the Rust iOS framework + Swift bindings:
+- **iOS: Swift Package Manager and the SDK source switch**: the plugin ships `ios/sprucekit_mobile/Package.swift` and a podspec. The example app uses SPM (`config: enable-swift-package-manager: true` in `example/pubspec.yaml`). Only `permission_handler_apple` still comes from CocoaPods.
+
+  The plugin manifest reads `SPRUCEKIT_SDK_FROM_SOURCE`. With `1` or `true`, the SDK comes from this repository. Else it comes from the GitHub release at the version in `Package.swift`. The example `DcApiExtension` target always uses this repository, so every example build must set the variable.
+
+  To build the example against local Rust and Swift changes:
+  1. Clean and rebuild the Rust iOS framework and the Swift bindings:
      ```bash
      cd rust
      cargo clean
-      ./build-ios.sh --debug # Rebuild xcframework + Swift bindings
+     ./build-ios.sh --debug
      ```
-     > **Important:** Always run `cargo clean` first if you've pulled new commits or switched branches. Without it, the xcframework may contain stale object files that don't match the regenerated Swift bindings, causing "Cannot find type/symbol" errors at build time.
-  2. Re-install pods and build:
+     > **Important:** Always run `cargo clean` first after a pull or a branch change. Without it, the xcframework can contain stale object files that do not match the regenerated Swift bindings. The build then fails with "Cannot find type/symbol" errors.
+  2. Build the example:
      ```bash
-     cd flutter/example/ios
-     pod install
-     cd ..
-     fvm flutter build ios --debug --no-codesign
+     cd flutter/example
+     SPRUCEKIT_SDK_FROM_SOURCE=1 fvm flutter build ios --simulator --debug --no-codesign
      ```
-  3. No changes to commit — the Podfile is already configured for local development, and `MobileSdkRsFFI.xcframework` is in `.gitignore`.
+  3. Nothing to commit: `MobileSdkRsFFI.xcframework` and the example `Package.resolved` are in `.gitignore`.
 
-  > **Tip:** If you see Swift errors like "Cannot find type 'UniffiVTableCallback...'", "Cannot find type 'RustBuffer'", or "Cannot find 'uniffi_mobile_sdk_rs_checksum_...'", it almost always means the xcframework is stale or missing a module. Run `cargo clean && ./build-ios.sh --debug` to fix it.
+  > **Xcode:** Xcode started from the Dock does not get shell variables. Start it from a terminal: `SPRUCEKIT_SDK_FROM_SOURCE=1 open ios/Runner.xcworkspace` in `example/`. For `flutter run` from an IDE, set the variable in the launch configuration, for example `env` in the VS Code `launch.json`. Without the variable, the result depends on the name of the clone folder. If the folder is `sprucekit-mobile`, the build uses this repository, but SwiftPM warns "Conflicting identity for sprucekit-mobile". A later SwiftPM turns this warning into an error. With another folder name, the build fails with "multiple similar targets 'SpruceIDMobileSdk'".
+
+  > **Plugin override in the example project:** for a plugin example app, Flutter adds the plugin package to `Runner.xcodeproj` as a local override. Flutter names the plugin package after the plugin folder, `flutter`, so the override points to `Flutter/ephemeral/Packages/.packages/flutter`. If Flutter changes this path back to `../../ios/sprucekit_mobile`, the build fails with "unable to override package 'sprucekit_mobile' because its identity 'flutter' doesn't match". Set the path back to the `.packages/flutter` symlink.
+
+  > **Tip:** If you see Swift errors like "Cannot find type 'UniffiVTableCallback...'", "Cannot find type 'RustBuffer'", or "Cannot find 'uniffi_mobile_sdk_rs_checksum_...'", the xcframework is stale or missing a module. Run `cargo clean && ./build-ios.sh --debug` to fix it.

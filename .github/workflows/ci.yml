@@ -116,6 +116,27 @@ jobs:
       - name: Check Swift dependency licenses
         run: python3 ios/check-swift-licenses.py
 
+      - name: Read Flutter version from fvm
+        uses: kuhnroyal/flutter-fvm-config-action@v2
+        id: fvm-config
+        with:
+          path: flutter/.fvmrc
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.fvm-config.outputs.FLUTTER_VERSION }}
+          cache: true
+      # Builds the plugin with SPM against the SDK in this tree, so a PR that
+      # changes the Swift SDK and the plugin together passes. The xcframework
+      # above has only the arm64 simulator slice, so the build skips x86_64.
+      - name: Build Flutter example (SPM)
+        working-directory: flutter/example
+        env:
+          SPRUCEKIT_SDK_FROM_SOURCE: "1"
+          FLUTTER_XCODE_ARCHS: arm64
+        run: |
+          flutter pub get
+          flutter build ios --simulator --debug --no-codesign
+
   android:
     runs-on: ubuntu-latest-m
     if: github.actor != 'sprucekit-mobile-monorepo[bot]' # not running CI on release commits

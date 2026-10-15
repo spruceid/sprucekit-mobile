@@ -13,7 +13,7 @@ for credential issuance (OID4VCI) and credential management.
   s.platform         = :ios, '14.0'
   s.swift_version    = '5.0'
 
-  s.source_files = 'Classes/*.swift'
+  s.source_files = 'sprucekit_mobile/Sources/sprucekit_mobile/**/*.swift'
 
   s.dependency 'Flutter'
   s.dependency 'SpruceIDMobileSdk', '~> 0.25.0'
