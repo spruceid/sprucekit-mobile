@@ -32,3 +32,7 @@ Runner/GeneratedPluginRegistrant.*
 !default.mode2v3
 !default.pbxuser
 !default.perspectivev3
+
+# Content depends on SPRUCEKIT_SDK_FROM_SOURCE
+Runner.xcworkspace/xcshareddata/swiftpm/Package.resolved
+Runner.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved

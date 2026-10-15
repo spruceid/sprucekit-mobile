@@ -10,7 +10,7 @@ import 'package:pigeon/pigeon.dart';
       errorClassName: 'Oid4vpFlutterError',
       package: 'com.spruceid.sprucekit_mobile',
     ),
-    swiftOut: 'ios/Classes/Oid4vp.g.swift',
+    swiftOut: 'ios/sprucekit_mobile/Sources/sprucekit_mobile/Oid4vp.g.swift',
     swiftOptions: SwiftOptions(errorClassName: 'Oid4vpPigeonError'),
     dartPackageName: 'sprucekit_mobile',
   ),

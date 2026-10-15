@@ -10,7 +10,8 @@ import 'package:pigeon/pigeon.dart';
       errorClassName: 'SpruceUtilsFlutterError',
       package: 'com.spruceid.sprucekit_mobile',
     ),
-    swiftOut: 'ios/Classes/SpruceUtils.g.swift',
+    swiftOut:
+        'ios/sprucekit_mobile/Sources/sprucekit_mobile/SpruceUtils.g.swift',
     swiftOptions: SwiftOptions(errorClassName: 'SpruceUtilsPigeonError'),
     dartPackageName: 'sprucekit_mobile',
   ),

@@ -14,7 +14,7 @@
 - `ios/`
     * `MobileSdk/`: Swift SDK built on top of `MobileSdkRS` (under `rust/`)
     * `Showcase/`: Showcase app, our reference app for this SDK
-- `flutter/`
+- `sprucekit_mobile/`
     * Flutter plugin providing cross-platform access to the SDK
     * `example/`: Example Flutter app demonstrating the plugin
 
@@ -129,13 +129,16 @@ To develop the Flutter plugin against local SDK changes:
 
 2. Run the example app:
    ```bash
-   cd flutter/example
+   cd sprucekit_mobile/example
    flutter pub get
-   cd ios && pod install && cd ..
-   flutter run
+   SPRUCEKIT_SDK_FROM_SOURCE=1 flutter run
    ```
 
-After making changes to Rust code, rebuild and run `pod install` again.
+`SPRUCEKIT_SDK_FROM_SOURCE=1` makes the iOS build use the SDK in this
+repository. For a launch from an IDE, set the variable in the launch
+configuration. See `sprucekit_mobile/CLAUDE.md`.
+
+After a change to the Rust code, build the Rust layer again and run the app again.
 
 #### Regenerating Pigeon bindings
 
@@ -157,7 +160,7 @@ Run these locally before opening a PR to catch the same failures CI will catch.
 
 **iOS Swift bindings** — after any Rust change, regenerate (see [iOS → Rust layer](#rust-layer) above) and commit any changes to `rust/MobileSdkRs/`. CI fails if the committed bindings are out of date.
 
-**Flutter** — use `fvm` to match the pinned Flutter version (see `flutter/.fvmrc`):
+**Flutter** — use `fvm` to match the pinned Flutter version (see `sprucekit_mobile/.fvmrc`):
 
 ```bash
 cd flutter
@@ -177,7 +180,7 @@ touch local.properties  # if missing
 **US English** — copy shown to a person is US English, enforced by the `spelling` CI job over the Showcase apps and the Flutter example. Exemptions live in `_typos.toml`:
 
 ```bash
-typos android/Showcase/src ios/Showcase flutter/example/lib
+typos android/Showcase/src ios/Showcase sprucekit_mobile/example/lib
 ```
 
 Install it with `brew install typos-cli` or `cargo install typos-cli`. When a flagged word is a name we do not own — an ISO mDL claim key, a third-party API — add it to `_typos.toml` rather than renaming it.

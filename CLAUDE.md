@@ -15,7 +15,7 @@ Each layer has its own CLAUDE.md with build commands and architecture details:
 - [Rust core library](rust/CLAUDE.md)
 - [iOS SDK + Showcase](ios/CLAUDE.md)
 - [Android SDK + Showcase](android/CLAUDE.md)
-- [Flutter plugin](flutter/CLAUDE.md)
+- [Flutter plugin](sprucekit_mobile/CLAUDE.md)
 
 ## Cross-Layer Development Workflow
 
@@ -24,7 +24,7 @@ Changes to the Rust layer require regenerating bindings before platform work:
 - **iOS**: `cd rust && ./build-ios.sh`
   - CI enforces the generated `rust/MobileSdkRs/Sources/MobileSdkRs/` Swift files are committed via `git diff --exit-code`
 - **Android**: Bindings regenerated automatically during the Gradle build (`buildCargoNdk` and `bindGen` tasks in `android/MobileSdkRs/build.gradle`)
-- **Flutter**: Wraps native SDKs (not Rust directly). Rebuild the relevant native SDK, then `pod install` (iOS) or Gradle rebuild (Android).
+- **Flutter**: Wraps native SDKs (not Rust directly). Rebuild the relevant native SDK, then build the example with `SPRUCEKIT_SDK_FROM_SOURCE=1` (iOS, SPM) or Gradle rebuild (Android). See `sprucekit_mobile/CLAUDE.md`.
 
 ## CI
 

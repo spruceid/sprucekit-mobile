@@ -10,7 +10,8 @@ import 'package:pigeon/pigeon.dart';
       errorClassName: 'MdlPresentationFlutterError',
       package: 'com.spruceid.sprucekit_mobile',
     ),
-    swiftOut: 'ios/Classes/MdlPresentation.g.swift',
+    swiftOut:
+        'ios/sprucekit_mobile/Sources/sprucekit_mobile/MdlPresentation.g.swift',
     swiftOptions: SwiftOptions(errorClassName: 'MdlPresentationPigeonError'),
     dartPackageName: 'sprucekit_mobile',
   ),

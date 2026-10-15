@@ -136,7 +136,7 @@ void main() {
         rustPortraitFile.existsSync(),
         isTrue,
         reason:
-            'expected to run `flutter test` from the flutter/ package '
+            'expected to run `flutter test` from the sprucekit_mobile/ package '
             'root inside the sprucekit-mobile repo',
       );
       expect(data.portrait, rustPortraitFile.readAsStringSync());
