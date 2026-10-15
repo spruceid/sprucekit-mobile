@@ -1593,6 +1593,16 @@ mod tests {
     /// field the way the wallets do, and return the credential embedded in
     /// the resulting presentation.
     async fn present_badge(vp_formats_supported: Value) -> Value {
+        let presentation = present_badge_item(badge_request(vp_formats_supported)).await;
+        match &presentation["verifiableCredential"] {
+            Value::Array(credentials) => credentials[0].clone(),
+            credential => credential.clone(),
+        }
+    }
+
+    /// The badge's `vp_token` item for `request`, selecting every requested
+    /// field.
+    async fn present_badge_item(request: String) -> Value {
         let holder = Oid4vpHolder::new_with_credentials(
             vec![dual_proof_badge_credential()],
             Vec::new(),
@@ -1604,10 +1614,7 @@ mod tests {
         .await
         .unwrap();
 
-        let session = holder
-            .start(badge_request(vp_formats_supported))
-            .await
-            .unwrap();
+        let session = holder.start(request).await.unwrap();
         let requirement = session.requirements().pop().unwrap();
         let fields = session
             .requested_fields(requirement.credentials.first().unwrap())
@@ -1624,13 +1631,9 @@ mod tests {
 
         let vp_token: Value = serde_json::from_str(&response.vp_token().unwrap()).unwrap();
         let item = &vp_token["badge_0"];
-        let presentation = match item.as_array() {
+        match item.as_array() {
             Some(items) => items[0].clone(),
             None => item.clone(),
-        };
-        match &presentation["verifiableCredential"] {
-            Value::Array(credentials) => credentials[0].clone(),
-            credential => credential.clone(),
         }
     }
 
@@ -1681,6 +1684,119 @@ mod tests {
 
         assert_eq!(cryptosuites(&credential), ["ecdsa-rdfc-2019"]);
         assert!(credential["credentialSubject"]["achievement"]["description"].is_string());
+    }
+
+    /// The `vp_token` for `request`, selecting every match and every
+    /// requested field.
+    async fn present_all(
+        credentials: Vec<Arc<ParsedCredential>>,
+        request: String,
+    ) -> Result<Value, Oid4vpFacadeError> {
+        let holder = Oid4vpHolder::new_with_credentials(
+            credentials,
+            Vec::new(),
+            Box::new(TestSigner { jwk: load_jwk() }),
+            String::new(),
+            Some(default_ld_json_context()),
+            None,
+        )
+        .await
+        .unwrap();
+
+        let session = holder.start(request).await.unwrap();
+        let requirement = session.requirements().pop().unwrap();
+        let fields = requirement
+            .credentials
+            .iter()
+            .map(|credential| {
+                session
+                    .requested_fields(credential)
+                    .unwrap()
+                    .iter()
+                    .map(|field| field.path.clone())
+                    .collect()
+            })
+            .collect();
+
+        let response = session
+            .create_permission_response(
+                requirement.credentials.clone(),
+                fields,
+                Oid4vpResponseOptions::default(),
+            )
+            .await?;
+
+        Ok(serde_json::from_str(&response.vp_token().unwrap()).unwrap())
+    }
+
+    /// OID4VP 1.0 §8.1: one Presentation per query without `multiple`.
+    #[tokio::test]
+    async fn facade_v1_rejects_multiple_presentations_unless_allowed() {
+        let badges = || vec![dual_proof_badge_credential(), dual_proof_badge_credential()];
+
+        let error = present_all(badges(), badge_request(json!({})))
+            .await
+            .expect_err("two presentations for one query")
+            .to_string();
+        assert!(error.contains("does not allow `multiple`"), "{error}");
+
+        let mut request: Value = serde_json::from_str(&badge_request(json!({}))).unwrap();
+        request["dcql_query"]["credentials"][0]["multiple"] = json!(true);
+        let vp_token = present_all(badges(), request.to_string()).await.unwrap();
+        assert_eq!(vp_token["badge_0"].as_array().unwrap().len(), 2);
+    }
+
+    /// OID4VP 1.0 §6.4.1: asked for no claims, an SD-only badge discloses
+    /// its mandatory claims alone.
+    #[tokio::test]
+    async fn facade_v1_presents_only_mandatory_claims_of_an_sd_only_badge() {
+        let mut badge = dual_proof_badge_json();
+        let proofs = badge["proof"].as_array_mut().unwrap();
+        proofs.retain(|proof| proof["cryptosuite"] == "ecdsa-sd-2023");
+        let sd_only =
+            ParsedCredential::new_ldp_vc(JsonVc::new_from_json(badge.to_string()).unwrap());
+
+        let mut request: Value = serde_json::from_str(&badge_request(json!({}))).unwrap();
+        request["dcql_query"]["credentials"][0]
+            .as_object_mut()
+            .unwrap()
+            .remove("claims");
+
+        let vp_token = present_all(vec![sd_only], request.to_string())
+            .await
+            .unwrap();
+        let credential = &vp_token["badge_0"][0]["verifiableCredential"];
+        let credential = credential.as_array().map_or(credential, |items| &items[0]);
+
+        // Derived, and without the unrequested `achievement.name`.
+        assert_eq!(cryptosuites(credential), ["ecdsa-sd-2023"]);
+        assert!(credential["proof"]["proofValue"]
+            .as_str()
+            .is_some_and(|value| !value.starts_with("u2V0A")));
+        assert!(credential["credentialSubject"]["achievement"]
+            .get("name")
+            .is_none());
+    }
+
+    /// OID4VP 1.0 Appendix B.1: without Holder Binding, the VC is returned.
+    #[tokio::test]
+    async fn facade_v1_presents_the_credential_without_holder_binding() {
+        let mut request: Value = serde_json::from_str(&badge_request(json!({}))).unwrap();
+        request["dcql_query"]["credentials"][0]["require_cryptographic_holder_binding"] =
+            json!(false);
+
+        let item = present_badge_item(request.to_string()).await;
+
+        assert!(item.get("verifiableCredential").is_none());
+        assert!(item["type"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("OpenBadgeCredential")));
+        // Still derived, disclosing only the requested claim.
+        assert_eq!(cryptosuites(&item), ["ecdsa-sd-2023"]);
+        assert!(item["credentialSubject"]["achievement"]
+            .get("description")
+            .is_none());
     }
 
     #[tokio::test]
@@ -2474,12 +2590,19 @@ mod tests {
         );
     }
 
+    /// `v1_request` with `multiple: true` on its query (OID4VP 1.0 §8.1).
+    fn v1_request_allowing_multiple() -> String {
+        let mut request: Value = serde_json::from_str(&v1_request()).unwrap();
+        request["dcql_query"]["credentials"][0]["multiple"] = json!(true);
+        request.to_string()
+    }
+
     #[tokio::test]
     async fn facade_mixed_stored_and_offer_response() {
         let provider = Arc::new(FakeProvider::default());
         let holder = holder_with_provider(provider).await;
 
-        let session = holder.start(v1_request()).await.unwrap();
+        let session = holder.start(v1_request_allowing_multiple()).await.unwrap();
         let requirement = session.requirements().pop().unwrap();
         let requested_fields = session
             .requested_fields(requirement.credentials.first().unwrap())
@@ -2513,6 +2636,34 @@ mod tests {
         assert!(items
             .iter()
             .any(|item| item.to_string().contains("AlumniCredential")));
+    }
+
+    /// OID4VP 1.0 §8.1: a stored credential and an offer count together.
+    #[tokio::test]
+    async fn facade_mixed_stored_and_offer_response_requires_multiple() {
+        let provider = Arc::new(FakeProvider::default());
+        let holder = holder_with_provider(provider).await;
+
+        let session = holder.start(v1_request()).await.unwrap();
+        let requirement = session.requirements().pop().unwrap();
+        let requested_fields = session
+            .requested_fields(requirement.credentials.first().unwrap())
+            .unwrap();
+
+        let error = session
+            .create_permission_response_with_offers(
+                requirement.credentials.clone(),
+                vec![requested_fields
+                    .iter()
+                    .map(|field| field.path.clone())
+                    .collect()],
+                session.dynamic_offers(),
+                Oid4vpResponseOptions::default(),
+            )
+            .await
+            .expect_err("a stored and an issued item for one query")
+            .to_string();
+        assert!(error.contains("does not allow `multiple`"), "{error}");
     }
 
     #[tokio::test]

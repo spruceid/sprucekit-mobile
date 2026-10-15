@@ -137,13 +137,14 @@ impl From<RawResponseUri> for Json {
 ///
 /// * `key_store` - KeyStore to retrieve the device signing key
 /// * `credential` - The mdoc credential being presented
-/// * `revealed_namespaces` - Pre-selected namespaces and elements to reveal
+/// * `revealed_namespaces` - Pre-selected namespaces and elements to reveal, or
+///   `None` to reveal no issuer-signed data element
 /// * `errors` - Optional map of namespace -> element -> error for missing fields
 /// * `handover` - The handover structure for the SessionTranscript
 pub fn build_device_response<H: Serialize + DeserializeOwned + Debug>(
     key_store: Arc<dyn KeyStore>,
     credential: &Mdoc,
-    revealed_namespaces: NonEmptyMap<String, NonEmptyVec<Tag24<IssuerSignedItem>>>,
+    revealed_namespaces: Option<NonEmptyMap<String, NonEmptyVec<Tag24<IssuerSignedItem>>>>,
     errors: Option<NonEmptyMap<String, NonEmptyMap<String, DocumentErrorCode>>>,
     handover: H,
 ) -> Result<DeviceResponse> {
@@ -208,7 +209,7 @@ pub fn build_device_response<H: Serialize + DeserializeOwned + Debug>(
         doc_type: mdoc.mso.doc_type.clone(),
         issuer_signed: IssuerSigned {
             issuer_auth: mdoc.issuer_auth.clone(),
-            namespaces: Some(revealed_namespaces),
+            namespaces: revealed_namespaces,
         },
         device_signed,
         errors,
@@ -280,7 +281,7 @@ pub fn prepare_response<H: Serialize + DeserializeOwned + Debug>(
     build_device_response(
         key_store,
         credential,
-        revealed_namespaces,
+        Some(revealed_namespaces),
         NonEmptyMap::maybe_new(errors),
         handover,
     )
