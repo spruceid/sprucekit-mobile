@@ -224,10 +224,13 @@ internal class MdlPresentationAdapter(
             return
         }
 
+        // The SDK only queues the response here. SUCCESS comes from the
+        // transport's "success" update when the last chunk is written, see
+        // handleStateUpdate. A caller that tears down on SUCCESS before then
+        // cuts the transfer.
         try {
             updateState(MdlPresentationStateUpdate(state = MdlPresentationState.SENDING_RESPONSE))
             presentation?.submitNamespaces(selectedNamespaces)
-            updateState(MdlPresentationStateUpdate(state = MdlPresentationState.SUCCESS))
             callback(Result.success(MdlPresentationSuccess("Response submitted")))
         } catch (e: Exception) {
             Log.e(TAG, "Failed to submit namespaces", e)
@@ -545,6 +548,10 @@ internal class MdlPresentationAdapter(
                     state = MdlPresentationState.SELECTING_NAMESPACES,
                     itemsRequests = mdlItemsRequests
                 ))
+            }
+
+            state.containsKey("success") -> {
+                updateState(MdlPresentationStateUpdate(state = MdlPresentationState.SUCCESS))
             }
 
             state.containsKey("error") -> {
