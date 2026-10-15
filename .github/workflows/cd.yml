@@ -166,17 +166,17 @@ jobs:
 
       - name: Update Flutter plugin versions
         run: |
-          sed -i '' "s/com.spruceid.mobile.sdk:mobilesdk:[0-9.]*/com.spruceid.mobile.sdk:mobilesdk:${{ github.event.inputs.version }}/" flutter/android/build.gradle
-          sed -i '' "s/com.spruceid.mobile.sdk.rs:mobilesdkrs:[0-9.]*/com.spruceid.mobile.sdk.rs:mobilesdkrs:${{ github.event.inputs.version }}/" flutter/android/build.gradle
-          sed -i '' "s/^version:.*/version: ${{ github.event.inputs.version }}/" flutter/pubspec.yaml
-          sed -i '' "s/s.version.*/s.version          = '${{ github.event.inputs.version }}'/" flutter/ios/sprucekit_mobile.podspec
-          sed -i '' "s/s.dependency 'SpruceIDMobileSdk'.*/s.dependency 'SpruceIDMobileSdk', '~> ${{ github.event.inputs.version }}'/" flutter/ios/sprucekit_mobile.podspec
-          sed -i '' "s/exact: \"[0-9.]*\"/exact: \"${{ github.event.inputs.version }}\"/" flutter/ios/sprucekit_mobile/Package.swift
+          sed -i '' "s/com.spruceid.mobile.sdk:mobilesdk:[0-9.]*/com.spruceid.mobile.sdk:mobilesdk:${{ github.event.inputs.version }}/" sprucekit_mobile/android/build.gradle
+          sed -i '' "s/com.spruceid.mobile.sdk.rs:mobilesdkrs:[0-9.]*/com.spruceid.mobile.sdk.rs:mobilesdkrs:${{ github.event.inputs.version }}/" sprucekit_mobile/android/build.gradle
+          sed -i '' "s/^version:.*/version: ${{ github.event.inputs.version }}/" sprucekit_mobile/pubspec.yaml
+          sed -i '' "s/s.version.*/s.version          = '${{ github.event.inputs.version }}'/" sprucekit_mobile/ios/sprucekit_mobile.podspec
+          sed -i '' "s/s.dependency 'SpruceIDMobileSdk'.*/s.dependency 'SpruceIDMobileSdk', '~> ${{ github.event.inputs.version }}'/" sprucekit_mobile/ios/sprucekit_mobile.podspec
+          sed -i '' "s/exact: \"[0-9.]*\"/exact: \"${{ github.event.inputs.version }}\"/" sprucekit_mobile/ios/sprucekit_mobile/Package.swift
 
       - name: Push changes and tag
         id: commit
         run: |
-          git add Package.swift SpruceIDMobileSdk.podspec SpruceIDMobileSdkRs.podspec SpruceIDMobileSdkRsRustFramework.podspec flutter/
+          git add Package.swift SpruceIDMobileSdk.podspec SpruceIDMobileSdkRs.podspec SpruceIDMobileSdkRsRustFramework.podspec sprucekit_mobile/
           git commit -m "Release ${{ github.event.inputs.version }}"
           git push
           git tag ${{ github.event.inputs.version }} -m "${{ github.event.inputs.version }}"

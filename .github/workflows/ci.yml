@@ -120,7 +120,7 @@ jobs:
         uses: kuhnroyal/flutter-fvm-config-action@v2
         id: fvm-config
         with:
-          path: flutter/.fvmrc
+          path: sprucekit_mobile/.fvmrc
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ steps.fvm-config.outputs.FLUTTER_VERSION }}
@@ -129,7 +129,7 @@ jobs:
       # changes the Swift SDK and the plugin together passes. The xcframework
       # above has only the arm64 simulator slice, so the build skips x86_64.
       - name: Build Flutter example (SPM)
-        working-directory: flutter/example
+        working-directory: sprucekit_mobile/example
         env:
           SPRUCEKIT_SDK_FROM_SOURCE: "1"
           FLUTTER_XCODE_ARCHS: arm64
@@ -199,21 +199,21 @@ jobs:
           files: |
             android/Showcase/src
             ios/Showcase
-            flutter/example/lib
+            sprucekit_mobile/example/lib
 
   flutter:
     runs-on: ubuntu-latest
     if: github.actor != 'sprucekit-mobile-monorepo[bot]'
     defaults:
       run:
-        working-directory: flutter
+        working-directory: sprucekit_mobile
     steps:
       - uses: actions/checkout@v4
       - name: Read Flutter version from fvm
         uses: kuhnroyal/flutter-fvm-config-action@v2
         id: fvm-config
         with:
-          path: flutter/.fvmrc
+          path: sprucekit_mobile/.fvmrc
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ steps.fvm-config.outputs.FLUTTER_VERSION }}
@@ -249,7 +249,7 @@ jobs:
       # so it fails on PRs that change the SDK API and the plugin together.
       - name: Plugin Kotlin tests and example manifest merge
         if: false
-        working-directory: flutter/example
+        working-directory: sprucekit_mobile/example
         env:
           SPRUCEKIT_SDK_FROM_SOURCE: "false"
         run: |
@@ -265,4 +265,4 @@ jobs:
 
       - name: Check example app dependency licenses
         run: very_good packages check licenses --allowed="Apache-2.0,BSD-2-Clause,BSD-3-Clause,CC0-1.0,CDLA-Permissive-2.0,ISC,MIT,MPL-2.0,Unicode-3.0"
-        working-directory: flutter/example
+        working-directory: sprucekit_mobile/example

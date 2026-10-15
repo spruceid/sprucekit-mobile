@@ -59,7 +59,7 @@ SPRUCEKIT_SDK_FROM_SOURCE=false gradle :sprucekit_mobile:testDebugUnitTest :app:
      VERSION=0.0.1-local ./gradlew :MobileSdkRs:publishDebugPublicationToMavenLocal
      ```
      > **Note:** Use `publishDebugPublicationToMavenLocal` (not `publishToMavenLocal`) to avoid GPG signing errors. The `release` publication requires GPG signing (`gpg` command + keys), which is only needed for Maven Central. The `debug` publication skips signing and works for local development.
-  2. In `flutter/android/build.gradle`, make **three** changes:
+  2. In `sprucekit_mobile/android/build.gradle`, make **three** changes:
      - Uncomment `mavenLocal()` in the `repositories` block.
      - Add `exclude` to the `mobilesdk` dependency to prevent its transitive dependency on the published `mobilesdkrs` from overriding your local version.
      - Change the `mobilesdkrs` version to your local version.
@@ -75,7 +75,7 @@ SPRUCEKIT_SDK_FROM_SOURCE=false gradle :sprucekit_mobile:testDebugUnitTest :app:
      implementation("com.spruceid.mobile.sdk.rs:mobilesdkrs:0.0.1-local")
      ```
      > **Why the exclude?** `mobilesdk:0.14.14` declares a transitive dependency on `mobilesdkrs:0.14.14` with a `strictly` constraint. Without the exclude, Gradle resolves your `0.0.1-local` back to `0.14.14`, silently ignoring your local build.
-  3. Build the example: `cd flutter/example && flutter build apk`
+  3. Build the example: `cd sprucekit_mobile/example && flutter build apk`
   4. **Before pushing**, revert all three changes in `build.gradle` (re-comment `mavenLocal()`, remove `exclude`, restore version to `0.14.14`).
 
   The Flutter CI compiles the plugin's Kotlin against the published SDK and runs its unit tests, so a PR that needs an unpublished SDK function fails CI until the SDK is released.
@@ -94,13 +94,13 @@ SPRUCEKIT_SDK_FROM_SOURCE=false gradle :sprucekit_mobile:testDebugUnitTest :app:
      > **Important:** Always run `cargo clean` first after a pull or a branch change. Without it, the xcframework can contain stale object files that do not match the regenerated Swift bindings. The build then fails with "Cannot find type/symbol" errors.
   2. Build the example:
      ```bash
-     cd flutter/example
+     cd sprucekit_mobile/example
      SPRUCEKIT_SDK_FROM_SOURCE=1 fvm flutter build ios --simulator --debug --no-codesign
      ```
   3. Nothing to commit: `MobileSdkRsFFI.xcframework` and the example `Package.resolved` are in `.gitignore`.
 
   > **Xcode:** Xcode started from the Dock does not get shell variables. Start it from a terminal: `SPRUCEKIT_SDK_FROM_SOURCE=1 open ios/Runner.xcworkspace` in `example/`. For `flutter run` from an IDE, set the variable in the launch configuration, for example `env` in the VS Code `launch.json`. Without the variable, the result depends on the name of the clone folder. If the folder is `sprucekit-mobile`, the build uses this repository, but SwiftPM warns "Conflicting identity for sprucekit-mobile". A later SwiftPM turns this warning into an error. With another folder name, the build fails with "multiple similar targets 'SpruceIDMobileSdk'".
 
-  > **Plugin override in the example project:** for a plugin example app, Flutter adds the plugin package to `Runner.xcodeproj` as a local override. Flutter names the plugin package after the plugin folder, `flutter`, so the override points to `Flutter/ephemeral/Packages/.packages/flutter`. If Flutter changes this path back to `../../ios/sprucekit_mobile`, the build fails with "unable to override package 'sprucekit_mobile' because its identity 'flutter' doesn't match". Set the path back to the `.packages/flutter` symlink.
+  > **Plugin folder name:** Flutter puts one symlink for each plugin in `ios/Flutter/ephemeral/Packages/.packages/` and names it after the plugin folder. SwiftPM uses that name as the package identity. Keep the folder name `sprucekit_mobile`. A generic name such as `flutter` collides with other plugins in a folder of the same name, and one symlink replaces the other. The example `Runner.xcodeproj` has a local override that points to `Flutter/ephemeral/Packages/.packages/sprucekit_mobile`.
 
   > **Tip:** If you see Swift errors like "Cannot find type 'UniffiVTableCallback...'", "Cannot find type 'RustBuffer'", or "Cannot find 'uniffi_mobile_sdk_rs_checksum_...'", the xcframework is stale or missing a module. Run `cargo clean && ./build-ios.sh --debug` to fix it.

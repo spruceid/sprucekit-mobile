@@ -17,7 +17,7 @@ let repoRoot = URL(fileURLWithPath: #filePath)
     .resolvingSymlinksInPath()
     .deletingLastPathComponent()  // sprucekit_mobile
     .deletingLastPathComponent()  // ios
-    .deletingLastPathComponent()  // flutter
+    .deletingLastPathComponent()  // sprucekit_mobile (plugin root)
     .deletingLastPathComponent()  // repository root
 
 // The identity of a path dependency is its directory name.
