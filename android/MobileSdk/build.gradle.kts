@@ -173,6 +173,7 @@ dependencies {
     implementation("io.ktor:ktor-client-okhttp:3.2.2")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20250517")
+    testImplementation("io.mockk:mockk:1.13.17")
     androidTestImplementation("com.android.support.test:runner:1.0.2")
     androidTestImplementation("com.android.support.test.espresso:espresso-core:3.0.2")
 
