@@ -44,8 +44,11 @@ else
   targets=(aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios)
 fi
 
+# `cargo rustc --crate-type staticlib` rather than `cargo build`: Cargo skips
+# LTO for a crate that also emits an rlib, so the release profile's LTO only
+# applies when the staticlib is the sole output.
 for target in "${targets[@]}"; do
-  cargo build ${cargo_flags[@]+"${cargo_flags[@]}"} --target "$target"
+  cargo rustc --lib --crate-type staticlib ${cargo_flags[@]+"${cargo_flags[@]}"} --target "$target"
 done
 
 # Any built slice works as the bindgen metadata source.
@@ -53,7 +56,7 @@ bindgen_lib="target/${targets[0]}/$profile/$lib"
 
 gen_dir=target/swift-bindgen
 rm -rf "$gen_dir" target/ios-headers
-cargo run --bin uniffi-bindgen -- generate --library "$bindgen_lib" \
+cargo run -p uniffi-bindgen -- generate --library "$bindgen_lib" \
   --language swift --no-format --out-dir "$gen_dir"
 
 mv "$gen_dir"/*.swift MobileSdkRs/Sources/MobileSdkRs/
