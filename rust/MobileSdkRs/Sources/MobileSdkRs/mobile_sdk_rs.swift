@@ -36901,6 +36901,12 @@ public func verifySdJwtVp(input: String)async throws   {
 }
 /**
  * Verifies the signature of a raw credential.
+ *
+ * Resolving the issuer's DID can make network requests (e.g. `did:web`),
+ * which need a Tokio runtime, and JSON-LD canonicalization recurses deeply
+ * enough to overflow a small thread stack. Both are handled here by running
+ * the verification on a dedicated big-stack thread with its own runtime, so
+ * callers need neither.
  */
 public func verifyRawCredential(credential: RawCredential, contextMap: [String: String]?)async throws  -> Verification  {
     return
@@ -37046,6 +37052,14 @@ public func vcToSignedVp(vc: String, keyStr: String)async throws  -> String  {
             errorHandler: FfiConverterTypeVPError_lift
         )
 }
+/**
+ * Verifies a JSON-encoded VC.
+ *
+ * Runs on a dedicated big-stack thread with its own Tokio runtime: resolving
+ * the issuer's DID can make network requests (e.g. `did:web`), and JSON-LD
+ * canonicalization can overflow a small thread stack. See
+ * [`crate::credential::verify_raw_credential`].
+ */
 public func verifyJsonVcString(json: String)async throws   {
     return
         try  await uniffiRustCallAsync(
@@ -37479,7 +37493,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_verify_sd_jwt_vp() != 37454) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_verify_raw_credential() != 23828) {
+    if (uniffi_mobile_sdk_rs_checksum_func_verify_raw_credential() != 60170) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_cose_key_ec2_p256_public_key() != 51880) {
@@ -37512,7 +37526,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_vc_to_signed_vp() != 50578) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_verify_json_vc_string() != 21877) {
+    if (uniffi_mobile_sdk_rs_checksum_func_verify_json_vc_string() != 43938) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_verify_jwt_vp() != 24055) {
