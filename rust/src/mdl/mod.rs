@@ -33,8 +33,23 @@ pub enum VCVerificationError {
     Generic { value: String },
 }
 
-#[uniffi::export]
+/// Verifies a JSON-encoded VC.
+///
+/// Runs on a dedicated big-stack thread with its own Tokio runtime: resolving
+/// the issuer's DID can make network requests (e.g. `did:web`), and JSON-LD
+/// canonicalization can overflow a small thread stack. See
+/// [`crate::credential::verify_raw_credential`].
+#[uniffi::export(async_runtime = "tokio")]
 pub async fn verify_json_vc_string(json: String) -> Result<(), VCVerificationError> {
+    crate::big_stack::run_async(move || async move { verify_json_vc_string_on_runtime(json).await })
+        .await
+        .map_err(|e| VCVerificationError::Generic {
+            value: format!("verification worker failed: {e}"),
+        })?
+}
+
+/// [`verify_json_vc_string`]'s body. Must run inside a Tokio runtime.
+async fn verify_json_vc_string_on_runtime(json: String) -> Result<(), VCVerificationError> {
     use ssi::prelude::VerificationParameters;
 
     let vc = any_credential_from_json_str(&json).map_err(|e| VCVerificationError::Generic {
@@ -89,7 +104,9 @@ pub async fn vc_to_signed_vp(vc: String, key_str: String) -> Result<String, VPEr
     Ok(jwt.into_string())
 }
 
-#[uniffi::export]
+// Resolving the signer's DID can make network requests (e.g. `did:web`),
+// which need a Tokio runtime.
+#[uniffi::export(async_runtime = "tokio")]
 pub async fn verify_jwt_vp(jwt_vp: String) -> Result<(), VPError> {
     use ssi::prelude::*;
 
