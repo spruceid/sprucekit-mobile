@@ -1,0 +1,12 @@
+[package]
+name = "uniffi-bindgen"
+version.workspace = true
+edition = "2021"
+authors = ["Spruce Systems, Inc."]
+license = "Apache-2.0 OR MIT"
+description = "UniFFI bindings generator for the Mobile SDK. A separate crate so the generator isn't compiled into the SDK library."
+repository = "https://github.com/spruceid/sprucekit-mobile/"
+publish = false
+
+[dependencies]
+uniffi = { workspace = true, features = ["cli"] }

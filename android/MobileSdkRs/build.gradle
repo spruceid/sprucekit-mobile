@@ -89,7 +89,11 @@ tasks.register('buildCargoNdk', Exec) {
     commandLine(["cargo", "ndk"] + abis.collectMany { ["-t", it] } + [
             "--platform", android.defaultConfig.minSdk.toString(),
             "-o", "${projectDir}/src/main/jniLibs",
-            "build", "--release",
+            // `rustc --crate-type cdylib` rather than `build`: Cargo skips LTO for a
+            // crate that also emits an rlib (mobile-sdk-rs keeps one for its
+            // integration tests), so the release profile's LTO only applies when the
+            // cdylib is the sole output.
+            "rustc", "--lib", "--crate-type", "cdylib", "--release",
     ])
 
     def localProperties = rootProject.file("local.properties")
@@ -190,7 +194,7 @@ tasks.register('bindGen', Exec) {
     workingDir rootDir.toPath().toString() + "/../rust"
     if (Os.isFamily(Os.FAMILY_WINDOWS)) {
         commandLine("cmd", "/c",
-                "cargo build && " + "cargo run --bin uniffi-bindgen generate --library target\\debug\\libmobile_sdk_rs.dll " + "--language kotlin " + "--out-dir " + outDir.replace('/', '\\'))
+                "cargo build && " + "cargo run -p uniffi-bindgen generate --library target\\debug\\libmobile_sdk_rs.dll " + "--language kotlin " + "--out-dir " + outDir.replace('/', '\\'))
     } else {
         def extension
         if (Os.isFamily(Os.FAMILY_MAC)) {
@@ -201,7 +205,7 @@ tasks.register('bindGen', Exec) {
         commandLine("sh", "-c",
                 """\
                 cargo build && \
-                cargo run --bin uniffi-bindgen generate \
+                cargo run -p uniffi-bindgen generate \
                 --library target/debug/libmobile_sdk_rs.$extension \
                 --language kotlin \
                 --out-dir $outDir \
