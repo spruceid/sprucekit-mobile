@@ -35,7 +35,7 @@ let package = Package(
         .package(name: "FlutterFramework", path: "../FlutterFramework"),
         sdkFromSource
             ? .package(path: repoRoot.path)
-            : .package(url: "https://github.com/spruceid/sprucekit-mobile", exact: "0.25.0"),
+            : .package(url: "https://github.com/spruceid/sprucekit-mobile", exact: "0.26.1"),
     ],
     targets: [
         .target(

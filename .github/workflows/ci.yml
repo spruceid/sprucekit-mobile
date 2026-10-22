@@ -219,6 +219,20 @@ jobs:
           flutter-version: ${{ steps.fvm-config.outputs.FLUTTER_VERSION }}
           cache: true
 
+      # The SDK pins in Package.swift and the podspec must equal the plugin
+      # version. The SPM build above uses the SDK from this tree, so it does
+      # not catch a pin to an older release.
+      - name: Check SDK pins against the plugin version
+        run: |
+          plugin=$(sed -n 's/^version: *//p' pubspec.yaml)
+          spm=$(sed -n 's/.*exact: "\([0-9.]*\)".*/\1/p' ios/sprucekit_mobile/Package.swift)
+          pod=$(sed -n "s/.*s.dependency 'SpruceIDMobileSdk', '~> \([0-9.]*\)'.*/\1/p" ios/sprucekit_mobile.podspec)
+          echo "plugin=$plugin spm=$spm pod=$pod"
+          if [ -z "$plugin" ] || [ "$spm" != "$plugin" ] || [ "$pod" != "$plugin" ]; then
+            echo "::error::SDK pins (SPM $spm, CocoaPods $pod) must equal the plugin version $plugin"
+            exit 1
+          fi
+
       - name: Install dependencies
         run: flutter pub get
 

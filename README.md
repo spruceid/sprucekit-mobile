@@ -18,7 +18,7 @@ See https://central.sonatype.com/artifact/com.spruceid.mobile.sdk/mobilesdk.
 
 ### Flutter
 
-Add `sprucekit_mobile` to your `pubspec.yaml` dependencies. See the [Flutter plugin](./sprucekit_mobile) for details.
+Add `sprucekit_mobile` to your `pubspec.yaml` as a git dependency. See the [Flutter plugin](./sprucekit_mobile) for details.
 
 ### HTTP client and proxies
 

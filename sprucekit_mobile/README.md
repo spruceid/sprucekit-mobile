@@ -5,6 +5,28 @@ SDKs over Pigeon platform channels. See the [example app](./example) for
 every API in use, and [CLAUDE.md](./CLAUDE.md) for the layout and the
 generation commands.
 
+## Installation
+
+The plugin is not on pub.dev. Add it as a git dependency in the
+`pubspec.yaml` of your app:
+
+```yaml
+dependencies:
+  sprucekit_mobile:
+    git:
+      url: https://github.com/spruceid/sprucekit-mobile
+      path: sprucekit_mobile
+      ref: 0.26.1
+```
+
+Set `ref` to a release tag. Between releases, the plugin on `main` can use
+SDK APIs that are not in the pinned SDK release, and the iOS build then
+fails.
+
+Releases before the plugin moved to `sprucekit_mobile/` use
+`path: flutter`. With the old path on a new release, `flutter pub get`
+fails with `Could not find a file named "flutter/pubspec.yaml"`.
+
 ## iOS installation
 
 The plugin supports Swift Package Manager and CocoaPods. Flutter selects
@@ -21,10 +43,18 @@ default.
 
 With Swift Package Manager, the plugin does not come from your Podfile.
 
-1. Remove the `SpruceIDMobileSdk`, `SpruceIDMobileSdkRs` and
+1. In `pubspec.yaml`, change `path: flutter` to `path: sprucekit_mobile`
+   and set `ref` to the new release tag.
+2. Remove the `SpruceIDMobileSdk`, `SpruceIDMobileSdkRs` and
    `SpruceIDMobileSdkRsRustFramework` pods from your Podfile. If they stay,
-   the SDK links two times.
-2. If an app extension uses the SDK, add the package
+   the build fails with `Redefinition of module 'MobileSdkRsFFI'`.
+3. Run `flutter clean`. Without it, the build can fail with an error that
+   `MobileSdkRsFFI.h` "has been modified since the module file" was built.
+4. Flutter can print a notice that your project uses a non-standard
+   Podfile. If other plugins still use CocoaPods, keep the Podfile. The
+   build works with the notice. If no pods are left, you can remove
+   CocoaPods from the app with `pod deintegrate`.
+5. If an app extension uses the SDK, add the package
    `https://github.com/spruceid/sprucekit-mobile` to the extension in
    Xcode. Use exactly the plugin version, because the plugin pins that
    version.
