@@ -10,7 +10,7 @@ import 'package:pigeon/pigeon.dart';
       errorClassName: 'DcApiFlutterError',
       package: 'com.spruceid.sprucekit_mobile',
     ),
-    swiftOut: 'ios/Classes/DcApi.g.swift',
+    swiftOut: 'ios/sprucekit_mobile/Sources/sprucekit_mobile/DcApi.g.swift',
     swiftOptions: SwiftOptions(errorClassName: 'DcApiPigeonError'),
     dartPackageName: 'sprucekit_mobile',
   ),

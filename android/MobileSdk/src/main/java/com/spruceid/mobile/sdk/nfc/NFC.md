@@ -59,7 +59,7 @@ For non-Compose hosts, the underlying `NfcReaderEngagement` class can be driven 
 
 > Flutter apps that use the `sprucekit_mobile` plugin declare the plugin's
 > `NfcPresentationService` instead of writing their own. The plugin makes the
-> preferred-service calls. See `flutter/README.md`.
+> preferred-service calls. See `sprucekit_mobile/README.md`.
 
 ### Creating the service handler
 

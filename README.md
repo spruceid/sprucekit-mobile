@@ -18,7 +18,7 @@ See https://central.sonatype.com/artifact/com.spruceid.mobile.sdk/mobilesdk.
 
 ### Flutter
 
-Add `sprucekit_mobile` to your `pubspec.yaml` dependencies. See the [Flutter plugin](./flutter) for details.
+Add `sprucekit_mobile` to your `pubspec.yaml` as a git dependency. See the [Flutter plugin](./sprucekit_mobile) for details.
 
 ### HTTP client and proxies
 
@@ -51,10 +51,10 @@ Our Mobile SDKs use shared code, with most of the logic being written once in Ru
 - [Rust layer](./rust)
 - [Kotlin SDK](./android)
 - [Swift SDK](./ios)
-- [Flutter plugin](./flutter)
+- [Flutter plugin](./sprucekit_mobile)
 - [Showcase Android](./android/Showcase)
 - [Showcase iOS](./ios/Showcase)
-- [Flutter example app](./flutter/example)
+- [Flutter example app](./sprucekit_mobile/example)
 
 ## Configuring Deep Links for same device flows
 

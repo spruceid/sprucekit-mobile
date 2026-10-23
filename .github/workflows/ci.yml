@@ -116,6 +116,27 @@ jobs:
       - name: Check Swift dependency licenses
         run: python3 ios/check-swift-licenses.py
 
+      - name: Read Flutter version from fvm
+        uses: kuhnroyal/flutter-fvm-config-action@v2
+        id: fvm-config
+        with:
+          path: sprucekit_mobile/.fvmrc
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.fvm-config.outputs.FLUTTER_VERSION }}
+          cache: true
+      # Builds the plugin with SPM against the SDK in this tree, so a PR that
+      # changes the Swift SDK and the plugin together passes. The xcframework
+      # above has only the arm64 simulator slice, so the build skips x86_64.
+      - name: Build Flutter example (SPM)
+        working-directory: sprucekit_mobile/example
+        env:
+          SPRUCEKIT_SDK_FROM_SOURCE: "1"
+          FLUTTER_XCODE_ARCHS: arm64
+        run: |
+          flutter pub get
+          flutter build ios --simulator --debug --no-codesign
+
   android:
     runs-on: ubuntu-latest-m
     if: github.actor != 'sprucekit-mobile-monorepo[bot]' # not running CI on release commits
@@ -178,25 +199,39 @@ jobs:
           files: |
             android/Showcase/src
             ios/Showcase
-            flutter/example/lib
+            sprucekit_mobile/example/lib
 
   flutter:
     runs-on: ubuntu-latest
     if: github.actor != 'sprucekit-mobile-monorepo[bot]'
     defaults:
       run:
-        working-directory: flutter
+        working-directory: sprucekit_mobile
     steps:
       - uses: actions/checkout@v4
       - name: Read Flutter version from fvm
         uses: kuhnroyal/flutter-fvm-config-action@v2
         id: fvm-config
         with:
-          path: flutter/.fvmrc
+          path: sprucekit_mobile/.fvmrc
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ steps.fvm-config.outputs.FLUTTER_VERSION }}
           cache: true
+
+      # The SDK pins in Package.swift and the podspec must equal the plugin
+      # version. The SPM build above uses the SDK from this tree, so it does
+      # not catch a pin to an older release.
+      - name: Check SDK pins against the plugin version
+        run: |
+          plugin=$(sed -n 's/^version: *//p' pubspec.yaml)
+          spm=$(sed -n 's/.*exact: "\([0-9.]*\)".*/\1/p' ios/sprucekit_mobile/Package.swift)
+          pod=$(sed -n "s/.*s.dependency 'SpruceIDMobileSdk', '~> \([0-9.]*\)'.*/\1/p" ios/sprucekit_mobile.podspec)
+          echo "plugin=$plugin spm=$spm pod=$pod"
+          if [ -z "$plugin" ] || [ "$spm" != "$plugin" ] || [ "$pod" != "$plugin" ]; then
+            echo "::error::SDK pins (SPM $spm, CocoaPods $pod) must equal the plugin version $plugin"
+            exit 1
+          fi
 
       - name: Install dependencies
         run: flutter pub get
@@ -228,7 +263,7 @@ jobs:
       # so it fails on PRs that change the SDK API and the plugin together.
       - name: Plugin Kotlin tests and example manifest merge
         if: false
-        working-directory: flutter/example
+        working-directory: sprucekit_mobile/example
         env:
           SPRUCEKIT_SDK_FROM_SOURCE: "false"
         run: |
@@ -244,4 +279,4 @@ jobs:
 
       - name: Check example app dependency licenses
         run: very_good packages check licenses --allowed="Apache-2.0,BSD-2-Clause,BSD-3-Clause,CC0-1.0,CDLA-Permissive-2.0,ISC,MIT,MPL-2.0,Unicode-3.0"
-        working-directory: flutter/example
+        working-directory: sprucekit_mobile/example
