@@ -36,6 +36,7 @@ class CentralManager: NSObject & Transport {
     // Stored at the top-level only to enable cleanup.
     private var peripheral: CBPeripheral?
     private var stateCharacteristic: CBCharacteristic?
+    private var endSignalled = false
 
     private init(delegate: Participant, _ uuid: UUID?, _ l2capUsage: L2CAPUsage) {
         participant = delegate
@@ -58,13 +59,10 @@ class CentralManager: NSObject & Transport {
     deinit {
         print("Shutting down CentralManager")
         self.centralManager.stopScan()
+        // Signal the end before the connection is cancelled, otherwise the write is dropped.
+        signalEnd()
         if let peripheral {
             self.centralManager.cancelPeripheralConnection(peripheral)
-        }
-        if let stateCharacteristic, let peripheral {
-            if case .disconnected = state {} else {
-                peripheral.writeValue(connectionStateEnd, for: stateCharacteristic, type: .withoutResponse)
-            }
         }
     }
 
@@ -103,6 +101,13 @@ class CentralManager: NSObject & Transport {
         case disconnected
         /// An unrecoverable error occurred.
         case error
+    }
+
+    func signalEnd() {
+        guard !endSignalled, let stateCharacteristic, let peripheral else { return }
+        if case .disconnected = state { return }
+        endSignalled = true
+        peripheral.writeValue(connectionStateEnd, for: stateCharacteristic, type: .withoutResponse)
     }
 
     func send(message: Data) -> Bool {

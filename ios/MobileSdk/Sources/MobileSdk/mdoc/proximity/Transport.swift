@@ -4,6 +4,9 @@ protocol Transport {
     /// Request to send a message to the other party. Returns true if the message was accepted, and false otherwise.
     /// True does not guarantee that the message is sent, see TransportCallback for tracking the progress.
     func send(message: Data) -> Bool
+
+    /// Signal the end of the session to the other party (ISO 18013-5 transport-specific session termination).
+    func signalEnd()
 }
 
 protocol TransportCallback: NSObject {

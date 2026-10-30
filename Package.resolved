@@ -2,6 +2,24 @@
   "object": {
     "pins": [
       {
+        "package": "RiveRuntime",
+        "repositoryURL": "https://github.com/rive-app/rive-ios",
+        "state": {
+          "branch": null,
+          "revision": "fa6c4eefcf0e4c887677fb1bff911ffee7862570",
+          "version": "6.1.6"
+        }
+      },
+      {
+        "package": "SQLite.swift",
+        "repositoryURL": "https://github.com/stephencelis/SQLite.swift.git",
+        "state": {
+          "branch": null,
+          "revision": "a95fc6df17d108bd99210db5e8a9bac90fe984b8",
+          "version": "0.15.3"
+        }
+      },
+      {
         "package": "swift-algorithms",
         "repositoryURL": "https://github.com/apple/swift-algorithms",
         "state": {
