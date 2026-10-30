@@ -185,6 +185,8 @@ typos android/Showcase/src ios/Showcase sprucekit_mobile/example/lib
 
 Install it with `brew install typos-cli` or `cargo install typos-cli`. When a flagged word is a name we do not own — an ISO mDL claim key, a third-party API — add it to `_typos.toml` rather than renaming it.
 
+**Native library size** — the `rust` CI job fails if OpenSSL or `native-tls` is in the Android or iOS dependency graph, and warns if `reqwest`, `hyper`, `h2`, `http` or `rustls` is there in two versions. After a dependency change, run `rust/scripts/check-deps.sh` (a few seconds, no build). The `size-report` job compares the release library sizes (Android arm64 `.so`, iOS device `.a`) with `main` in its job summary: it warns above +1% or +100 KB (100,000 B). It doesn't fail the build unless `SIZE_FAIL_PCT` is set. The thresholds are in `.github/workflows/ci.yml`.
+
 ## Releases
 
 ### SDKs
