@@ -160,14 +160,14 @@ public class MdocProximityPresentationManager {
             backgroundQueue.suspend()
         }
 
-        func set(bleCentral: CentralManager?) {
+        func set(bleCentral: Transport?) {
             guard case let .initializing(initializing) = state else {
                 return
             }
             initializing.bleCentral = bleCentral
         }
 
-        func set(blePeripheral: PeripheralManager?) {
+        func set(blePeripheral: Transport?) {
             guard case let .initializing(initializing) = state else {
                 return
             }
@@ -383,8 +383,9 @@ public class MdocProximityPresentationManager {
 
         /// End the session. This releases the transports, which signal the end of the session to the reader.
         func terminate(notify: Bool) {
+            // Set before the dispatch, so that callbacks which do not run on the background queue are also silenced.
+            if !notify { silenced = true }
             backgroundQueue.async {
-                if !notify { self.silenced = true }
                 switch self.state {
                 case .initializing, .connecting:
                     self.state = .requestDismissed
@@ -505,9 +506,9 @@ public class MdocProximityPresentationManager {
     }
 
     private class Initializing {
-        var bleCentral: CentralManager?
+        var bleCentral: Transport?
         var centralDetails: CentralClientDetails?
-        var blePeripheral: PeripheralManager?
+        var blePeripheral: Transport?
         var peripheralDetails: PeripheralServerDetails?
 
         func all() -> [Transport] {
@@ -531,10 +532,10 @@ public class MdocProximityPresentationManager {
 
     private class Connecting {
         let session: MdlPresentationSession
-        var bleCentral: CentralManager?
-        var blePeripheral: PeripheralManager?
+        var bleCentral: Transport?
+        var blePeripheral: Transport?
 
-        init(session: MdlPresentationSession, bleCentral: CentralManager?, blePeripheral: PeripheralManager?) {
+        init(session: MdlPresentationSession, bleCentral: Transport?, blePeripheral: Transport?) {
             self.session = session
             self.bleCentral = bleCentral
             self.blePeripheral = blePeripheral
