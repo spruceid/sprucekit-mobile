@@ -114,6 +114,15 @@ jpeg-decoder = { version = "0.3", default-features = false }
 qrcode = { version = "0.14", default-features = false }
 rxing = { version = "0.8", default-features = false, features = ["encoding_rs"] }
 
+# reqwest 0.13's `rustls` backend verifies certificates with
+# rustls-platform-verifier, which on Android has to be initialised with a JVM
+# and an application Context before the first TLS handshake (see
+# src/android.rs). Keep this on the version reqwest 0.13 resolves to, so both
+# use the same initialised state, and the `jni` major it uses.
+[target.'cfg(target_os = "android")'.dependencies]
+jni = { version = "0.22", default-features = false }
+rustls-platform-verifier = "0.7"
+
 
 [dev-dependencies]
 rstest = "0.22.0"
