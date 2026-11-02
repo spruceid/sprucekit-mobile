@@ -102,8 +102,8 @@ impl Cwt {
     ///
     /// Returns a status code as `i16`:
     /// - `0`  - VALID: The credential is currently valid and has not been revoked
-    /// - `1`  - INVALID: The credential is no longer valid
-    /// - `2`  - SUSPENDED: The credential is revoked
+    /// - `1`  - INVALID: The credential is revoked (irreversible)
+    /// - `2`  - SUSPENDED: The credential is temporarily invalid (reversible)
     /// - `-1` - UNKNOWN: The credential does not contain a known status information
     ///
     /// # Errors
