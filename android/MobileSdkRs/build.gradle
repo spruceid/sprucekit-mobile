@@ -61,6 +61,29 @@ dependencies {
     implementation "androidx.core:core-ktx:1.16.0"
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2'
     implementation 'org.jetbrains.kotlin:kotlin-stdlib:2.1.0'
+    implementation 'androidx.startup:startup-runtime:1.2.0'
+
+    // The Kotlin component of the rustls-platform-verifier crate, called from
+    // Rust through JNI. It isn't on Maven Central, so its classes ship inside
+    // this AAR (a local jar isn't listed in the published POM). Its version must
+    // match the crate's: after a Cargo.lock change, run
+    // ./update-rustls-platform-verifier.sh.
+    def rustlsPlatformVerifierJar = file("libs/rustls-platform-verifier-${cargoLockVersion('rustls-platform-verifier-android')}.jar")
+    if (!rustlsPlatformVerifierJar.exists()) {
+        throw new GradleException("Missing ${rustlsPlatformVerifierJar}: run android/MobileSdkRs/update-rustls-platform-verifier.sh")
+    }
+    implementation files(rustlsPlatformVerifierJar)
+}
+
+def cargoLockVersion(String crate) {
+    def lines = file("../../rust/Cargo.lock").readLines()
+    def versions = lines.indices
+            .findAll { lines[it] == "name = \"${crate}\"" }
+            .collect { (lines[it + 1] =~ /^version = "(.+)"$/)[0][1] }
+    if (versions.size() != 1) {
+        throw new GradleException("Expected one ${crate} in rust/Cargo.lock, found ${versions}")
+    }
+    return versions[0]
 }
 
 tasks.register('buildCargoNdk', Exec) {
