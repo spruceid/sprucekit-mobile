@@ -27,6 +27,11 @@ jobs:
           cache-on-failure: "true"
           workspaces: "rust -> target"
 
+      # No OpenSSL or native-tls on Android and iOS; warns about a second
+      # reqwest/hyper/h2/http/rustls. Reads the lockfile only.
+      - name: Mobile dependency graph
+        run: scripts/check-deps.sh
+
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-machete
@@ -178,6 +183,14 @@ jobs:
         run: ./gradlew :showcase:test -Prust-target=arm64
       - name: Run MobileSdkRs lint
         run: ./gradlew :mobilesdkrs:lint -Prust-target=arm64
+      # The step above built the release .so (buildCargoNdk), as cd.yml does.
+      - name: Measure Android arm64 library size
+        run: ../rust/scripts/lib-size.sh aarch64-linux-android "$RUNNER_TEMP/size/aarch64-linux-android.json" "$PWD/MobileSdkRs/src/main/jniLibs/arm64-v8a/libmobile_sdk_rs.so"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: size-aarch64-linux-android
+          path: ${{ runner.temp }}/size/
+          retention-days: 1
       - name: Run MobileSdk lint
         run: ./gradlew :mobilesdk:lint -Prust-target=arm64
       - name: Run Showcase lint
@@ -185,6 +198,74 @@ jobs:
 
       - name: Check dependency licenses
         run: ./gradlew licensee -Prust-target=arm64
+
+  # The ios job builds a debug simulator library only, so the device library
+  # is built here, in parallel, as rust/build-ios.sh builds it for a release.
+  size-ios:
+    runs-on: macos-15
+    if: github.actor != 'sprucekit-mobile-monorepo[bot]'
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: "aarch64-apple-ios"
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "size-ios"
+          cache-on-failure: "true"
+          workspaces: "rust -> target"
+      - name: Measure iOS device library size
+        run: scripts/lib-size.sh aarch64-apple-ios "$RUNNER_TEMP/size/aarch64-apple-ios.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: size-aarch64-apple-ios
+          path: ${{ runner.temp }}/size/
+          retention-days: 1
+
+  # Compares the sizes with the newest report from main and writes the job
+  # summary. Read-only, so it works the same on pull requests from forks.
+  size-report:
+    runs-on: ubuntu-latest
+    needs: [android, size-ios]
+    if: ${{ !cancelled() && github.actor != 'sprucekit-mobile-monorepo[bot]' }}
+    permissions:
+      contents: read
+      actions: read
+    env:
+      # Growth against main: warning above either of the first two. Failing
+      # the job is off; set SIZE_FAIL_PCT (e.g. "5") to fail above that growth.
+      SIZE_WARN_PCT: "1"
+      SIZE_WARN_BYTES: "100000"
+      SIZE_FAIL_PCT: ""
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: rust/scripts
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: size-aarch64-*
+          path: ${{ runner.temp }}/size
+          merge-multiple: true
+      - name: Download the main baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: rust/scripts/fetch-size-baseline.sh "$RUNNER_TEMP/baseline.json"
+      - name: Compare with main
+        # Size changes are reviewed on the pull request; a push to main only
+        # records the new baseline.
+        continue-on-error: ${{ github.event_name == 'push' }}
+        run: rust/scripts/size-compare.py "$RUNNER_TEMP/size" "$RUNNER_TEMP/baseline.json" size-report.json
+      - name: Upload the baseline for pull requests
+        if: ${{ !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: size-report-main
+          path: size-report.json
+          retention-days: 90
 
   spelling:
     name: US English (user-facing copy)

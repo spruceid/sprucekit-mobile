@@ -28,7 +28,9 @@ Changes to the Rust layer require regenerating bindings before platform work:
 
 ## CI
 
-CI runs on push to main and PRs with five jobs (rust, ios, android, spelling, flutter). See `.github/workflows/ci.yml`.
+CI runs on push to main and PRs with seven jobs (rust, ios, android, size-ios, size-report, spelling, flutter). See `.github/workflows/ci.yml`.
+
+The `rust` job runs `rust/scripts/check-deps.sh`: no OpenSSL or `native-tls` in the Android and iOS dependency graphs. `size-report` compares the release library sizes (Android arm64 `.so` from the `android` job, iOS device `.a` from `size-ios`) with the newest `size-report-main` artifact. See `CONTRIBUTING.md` → Pre-push Checklist.
 
 The `spelling` job runs `typos` over the Showcase apps and the Flutter example to keep user-facing copy in US English. Exemptions are in `_typos.toml`.
 
