@@ -46,6 +46,14 @@ android {
         }
     }
     ndkVersion '29.0.13599879 rc2'
+
+    // 32-bit x86 is no longer built; keep a stale jniLibs/x86 from an older
+    // checkout out of the AAR.
+    packaging {
+        jniLibs {
+            excludes += ['lib/x86/**']
+        }
+    }
 }
 
 dependencies {
@@ -67,13 +75,15 @@ tasks.register('buildCargoNdk', Exec) {
     def rustTargetAbis = [
             "arm"   : "armeabi-v7a",
             "arm64" : "arm64-v8a",
-            "x86"   : "x86",
             "x86_64": "x86_64",
     ]
     // `-Prust-target=<id>` restricts the build to a single target.
     def rustTarget = findProperty("rust-target")
     def abis = rustTargetAbis.values()
     if (rustTarget != null) {
+        if (rustTarget.toString() == "x86") {
+            throw new GradleException("rust-target 'x86' (32-bit) is no longer built; use 'x86_64' for emulators")
+        }
         def abi = rustTargetAbis[rustTarget.toString()]
         if (abi == null) {
             throw new GradleException("Unknown rust-target '${rustTarget}', expected one of ${rustTargetAbis.keySet()}")
