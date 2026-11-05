@@ -6,11 +6,13 @@
 # each with its own C module (MobileSdkRsFFI and mobile_toolkitFFI — the names
 # must stay distinct or uniffi's swift test harness fails on a duplicate module
 # declaration). Bindings are generated in uniffi library mode: one Swift file,
-# one header, and one modulemap per crate. Both modulemaps are installed as a
-# single top-level Headers/module.modulemap (concatenating distinct modules is
-# valid — uniffi's own test harness does the same), which clang auto-discovers
-# for either `import`. cargo-swift is not used — it only supports single-crate
-# libraries and buries the modulemap where only one module is discoverable.
+# one header, and one modulemap per crate. Each crate's header and modulemap go
+# in Headers/<module>/, which clang finds for `import <module>`. A top-level
+# Headers/module.modulemap would collide with any other static xcframework that
+# ships one: Xcode copies the headers of every SwiftPM static xcframework into
+# the same include/ directory ("Multiple commands produce
+# include/module.modulemap"). cargo-swift is not used — it only supports
+# single-crate libraries.
 #
 # Usage: ./build-ios.sh [--simulator-only] [--debug]
 #   --simulator-only  build only the arm64-simulator slice (used by CI)
@@ -60,10 +62,12 @@ cargo run -p uniffi-bindgen -- generate --library "$bindgen_lib" \
   --language swift --no-format --out-dir "$gen_dir"
 
 mv "$gen_dir"/*.swift MobileSdkRs/Sources/MobileSdkRs/
-mkdir -p target/ios-headers
-mv "$gen_dir"/*.h target/ios-headers/
-# awk 1 normalizes missing trailing newlines so the module blocks don't run together.
-awk 1 "$gen_dir"/*.modulemap > target/ios-headers/module.modulemap
+for modulemap in "$gen_dir"/*.modulemap; do
+  module=$(basename "$modulemap" .modulemap)
+  mkdir -p "target/ios-headers/$module"
+  mv "$gen_dir/$module.h" "target/ios-headers/$module/"
+  mv "$modulemap" "target/ios-headers/$module/module.modulemap"
+done
 
 xcframework_args=()
 if "$simulator_only"; then
