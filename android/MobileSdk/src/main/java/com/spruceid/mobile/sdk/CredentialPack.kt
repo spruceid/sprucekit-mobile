@@ -341,8 +341,8 @@ class CredentialPack {
                     val status = it.status()
                     when (status.toInt()) {
                         0 -> res[credentialId] = CredentialStatusList.VALID
-                        1 -> res[credentialId] = CredentialStatusList.INVALID
-                        2 -> res[credentialId] = CredentialStatusList.REVOKED
+                        1 -> res[credentialId] = CredentialStatusList.REVOKED
+                        2 -> res[credentialId] = CredentialStatusList.SUSPENDED
                         else -> res[credentialId] = CredentialStatusList.UNDEFINED
                     }
                 } catch (_: Exception) {

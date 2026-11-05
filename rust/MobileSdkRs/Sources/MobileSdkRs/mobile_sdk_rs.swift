@@ -2336,8 +2336,8 @@ public protocol CwtProtocol: AnyObject, Sendable {
      *
      * Returns a status code as `i16`:
      * - `0`  - VALID: The credential is currently valid and has not been revoked
-     * - `1`  - INVALID: The credential is no longer valid
-     * - `2`  - SUSPENDED: The credential is revoked
+     * - `1`  - INVALID: The credential is revoked (irreversible)
+     * - `2`  - SUSPENDED: The credential is temporarily invalid (reversible)
      * - `-1` - UNKNOWN: The credential does not contain a known status information
      *
      * # Errors
@@ -2482,8 +2482,8 @@ open func keyAlias() -> KeyAlias?  {
      *
      * Returns a status code as `i16`:
      * - `0`  - VALID: The credential is currently valid and has not been revoked
-     * - `1`  - INVALID: The credential is no longer valid
-     * - `2`  - SUSPENDED: The credential is revoked
+     * - `1`  - INVALID: The credential is revoked (irreversible)
+     * - `2`  - SUSPENDED: The credential is temporarily invalid (reversible)
      * - `-1` - UNKNOWN: The credential does not contain a known status information
      *
      * # Errors
@@ -37730,7 +37730,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_cwt_key_alias() != 40264) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_cwt_status() != 3147) {
+    if (uniffi_mobile_sdk_rs_checksum_method_cwt_status() != 26112) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_cwt_type() != 64679) {
