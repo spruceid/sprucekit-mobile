@@ -67,7 +67,7 @@ public class StorageManager: NSObject, StorageManagerInterface, @unchecked Senda
     ///    - file: the name of the file
     ///
     /// - Returns: An URL for the named file in the app's Application Support directory.
-    private func path(file: String) async -> URL? {
+    func path(file: String) async -> URL? {
         do {
             //    Get the applications support dir, and tack the name of the thing we're storing on the end of it.
             // This does imply that `file` should be a valid filename.
@@ -117,6 +117,13 @@ public class StorageManager: NSObject, StorageManagerInterface, @unchecked Senda
                 try fileman.createDirectory(at: datadir, withIntermediateDirectories: true, attributes: nil)
             }
 
+            // Exclude the datastore on any use, reads included, so data written by older SDK versions is kept out
+            // of future backups without waiting for the next add(). Best effort, so a failure doesn't break
+            // reads: add() sets the flag again and throws if it can't.
+            if (try? datadir.resourceValues(forKeys: [.isExcludedFromBackupKey]))?.isExcludedFromBackup != true {
+                try? excludeFromBackup(datadir)
+            }
+
             return datadir.appendingPathComponent(file)
         } catch {
             return nil
@@ -135,10 +142,23 @@ public class StorageManager: NSObject, StorageManagerInterface, @unchecked Senda
         guard let file = await path(file: key) else { throw StorageManagerError.InternalError }
 
         do {
+            // Exclude the datastore directory before writing, so a failure here leaves nothing behind in a
+            // location that is backed up. path(file:) only tries; here a failure is an error.
+            try excludeFromBackup(file.deletingLastPathComponent())
             try value.write(to: file, options: .completeFileProtection)
+            // The flag is stored on the file itself, so set it on every write.
+            try excludeFromBackup(file)
         } catch {
             throw StorageManagerError.InternalError
         }
+    }
+
+    /// Mark a file or directory as excluded from iCloud and device backups.
+    private func excludeFromBackup(_ url: URL) throws {
+        var url = url
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try url.setResourceValues(values)
     }
 
     /// Get a value for the specified key.
