@@ -49,6 +49,8 @@ class SprucekitMobilePlugin : FlutterPlugin, ActivityAware {
 
         // Route Rust HTTP requests through the native client, so proxy settings apply.
         RustHttpClient.configure()
+        // TEMPORARY (ACC-2246): remove with the SDK function before merge.
+        RustHttpClient.ciCheckDebugLog()
 
         // Initialize OID4VCI adapter
         oid4vciAdapter = Oid4vciAdapter(context)

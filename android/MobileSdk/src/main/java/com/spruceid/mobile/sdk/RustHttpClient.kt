@@ -1,5 +1,6 @@
 package com.spruceid.mobile.sdk
 
+import android.util.Log
 import com.spruceid.mobile.sdk.rs.configureHttpClient
 import com.spruceid.mobile.toolkit.AsyncHttpClient
 
@@ -14,5 +15,12 @@ import com.spruceid.mobile.toolkit.AsyncHttpClient
 object RustHttpClient {
     fun configure(client: AsyncHttpClient = Oid4vciAsyncHttpClient()) {
         configureHttpClient(client)
+    }
+
+    // TEMPORARY (ACC-2246): an SDK API that no published release has. The
+    // Flutter plugin calls it, so the plugin CI passes only against this tree.
+    // Remove before merge.
+    fun ciCheckDebugLog() {
+        Log.d("sprucekit", "ACC-2246 CI check: plugin uses the Android SDK from this tree")
     }
 }

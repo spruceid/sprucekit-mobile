@@ -11,4 +11,11 @@ public enum RustHttpClient {
     public static func configure(client: AsyncHttpClient = Oid4vciAsyncHttpClient()) {
         configureHttpClient(client: client)
     }
+
+    // TEMPORARY (ACC-2246): an SDK API that no published release has. The
+    // Flutter plugin calls it, so the plugin CI passes only against this tree.
+    // Remove before merge.
+    public static func ciCheckDebugLog() {
+        print("ACC-2246 CI check: plugin uses the iOS SDK from this tree")
+    }
 }

@@ -173,6 +173,15 @@ jobs:
           sed -i '' "s/s.dependency 'SpruceIDMobileSdk'.*/s.dependency 'SpruceIDMobileSdk', '~> ${{ github.event.inputs.version }}'/" sprucekit_mobile/ios/sprucekit_mobile.podspec
           sed -i '' "s/exact: \"[0-9.]*\"/exact: \"${{ github.event.inputs.version }}\"/" sprucekit_mobile/ios/sprucekit_mobile/Package.swift
 
+      # pub.dev shows the CHANGELOG entry for each version. The first entry in
+      # the file is the release before this one.
+      - name: Add Flutter plugin CHANGELOG entry
+        env:
+          V: ${{ github.event.inputs.version }}
+        run: |
+          P=$(sed -n 's/^## \([0-9][0-9.]*\)$/\1/p' sprucekit_mobile/CHANGELOG.md | head -1)
+          P="$P" perl -0pi -e 's/\n## /\n## $ENV{V}\n\n- [Changes since $ENV{P}](https:\/\/github.com\/spruceid\/sprucekit-mobile\/compare\/$ENV{P}...$ENV{V})\n\n## /' sprucekit_mobile/CHANGELOG.md
+
       - name: Push changes and tag
         id: commit
         run: |
