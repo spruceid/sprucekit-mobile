@@ -17,3 +17,12 @@ rustflags = [
 rustflags = [
     "-C", "link-arg=-Wl,-z,max-page-size=16384",
 ]
+
+# A GNU build ID in every Android library. Crash reporters (Play Console,
+# Crashlytics, Sentry) match the stripped .so in an app to its unstripped copy
+# in the release's native symbols zip by this ID; the NDK's linker doesn't add
+# one on its own. Cargo joins these flags with the per-target ones above.
+[target.'cfg(target_os = "android")']
+rustflags = [
+    "-C", "link-arg=-Wl,--build-id=sha1",
+]
