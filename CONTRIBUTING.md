@@ -167,6 +167,7 @@ cd flutter
 fvm flutter pub get
 fvm flutter analyze
 fvm dart format --set-exit-if-changed lib/sprucekit_mobile.dart pigeons/ example/
+fvm flutter pub publish --dry-run  # pub.dev validation; warns about uncommitted files
 ```
 
 **Android** — the CI job requires cross-compilation toolchains that are heavy to run locally. Running the Rust and Flutter checks above is usually sufficient. If you've changed Kotlin code in the Showcase or SDK, you can run lint with:
@@ -191,6 +192,17 @@ Install it with `brew install typos-cli` or `cargo install typos-cli`. When a fl
 Use the [`cd` Github Action](https://github.com/spruceid/sprucekit-mobile/actions/workflows/cd.yml) which is a manually triggered action, and provide the version in the `x.y.z` format.
 
 The Android SDK is published to Maven Central. The iOS pods are published to the private [`spruceid/cocoapods-specs`](https://github.com/spruceid/cocoapods-specs) Specs repo.
+
+### Flutter plugin
+The `cd` workflow sets the plugin version, adds an entry to `sprucekit_mobile/CHANGELOG.md`, and pushes the release tag. The tag push starts the [`publish-flutter` workflow](.github/workflows/publish-flutter.yml), which publishes `sprucekit_mobile` to pub.dev. The workflow authenticates with the GitHub OIDC token, so the repository holds no pub.dev secret.
+
+The pub.dev package admin page must have these settings:
+
+- Automated publishing from GitHub Actions is on, for the repository `spruceid/sprucekit-mobile`.
+- The tag pattern is `{{version}}`.
+- "Require GitHub Actions environment" is on, with the environment `pub.dev`.
+
+pub.dev accepts automated publishing only for a package that exists. Publish the first version from a computer with `flutter pub publish`, then set the options above.
 
 ### Consuming the iOS SDK via CocoaPods
 The pods source their code from the release git tag, so add the private Specs repo alongside the CDN at the top of your `Podfile`:

@@ -1,0 +1,51 @@
+name: publish-flutter
+
+# Publishes the Flutter plugin to pub.dev when the cd workflow pushes a release
+# tag. pub.dev accepts the GitHub OIDC token only for a tag push that matches
+# the tag pattern in the package admin settings ("{{version}}"), so this
+# cannot be a job in cd.yml.
+on:
+  push:
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: pub.dev
+    permissions:
+      id-token: write # pub.dev authenticates the job with the GitHub OIDC token
+    defaults:
+      run:
+        working-directory: sprucekit_mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fail if the tag is not the plugin version
+        run: |
+          plugin=$(sed -n 's/^version: *//p' pubspec.yaml)
+          if [ "$plugin" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match the plugin version $plugin"
+            exit 1
+          fi
+
+      - name: Read Flutter version from fvm
+        uses: kuhnroyal/flutter-fvm-config-action@v2
+        id: fvm-config
+        with:
+          path: sprucekit_mobile/.fvmrc
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.fvm-config.outputs.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # setup-dart gets the OIDC token and registers it for pub.dev in the
+      # shared pub token file, which the Flutter SDK also reads. It runs last
+      # so that the token is new when the publish step uses it.
+      - uses: dart-lang/setup-dart@v1
+
+      - name: Publish to pub.dev
+        run: flutter pub publish --force

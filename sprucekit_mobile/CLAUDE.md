@@ -46,6 +46,9 @@ cd example && flutter pub get && cd android
 gradle :android:MobileSdkRs:bindGen :sprucekit_mobile:testDebugUnitTest :app:processDebugMainManifest -Prust-target=arm64
 # The same, against the published SDK
 SPRUCEKIT_SDK_FROM_SOURCE=false gradle :sprucekit_mobile:testDebugUnitTest :app:processDebugMainManifest
+
+# pub.dev package validation, as CI runs it
+flutter pub publish --dry-run
 ```
 
 ## Key Patterns

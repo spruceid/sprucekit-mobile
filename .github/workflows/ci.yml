@@ -271,6 +271,11 @@ jobs:
       - name: Test
         run: flutter test
 
+      # Runs the pub.dev package validation. It fails on errors and on
+      # warnings, for example a CHANGELOG without the plugin version.
+      - name: Check pub.dev package
+        run: flutter pub publish --dry-run
+
       - name: Install Very Good CLI
         run: dart pub global activate very_good_cli
 
