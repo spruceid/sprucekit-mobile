@@ -166,8 +166,12 @@ jobs:
           distribution: "temurin"
           cache: gradle
 
+      # gradle-version puts Gradle on the PATH for the Flutter example, which
+      # has no committed wrapper script. The SDK builds use ./gradlew.
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.1.0"
       - run: touch local.properties
       # Running each project individually to avoid race conditions (seems like e.g. MobileSdk won't wait for MobileSdkRs to be fully compiled)
       - name: Run MobileSdkRs tests
@@ -185,6 +189,28 @@ jobs:
 
       - name: Check dependency licenses
         run: ./gradlew licensee -Prust-target=arm64
+
+      - name: Read Flutter version from fvm
+        uses: kuhnroyal/flutter-fvm-config-action@v2
+        id: fvm-config
+        with:
+          path: sprucekit_mobile/.fvmrc
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.fvm-config.outputs.FLUTTER_VERSION }}
+          cache: true
+      # Compiles the plugin's Kotlin against the SDK in this tree, so a PR that
+      # changes the Kotlin SDK and the plugin together passes. It also runs the
+      # plugin unit tests and merges the example manifest, which checks the
+      # opt-in NFC service snippet against the plugin's resources. The debug
+      # Kotlin compile does not depend on bindGen, and the generated bindings
+      # are not committed, so the command names bindGen.
+      - name: Flutter plugin Kotlin tests and example manifest merge
+        working-directory: sprucekit_mobile/example
+        run: |
+          flutter pub get
+          cd android
+          gradle :android:MobileSdkRs:bindGen :sprucekit_mobile:testDebugUnitTest :app:processDebugMainManifest -Prust-target=arm64 --console=plain
 
   spelling:
     name: US English (user-facing copy)
@@ -244,32 +270,6 @@ jobs:
 
       - name: Test
         run: flutter test
-
-      - name: Setup Java JDK
-        uses: actions/setup-java@v4
-        with:
-          java-version: "17"
-          distribution: "temurin"
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "9.1.0"
-
-      # Compiles the plugin's Kotlin against the published SDK, runs its unit
-      # tests, and merges the example manifest, which checks the opt-in NFC
-      # service snippet against the plugin's resources.
-      # TODO: re-enable. Disabled because it builds against the published SDK,
-      # so it fails on PRs that change the SDK API and the plugin together.
-      - name: Plugin Kotlin tests and example manifest merge
-        if: false
-        working-directory: sprucekit_mobile/example
-        env:
-          SPRUCEKIT_SDK_FROM_SOURCE: "false"
-        run: |
-          flutter pub get
-          cd android
-          gradle :sprucekit_mobile:testDebugUnitTest :app:processDebugMainManifest --console=plain
 
       - name: Install Very Good CLI
         run: dart pub global activate very_good_cli

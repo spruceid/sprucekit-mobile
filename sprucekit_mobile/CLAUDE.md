@@ -39,9 +39,12 @@ dart run pigeon --input pigeons/spruce_utils.dart
 dart run pigeon --input pigeons/dc_api.dart
 dart run pigeon --input pigeons/vcalm.dart
 
-# Plugin Kotlin unit tests and example manifest merge, against the published SDK
-# (needs a Gradle install; `flutter build apk` in example/ also generates a wrapper)
+# Plugin Kotlin unit tests and example manifest merge, against the SDK in this
+# tree, as the CI android job runs them (needs a Gradle install; `flutter build
+# apk` in example/ also generates a wrapper)
 cd example && flutter pub get && cd android
+gradle :android:MobileSdkRs:bindGen :sprucekit_mobile:testDebugUnitTest :app:processDebugMainManifest -Prust-target=arm64
+# The same, against the published SDK
 SPRUCEKIT_SDK_FROM_SOURCE=false gradle :sprucekit_mobile:testDebugUnitTest :app:processDebugMainManifest
 ```
 
@@ -78,7 +81,7 @@ SPRUCEKIT_SDK_FROM_SOURCE=false gradle :sprucekit_mobile:testDebugUnitTest :app:
   3. Build the example: `cd sprucekit_mobile/example && flutter build apk`
   4. **Before pushing**, revert all three changes in `build.gradle` (re-comment `mavenLocal()`, remove `exclude`, restore version to `0.14.14`).
 
-  The Flutter CI compiles the plugin's Kotlin against the published SDK and runs its unit tests, so a PR that needs an unpublished SDK function fails CI until the SDK is released.
+  The CI android job compiles the plugin's Kotlin against the SDK in this tree and runs its unit tests, so a PR that changes the SDK and the plugin together passes. The Maven Local steps above are only for a build against a specific SDK artifact.
 
 - **iOS: Swift Package Manager and the SDK source switch**: the plugin ships `ios/sprucekit_mobile/Package.swift` and a podspec. The example app uses SPM (`config: enable-swift-package-manager: true` in `example/pubspec.yaml`). Only `permission_handler_apple` still comes from CocoaPods.
 
