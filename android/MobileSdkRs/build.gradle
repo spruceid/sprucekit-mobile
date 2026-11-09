@@ -95,13 +95,9 @@ tasks.register('buildCargoNdk', Exec) {
             // cdylib is the sole output.
             "rustc", "--lib", "--crate-type", "cdylib", "--release",
     ] + (Os.isFamily(Os.FAMILY_WINDOWS) ? [] : [
-            // Keep the UNIFFI_META_* statics (only `uniffi-bindgen --library` reads
-            // them, and bindGen uses the host build) out of the .so's exports, so
-            // the linker drops them. bindGen writes the script; see
-            // rust/scripts/android-version-script.sh. `--undefined-version`
-            // tolerates names the host library has and Android doesn't. Not on
-            // Windows hosts yet: bindGen's Windows branch doesn't write the script,
-            // so those builds keep every export.
+            // Hide the UNIFFI_META_* statics from the .so exports so the linker drops
+            // them. See rust/scripts/android-version-script.sh. Windows hosts skip this
+            // because bindGen doesn't generate the script there.
             "--",
             "-C", "link-arg=-Wl,--version-script=${androidVersionScript()}",
             "-C", "link-arg=-Wl,--undefined-version",
@@ -137,6 +133,7 @@ def rustUpdated(taskName) {
             "../../rust/mobile-toolkit/Cargo.lock",
             "../../rust/mobile-toolkit/uniffi.toml",
             "../../rust/scripts/android-version-script.sh",
+            "../../rust/scripts/export-prefixes.sh",
     )
     def markerFile = markerFile(taskName)
 

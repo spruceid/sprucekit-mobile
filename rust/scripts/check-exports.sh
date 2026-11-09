@@ -9,6 +9,9 @@
 #       else llvm-nm, else nm)
 set -eu
 
+# shellcheck source-path=SCRIPTDIR source=export-prefixes.sh
+. "$(dirname "$0")/export-prefixes.sh"
+
 lib=$1
 kt_dir=$2
 
@@ -42,10 +45,11 @@ if [ -s "$tmp/missing" ]; then
   status=1
 fi
 
-grep -Ev '^(uniffi_|ffi_|JNI_On|Java_)' "$tmp/exported" > "$tmp/unexpected" || true
+grep -Ev "$EXPORTED_PREFIXES" "$tmp/exported" > "$tmp/unexpected" || true
 if [ -s "$tmp/unexpected" ]; then
-  echo "error: $lib exports $(grep -c . "$tmp/unexpected") symbols other than uniffi_*, ffi_*, JNI_On*, Java_*" >&2
-  echo "(was the version script from android-version-script.sh applied?):" >&2
+  echo "error: $lib exports $(grep -c . "$tmp/unexpected") symbols not matching $EXPORTED_PREFIXES" >&2
+  echo "(was the version script from android-version-script.sh applied? A name only some" >&2
+  echo "targets define goes in that script's target_only list):" >&2
   head -20 "$tmp/unexpected" | sed 's/^/  /' >&2
   status=1
 fi

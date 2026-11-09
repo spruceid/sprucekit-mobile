@@ -1,18 +1,22 @@
 #!/bin/sh
 # Writes a linker version script that hides from the Android .so every symbol
 # the bindings don't need: the UNIFFI_META_* statics (read only by
-# `uniffi-bindgen --library`, about 240 KB of the arm64 .so) and stray C
-# symbols. The UniFFI scaffolding (uniffi_*, ffi_*) and JNI entry points
-# (JNI_On*, Java_*) stay exported.
+# `uniffi-bindgen --library`) and stray C symbols. The UniFFI scaffolding
+# (uniffi_*, ffi_*) and JNI entry points (JNI_On*, Java_*) stay exported; the
+# prefixes are in export-prefixes.sh.
 #
 # rustc already passes the linker a version script that lists every
 # #[no_mangle] symbol by exact name as global, and an exact name beats a
 # `local: *` pattern. So the names to hide are listed one by one, read from the
-# host library that bindgen uses: it exports the same set as the Android build.
+# host library that bindgen uses: it exports the same set as the Android build,
+# except for the names in `target_only` below.
 #
 # usage: android-version-script.sh <host library> <output file>
 #   NM: nm to use (default: nm)
 set -eu
+
+# shellcheck source-path=SCRIPTDIR source=export-prefixes.sh
+. "$(dirname "$0")/export-prefixes.sh"
 
 lib=$1
 out=$2
@@ -23,7 +27,14 @@ case $lib in
   *) names=$("$nm" -D --defined-only "$lib" | awk 'NF == 3 { print $3 }') ;;
 esac
 
-hidden=$(printf '%s\n' "$names" | grep -Ev '^(uniffi_|ffi_|JNI_On|Java_)' | sort -u || true)
+# #[no_mangle] symbols that only some Android targets define, so a host library
+# built for another architecture doesn't have them. blake3's NEON backend
+# (arm64, armv7) defines blake3_compress_in_place_portable in Rust for its C
+# code; an x86_64 host has no NEON backend. Hiding a name a target doesn't
+# define is fine: the link passes --undefined-version.
+target_only='blake3_compress_in_place_portable'
+
+hidden=$(printf '%s\n' "$names" $target_only | grep -Ev "$EXPORTED_PREFIXES" | sort -u || true)
 kept=$(printf '%s\n' "$names" | grep -cE '^(uniffi_|ffi_)' || true)
 if [ "$kept" -eq 0 ]; then
   echo "error: no uniffi_*/ffi_* exports in $lib" >&2
