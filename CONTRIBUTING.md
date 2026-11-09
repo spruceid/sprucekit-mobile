@@ -27,7 +27,6 @@
 rustup target install \
     armv7-linux-androideabi \
     aarch64-linux-android \
-    i686-linux-android \
     x86_64-linux-android \
     aarch64-apple-ios-sim \
     aarch64-apple-ios \
@@ -95,8 +94,8 @@ CLASSPATH="/path/to/jna-5.14.0.jar:/path/to/kotlinx-coroutines-core-jvm-1.6.4.ja
 
 The workspace contains two UniFFI crates (`mobile-sdk-rs` and `mobile-toolkit`), each with its
 own C module (`MobileSdkRsFFI` / `mobile_toolkitFFI`). `rust/build-ios.sh` generates the per-crate
-Swift bindings in uniffi library mode and assembles the xcframework with both modules declared
-in one top-level `Headers/module.modulemap`.
+Swift bindings in uniffi library mode and assembles the xcframework with each module in its own
+`Headers/<module>/` directory, so it can sit next to other static xcframeworks in an app.
 
 In `./rust/`
 ```bash

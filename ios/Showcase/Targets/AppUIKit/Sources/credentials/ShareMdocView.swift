@@ -199,10 +199,7 @@ public struct ShareMdocQR: View {
 
     @ViewBuilder
     func receivedRequestView(request: MdocProximityPresentationManager.Request) -> some View {
-        ShareMdocSelectiveDisclosureView(
-            request: request,
-            onCancel: { self.delegate.cancel() }
-        )
+        ShareMdocSelectiveDisclosureView(request: request)
     }
 
     @ViewBuilder
@@ -242,12 +239,8 @@ public struct ShareMdocSelectiveDisclosureView: View {
     @State private var showingSDSheet = true
     @State private var itemsSelected: [String: [String: [String: Bool]]]
     @State private var request: MdocProximityPresentationManager.Request
-    private let onCancel: () -> Void
 
-    init(
-        request: MdocProximityPresentationManager.Request,
-        onCancel: @escaping () -> Void
-    ) {
+    init(request: MdocProximityPresentationManager.Request) {
         self.request = request
         var defaultSelected: [String: [String: [String: Bool]]] = [:]
         for itemRequest in request.items {
@@ -262,7 +255,6 @@ public struct ShareMdocSelectiveDisclosureView: View {
             defaultSelected[itemRequest.docType] = defaultSelectedNamespaces
         }
         self.itemsSelected = defaultSelected
-        self.onCancel = onCancel
     }
 
     public var body: some View {
@@ -286,7 +278,9 @@ public struct ShareMdocSelectiveDisclosureView: View {
                         }
                     )
                 },
-                onCancel: self.onCancel
+                onCancel: {
+                    request.dismiss()
+                }
             )
         }
     }

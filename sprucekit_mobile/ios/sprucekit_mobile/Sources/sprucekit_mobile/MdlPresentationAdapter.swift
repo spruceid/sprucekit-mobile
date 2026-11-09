@@ -7,6 +7,8 @@ import SpruceIDMobileSdkRs
 class MdlPresentationAdapter: NSObject, MdlPresentation {
     private let credentialPackAdapter: CredentialPackAdapter
     private var presentationManager: MdocProximityPresentationManager?
+    /// The delegate of `presentationManager`. Callbacks from the delegates of replaced managers are ignored.
+    private var presentationDelegate: PresentationDelegate?
     private var flutterCallback: MdlPresentationCallback?
     private var currentState: MdlPresentationStateUpdate = MdlPresentationStateUpdate(state: .uninitialized)
     private var currentRequest: MdocProximityPresentationManager.Request?
@@ -28,6 +30,7 @@ class MdlPresentationAdapter: NSObject, MdlPresentation {
         // Cancel any existing session
         presentationManager?.disconnect()
         presentationManager = nil
+        presentationDelegate = nil
         currentRequest = nil
 
         // Get the credential pack
@@ -45,6 +48,7 @@ class MdlPresentationAdapter: NSObject, MdlPresentation {
 
         // Create the delegate
         let delegate = PresentationDelegate(adapter: self)
+        presentationDelegate = delegate
 
         // Create the presentation manager
         presentationManager = MdocProximityPresentationManager(
@@ -117,11 +121,16 @@ class MdlPresentationAdapter: NSObject, MdlPresentation {
     func cancel() throws {
         presentationManager?.disconnect()
         presentationManager = nil
+        presentationDelegate = nil
         currentRequest = nil
         updateState(MdlPresentationStateUpdate(state: .uninitialized))
     }
 
     // MARK: - Internal methods
+
+    fileprivate func isCurrent(_ delegate: PresentationDelegate) -> Bool {
+        presentationDelegate === delegate
+    }
 
     fileprivate func updateState(_ state: MdlPresentationStateUpdate) {
         currentState = state
@@ -158,6 +167,7 @@ private class PresentationDelegate: MdocProximityPresentationManager.Delegate {
     }
 
     func connectionState(changedTo state: MdocProximityPresentationManager.State) {
+        guard let current = adapter, current.isCurrent(self) else { return }
         switch state {
         case .initializing:
             adapter?.updateState(MdlPresentationStateUpdate(state: .initializing))
