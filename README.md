@@ -16,6 +16,22 @@ Import `https://github.com/spruceid/sprucekit-mobile` and use the product `Spruc
 
 See https://central.sonatype.com/artifact/com.spruceid.mobile.sdk/mobilesdk.
 
+#### Native crash symbols
+
+The `mobilesdkrs` AAR ships stripped `libmobile_sdk_rs.so` files, so native crashes in the Rust layer show addresses only. To get Rust function names back, upload the unstripped libraries to your crash reporter. Starting with the release after 0.27.1, each [GitHub release](https://github.com/spruceid/sprucekit-mobile/releases) has them as `MobileSdkRs-native-symbols-<version>.zip`, laid out as `<abi>/libmobile_sdk_rs.so`. Use the zip of the version your app depends on: the build ID of each library must match the one in the AAR.
+
+- **Google Play Console**: upload the zip as the native debug symbols of the app version (App bundle explorer, Downloads tab, Assets). Your app's own `ndk.debugSymbolLevel` setting can't add them, because the AAR has none.
+- **Firebase Crashlytics**: unzip it, point the Crashlytics Gradle plugin at the folder in your release build type, then run the `uploadCrashlyticsSymbolFile<Variant>` task:
+
+  ```kotlin
+  configure<CrashlyticsExtension> {
+      nativeSymbolUploadEnabled = true
+      unstrippedNativeLibsDir = file("path/to/MobileSdkRs-native-symbols")
+  }
+  ```
+
+- **Sentry**: `sentry-cli debug-files upload path/to/MobileSdkRs-native-symbols`.
+
 ### Flutter
 
 Add `sprucekit_mobile` to your `pubspec.yaml` as a git dependency. See the [Flutter plugin](./sprucekit_mobile) for details.

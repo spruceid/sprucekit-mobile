@@ -72,6 +72,40 @@ jobs:
       #   env:
       #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       #     VERSION: ${{ github.event.inputs.version }}
+      # Builds the libraries the AAR ships (stripped) and zips their unstripped
+      # copies; the publish step below reuses that build.
+      - name: Zip native debug symbols
+        run: ./gradlew :MobileSdkRs:zipNativeSymbols
+        env:
+          VERSION: ${{ github.event.inputs.version }}
+      # The AAR's libraries must be stripped and carry the build ID of their copy
+      # in the zip, or crash reporters can't pair them.
+      - name: Check native libraries against their symbols
+        run: |
+          ls MobileSdkRs/build/rust/symbols/*/libmobile_sdk_rs.so
+          for symbols in MobileSdkRs/build/rust/symbols/*/libmobile_sdk_rs.so; do
+            abi=$(basename "$(dirname "$symbols")")
+            packaged="MobileSdkRs/src/main/jniLibs/$abi/libmobile_sdk_rs.so"
+            id=$(readelf -n "$packaged" | awk '/Build ID/ {print $3}')
+            if [ -z "$id" ] || [ "$id" != "$(readelf -n "$symbols" | awk '/Build ID/ {print $3}')" ]; then
+              echo "$abi: build ID missing or different between the AAR and symbols libraries"
+              exit 1
+            fi
+            if readelf -S -W "$packaged" | grep -q '\.symtab'; then
+              echo "$abi: the AAR library is not stripped"
+              exit 1
+            fi
+            if ! readelf -S -W "$symbols" | grep -q '\.symtab'; then
+              echo "$abi: the symbols library has no symbol table"
+              exit 1
+            fi
+            echo "$abi: stripped, build ID $id"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-native-symbols
+          path: android/MobileSdkRs/build/distributions/MobileSdkRs-native-symbols-${{ github.event.inputs.version }}.zip
+          if-no-files-found: error
       - name: Publish package to Central
         run: ./gradlew publishAggregationToCentralPortal
         env:
@@ -153,6 +187,10 @@ jobs:
         with:
           name: rust-xcframework
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: android-native-symbols
+
       - name: Update Swift Package definition
         run: |
           sed -i '' 's/binaryTarget.*/binaryTarget(name: "MobileSdkRsFFI", url: "https:\/\/github.com\/spruceid\/sprucekit-mobile\/releases\/download\/${{ github.event.inputs.version }}\/MobileSdkRsFFI.xcframework.zip", checksum: "${{ needs.ios.outputs.checksum }}"),/' Package.swift
@@ -182,10 +220,10 @@ jobs:
           git tag ${{ github.event.inputs.version }} -m "${{ github.event.inputs.version }}"
           git push --tags
 
-      - name: Create release and attach XCFramework binary artifact
+      - name: Create release and attach XCFramework and Android native symbols
         uses: ncipollo/release-action@v1
         with:
-          artifacts: "MobileSdkRsFFI.xcframework.zip"
+          artifacts: "MobileSdkRsFFI.xcframework.zip,MobileSdkRs-native-symbols-${{ github.event.inputs.version }}.zip"
           tag: ${{ github.event.inputs.version }}
           name: ${{ github.event.inputs.version }}
 

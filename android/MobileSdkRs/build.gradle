@@ -92,13 +92,22 @@ tasks.register('buildCargoNdk', Exec) {
     }
 
     dependsOn(tasks.named("bindGen"))
-    onlyIf { rustUpdated(name) }
-    doLast { onSuccess(name) }
+    onlyIf { rustUpdated(name) || !nativeLibsComplete(abis) }
+    doLast {
+        if (copyNativeLibs(abis)) {
+            onSuccess(name)
+        } else {
+            // Unstripped fallback: run again next time, in case llvm-strip shows up.
+            markerFile(name).delete()
+        }
+    }
 
     workingDir rootDir.toPath().toString() + "/../rust"
+    // No `-o`: copyNativeLibs takes the libraries from Cargo's target dir, so
+    // the unstripped copies stay unstripped whatever cargo-ndk version runs
+    // (3.x strips what it copies to `-o`, 4.x doesn't).
     commandLine(["cargo", "ndk"] + abis.collectMany { ["-t", it] } + [
             "--platform", android.defaultConfig.minSdk.toString(),
-            "-o", "${projectDir}/src/main/jniLibs",
             // `rustc --crate-type cdylib` rather than `build`: Cargo skips LTO for a
             // crate that also emits an rlib (mobile-sdk-rs keeps one for its
             // integration tests), so the release profile's LTO only applies when the
@@ -138,6 +147,7 @@ def rustUpdated(taskName) {
     def manifest = files(
             "../../rust/Cargo.toml",
             "../../rust/Cargo.lock",
+            "../../rust/.cargo/config.toml",
             "../../rust/uniffi.toml",
             "../../rust/mobile-toolkit/Cargo.toml",
             "../../rust/mobile-toolkit/Cargo.lock",
@@ -183,6 +193,117 @@ def onSuccess(taskName) {
         markerFile.parentFile.mkdirs()
     }
     markerFile.text = "${System.currentTimeMillis()}"
+}
+
+// Unstripped libraries, `<abi>/libmobile_sdk_rs.so`, for crash symbolication.
+def nativeSymbolsDir() {
+    return file("${getLayout().buildDirectory.get()}/rust/symbols")
+}
+
+def nativeLib(dir, abi) {
+    return new File(dir, "${abi}/libmobile_sdk_rs.so")
+}
+
+// buildCargoNdk reruns when either copy of a library is missing.
+def nativeLibsComplete(abis) {
+    return abis.every {
+        nativeLib(file("src/main/jniLibs"), it).exists() && nativeLib(nativeSymbolsDir(), it).exists()
+    }
+}
+
+// The NDK's llvm-strip, looked up the way cargo-ndk finds the NDK: ndk.dir in
+// local.properties (passed on as ANDROID_NDK_HOME), the ANDROID_NDK_* variables,
+// then the newest NDK in the SDK. Null if there's none.
+def findLlvmStrip() {
+    def localProperties = rootProject.file("local.properties")
+    def properties = new Properties()
+    if (localProperties.exists()) {
+        localProperties.withInputStream { properties.load(it) }
+    }
+    def ndkDirs = ([properties.getProperty("ndk.dir")]
+            + ["ANDROID_NDK_HOME", "ANDROID_NDK_ROOT", "ANDROID_NDK_PATH", "NDK_HOME"].collect { System.getenv(it) })
+            .findAll { it != null }
+            .collect { new File(it) }
+    // A variable may also point at a folder of NDK versions, like <sdk>/ndk.
+    def newestNdk = { File parent ->
+        def version = { File dir -> dir.name.tokenize(".").collect { it.isInteger() ? it.toInteger() : 0 } }
+        parent.listFiles()?.findAll { it.isDirectory() }?.max { a, b ->
+            def (va, vb) = [version(a), version(b)]
+            [va, vb].transpose().collect { it[0] <=> it[1] }.find { it != 0 } ?: va.size() <=> vb.size()
+        }
+    }
+    def ndks = ndkDirs.collectMany { [it, newestNdk(it)] } + [newestNdk(new File(android.sdkDirectory, "ndk"))]
+    // toolchains/llvm/prebuilt/<host>/bin, <host> being darwin-x86_64, linux-x86_64 or windows-x86_64.
+    return ndks.findAll { it != null }
+            .collectMany { new File(it, "toolchains/llvm/prebuilt").listFiles()?.toList() ?: [] }
+            .collectMany { [new File(it, "bin/llvm-strip"), new File(it, "bin/llvm-strip.exe")] }
+            .find { it.isFile() }
+}
+
+// Takes each ABI's library from Cargo's target dir: the unstripped file goes to
+// nativeSymbolsDir() (zipped by zipNativeSymbols), a stripped copy to jniLibs (packaged
+// in the AAR). `--strip-all` drops .symtab/.strtab; .dynsym (what JNA looks up) and
+// the build ID note stay, so crash reporters match the two files. Returns false when
+// it had to package unstripped libraries.
+def copyNativeLibs(abis) {
+    def rustTriples = [
+            "armeabi-v7a": "armv7-linux-androideabi",
+            "arm64-v8a"  : "aarch64-linux-android",
+            "x86"        : "i686-linux-android",
+            "x86_64"     : "x86_64-linux-android",
+    ]
+    // Cargo's own answer, so CARGO_TARGET_DIR and build.target-dir are honoured.
+    def metadata = ["cargo", "metadata", "--format-version", "1", "--no-deps"]
+            .execute(null, new File(rootDir, "../rust"))
+    def metadataOut = new StringBuilder()
+    metadata.waitForProcessOutput(metadataOut, System.err)
+    if (metadata.exitValue() != 0) {
+        throw new GradleException("cargo metadata failed")
+    }
+    def targetDir = new File(new groovy.json.JsonSlurper().parseText(metadataOut.toString()).target_directory)
+    def jniLibs = file("src/main/jniLibs")
+    def strip = findLlvmStrip()
+    if (strip == null) {
+        def message = "llvm-strip not found: no NDK in ndk.dir, ANDROID_NDK_HOME or the SDK"
+        if (System.getenv("CI") != null) {
+            throw new GradleException(message)
+        }
+        logger.warn("warning: ${message}; the AAR gets unstripped libraries")
+    }
+
+    // Start clean, so jniLibs and the symbols never mix libraries from different builds.
+    delete(nativeSymbolsDir(), fileTree(jniLibs).matching { include("*/libmobile_sdk_rs.so") })
+    abis.each { abi ->
+        def built = new File(targetDir, "${rustTriples[abi]}/release/libmobile_sdk_rs.so")
+        if (!built.exists()) {
+            throw new GradleException("${built} not found after cargo ndk")
+        }
+        def symbols = nativeLib(nativeSymbolsDir(), abi)
+        def packaged = nativeLib(jniLibs, abi)
+        symbols.parentFile.mkdirs()
+        packaged.parentFile.mkdirs()
+        java.nio.file.Files.copy(built.toPath(), symbols.toPath())
+        if (strip != null) {
+            def process = [strip.path, "--strip-all", "-o", packaged.path, symbols.path].execute()
+            process.waitForProcessOutput(System.out, System.err)
+            if (process.exitValue() != 0) {
+                throw new GradleException("${strip} failed on ${symbols}")
+            }
+        } else {
+            java.nio.file.Files.copy(built.toPath(), packaged.toPath())
+        }
+    }
+    return strip != null
+}
+
+// Zips the unstripped libraries as `<abi>/libmobile_sdk_rs.so`, the layout Play
+// Console, Crashlytics and Sentry take. cd.yml attaches it to the GitHub release.
+tasks.register('zipNativeSymbols', Zip) {
+    dependsOn(tasks.named("buildCargoNdk"))
+    from(nativeSymbolsDir())
+    include("*/libmobile_sdk_rs.so")
+    archiveFileName = "MobileSdkRs-native-symbols-${System.getenv("VERSION") ?: "dev"}.zip"
+    destinationDirectory = layout.buildDirectory.dir("distributions")
 }
 
 afterEvaluate {
