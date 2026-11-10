@@ -209,6 +209,9 @@ pub struct PresentationOptions<'a> {
     pub(crate) response_options: &'a ResponseOptions,
     /// Optional KeyStore for mdoc credential signing
     pub(crate) keystore: Option<Arc<dyn crate::crypto::KeyStore>>,
+    /// The query's `require_cryptographic_holder_binding` (OID4VP 1.0 §6.1,
+    /// `true` by default).
+    pub(crate) require_holder_binding: bool,
 }
 
 impl std::fmt::Debug for PresentationOptions<'_> {
@@ -218,6 +221,7 @@ impl std::fmt::Debug for PresentationOptions<'_> {
             .field("context_map", &self.context_map)
             .field("response_options", &self.response_options)
             .field("keystore", &self.keystore.as_ref().map(|_| "KeyStore"))
+            .field("require_holder_binding", &self.require_holder_binding)
             .finish()
     }
 }
