@@ -1,5 +1,6 @@
 #![allow(deprecated)]
 
+use super::client_auth;
 use super::dynamic_credential::{DynamicCredentialOffer, DynamicCredentialProvider};
 use super::error::OID4VPError;
 use super::permission_request::*;
@@ -32,7 +33,6 @@ use openid4vp::{
     wallet::Wallet as OID4VPWallet,
 };
 
-use ssi::dids::DIDKey;
 use ssi::dids::DIDWeb;
 use ssi::dids::VerificationMethodDIDResolver;
 use ssi::prelude::AnyJwkMethod;
@@ -410,14 +410,11 @@ impl Holder {
             ])
             .map_err(|e| OID4VPError::MetadataInitialization(format!("{e:?}")))?;
 
-        metadata
-            // Allow unencoded requests and ES256-signed requests (for x509_san_dns).
-            .add_request_object_signing_alg_values_supported(ssi::jwk::Algorithm::None)
-            .map_err(|e| OID4VPError::MetadataInitialization(format!("{e:?}")))?;
-
-        metadata
-            .add_request_object_signing_alg_values_supported(ssi::jwk::Algorithm::ES256)
-            .map_err(|e| OID4VPError::MetadataInitialization(format!("{e:?}")))?;
+        // `request_object_signing_alg_values_supported` is ES256 only, from
+        // the static metadata. `none` is not a signing algorithm: unsigned
+        // requests are only accepted for the `redirect_uri` prefix, which
+        // `Holder::redirect_uri` checks itself, and listing it let
+        // `decentralized_identifier` requests skip their signature check.
 
         Ok(metadata)
     }
@@ -546,6 +543,11 @@ impl RequestVerifier for Holder {
         let request_jwt = request_jwt
             .context("request JWT is required for decentralized_identifier verification")?;
 
+        // "The request MUST be signed with a private key associated with the
+        // DID" (OID4VP 1.0 §5.9.3). The `openid4vp` crate skips every check
+        // for `alg: none`, so refuse it before calling it.
+        client_auth::ensure_signed(&request_jwt)?;
+
         let resolver: VerificationMethodDIDResolver<DIDWeb, AnyJwkMethod> =
             VerificationMethodDIDResolver::new(DIDWeb);
 
@@ -567,6 +569,10 @@ impl RequestVerifier for Holder {
     }
 
     /// Performs verification on Authorization Request Objects when `client_id_scheme` is `redirect_uri`.
+    ///
+    /// The request is unsigned (OID4VP 1.0 §5.9.3), as plain parameters or as
+    /// an `alg: none` Request Object, and its Response URI must be the Client
+    /// Identifier.
     async fn redirect_uri(
         &self,
         decoded_request: &AuthorizationRequestObject,
@@ -574,27 +580,7 @@ impl RequestVerifier for Holder {
     ) -> anyhow::Result<()> {
         log::debug!("Verifying redirect_uri request.");
 
-        let request_jwt =
-            request_jwt.context("request JWT is required for redirect_uri verification")?;
-
-        let resolver: VerificationMethodDIDResolver<DIDKey, AnyJwkMethod> =
-            VerificationMethodDIDResolver::new(DIDKey);
-
-        let trusted_dids = match self.trusted_dids.as_slice() {
-            [] => None,
-            dids => Some(dids),
-        };
-
-        verify_with_resolver(
-            &self.metadata,
-            decoded_request,
-            request_jwt,
-            trusted_dids,
-            &resolver,
-        )
-        .await?;
-
-        Ok(())
+        client_auth::verify_redirect_uri(decoded_request, request_jwt.as_deref())
     }
 
     /// Performs verification on Authorization Request Objects when `client_id_scheme` is `x509_san_dns`.
@@ -607,6 +593,8 @@ impl RequestVerifier for Holder {
 
         let request_jwt =
             request_jwt.context("request JWT is required for x509_san_dns verification")?;
+
+        client_auth::ensure_signed(&request_jwt)?;
 
         // Use the x509_san validation with P256 verifier
         // Note: trusted_roots is None for now, meaning we don't verify the certificate chain
@@ -625,6 +613,8 @@ impl RequestVerifier for Holder {
 
         let request_jwt =
             request_jwt.context("request JWT is required for x509_hash verification")?;
+
+        client_auth::ensure_signed(&request_jwt)?;
 
         // Use the x509_hash validation with P256 verifier
         // Note: trusted_roots is None for now, meaning we don't verify the certificate chain
@@ -1231,5 +1221,486 @@ pub(crate) mod tests {
             items[0].as_str().unwrap(),
             "minted:nonce-dyn:redirect_uri:https://wallet.example/callback"
         );
+    }
+
+    // ---- Client authentication ----
+
+    async fn bare_holder() -> Arc<Holder> {
+        Holder::new_with_credentials(
+            vec![],
+            vec![],
+            Box::new(KeySigner {
+                jwk: JWK::generate_p256(),
+            }),
+            String::new(),
+            None,
+            None,
+        )
+        .await
+        .expect("failed to construct holder")
+    }
+
+    fn unsigned_jwt(header: serde_json::Value, claims: serde_json::Value) -> String {
+        use base64::prelude::{Engine as _, BASE64_URL_SAFE_NO_PAD};
+        format!(
+            "{}.{}.",
+            BASE64_URL_SAFE_NO_PAD.encode(header.to_string()),
+            BASE64_URL_SAFE_NO_PAD.encode(claims.to_string())
+        )
+    }
+
+    #[test]
+    fn metadata_does_not_advertise_unsigned_request_objects() {
+        let metadata = serde_json::to_value(Holder::metadata().unwrap()).unwrap();
+        assert_eq!(
+            metadata["request_object_signing_alg_values_supported"],
+            json!(["ES256"])
+        );
+    }
+
+    #[tokio::test]
+    async fn decentralized_identifier_refuses_unsigned_request_objects() {
+        let holder = bare_holder().await;
+        let claims = json!({
+            "client_id": "decentralized_identifier:did:web:verifier.example",
+            "response_uri": "https://attacker.example/post",
+            "response_type": "vp_token",
+            "response_mode": "direct_post",
+            "nonce": "n",
+            "dcql_query": { "credentials": [] }
+        });
+        let request: AuthorizationRequestObject =
+            serde_json::from_value(claims.clone()).expect("invalid request");
+        let jwt = unsigned_jwt(
+            json!({ "alg": "none", "kid": "did:web:verifier.example#key-1" }),
+            claims,
+        );
+
+        let err = holder
+            .decentralized_identifier(&request, Some(jwt.clone()))
+            .await
+            .expect_err("an unsigned decentralized_identifier request must be refused");
+        assert!(format!("{err:#}").contains("unsigned"), "{err:#}");
+
+        // Without `none` in the metadata, the crate check refuses it too.
+        let resolver: VerificationMethodDIDResolver<DIDWeb, AnyJwkMethod> =
+            VerificationMethodDIDResolver::new(DIDWeb);
+        assert!(
+            verify_with_resolver(&holder.metadata, &request, jwt, None, &resolver)
+                .await
+                .is_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn redirect_uri_requests_are_bound_to_the_response_uri() {
+        let holder = bare_holder().await;
+
+        // `dynamic_request` posts to its own Client Identifier.
+        holder
+            .redirect_uri(&dynamic_request(), None)
+            .await
+            .expect("a bound redirect_uri request must be accepted");
+
+        let mut claims = serde_json::to_value(dynamic_request()).unwrap();
+        claims["response_uri"] = json!("https://attacker.example/post");
+        let unbound: AuthorizationRequestObject =
+            serde_json::from_value(claims).expect("invalid request");
+        assert!(holder.redirect_uri(&unbound, None).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn redirect_uri_refuses_signed_request_objects() {
+        let holder = bare_holder().await;
+        let request = dynamic_request();
+        let claims = serde_json::to_value(&request).unwrap();
+
+        let unsigned = unsigned_jwt(
+            json!({ "alg": "none", "typ": "oauth-authz-req+jwt" }),
+            claims.clone(),
+        );
+        assert!(holder.redirect_uri(&request, Some(unsigned)).await.is_ok());
+
+        let signed = unsigned_jwt(
+            json!({ "alg": "ES256", "typ": "oauth-authz-req+jwt" }),
+            claims,
+        );
+        assert!(holder.redirect_uri(&request, Some(signed)).await.is_err());
+    }
+
+    // ---- Client authentication through `authorization_request` ----
+
+    /// An `openid4vp://` Authorization Request URL with these parameters.
+    fn request_url(params: &[(&str, &str)]) -> Url {
+        Url::parse_with_params("openid4vp://", params).expect("invalid request URL")
+    }
+
+    async fn refused(holder: &Holder, url: Url) -> OID4VPError {
+        match holder.authorization_request(AuthRequest::Url(url)).await {
+            Ok(_) => panic!("the request must be refused"),
+            Err(err) => err,
+        }
+    }
+
+    /// Asserts that client authentication refused the request.
+    fn assert_refused_by_client_auth(err: &OID4VPError, reason: &str) {
+        match err {
+            OID4VPError::RequestValidation(msg) => assert!(msg.contains(reason), "{msg}"),
+            err => panic!("expected a RequestValidation error, got {err:?}"),
+        }
+    }
+
+    fn unsigned_did_claims() -> serde_json::Value {
+        json!({
+            "client_id": "decentralized_identifier:did:web:verifier.example",
+            "response_uri": "https://attacker.example/post",
+            "response_type": "vp_token",
+            "response_mode": "direct_post",
+            "nonce": "n",
+            "dcql_query": { "credentials": [] }
+        })
+    }
+
+    fn unsigned_did_request_object() -> String {
+        unsigned_jwt(
+            json!({
+                "alg": "none",
+                "typ": "oauth-authz-req+jwt",
+                "kid": "did:web:verifier.example#key-1"
+            }),
+            unsigned_did_claims(),
+        )
+    }
+
+    #[tokio::test]
+    async fn an_unsigned_did_request_object_by_value_is_refused() {
+        let holder = bare_holder().await;
+        let url = request_url(&[
+            (
+                "client_id",
+                "decentralized_identifier:did:web:verifier.example",
+            ),
+            ("request", &unsigned_did_request_object()),
+        ]);
+        assert_refused_by_client_auth(&refused(&holder, url).await, "unsigned");
+    }
+
+    #[tokio::test]
+    async fn an_unsigned_did_request_object_by_reference_is_refused() {
+        use wiremock::{
+            matchers::{method, path},
+            Mock, MockServer, ResponseTemplate,
+        };
+
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/request"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(unsigned_did_request_object()))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let holder = bare_holder().await;
+        let url = request_url(&[
+            (
+                "client_id",
+                "decentralized_identifier:did:web:verifier.example",
+            ),
+            ("request_uri", &format!("{}/request", server.uri())),
+        ]);
+        assert_refused_by_client_auth(&refused(&holder, url).await, "unsigned");
+    }
+
+    fn redirect_uri_params(response_uri: &str) -> Vec<(&'static str, String)> {
+        vec![
+            (
+                "client_id",
+                "redirect_uri:https://verifier.example/post".into(),
+            ),
+            ("response_uri", response_uri.into()),
+            ("response_type", "vp_token".into()),
+            ("response_mode", "direct_post".into()),
+            ("nonce", "n".into()),
+            (
+                "dcql_query",
+                json!({ "credentials": [{ "id": "q", "format": "jwt_vc_json" }] }).to_string(),
+            ),
+        ]
+    }
+
+    fn url_from(params: &[(&'static str, String)]) -> Url {
+        let params: Vec<(&str, &str)> = params.iter().map(|(k, v)| (*k, v.as_str())).collect();
+        request_url(&params)
+    }
+
+    #[tokio::test]
+    async fn a_bound_redirect_uri_request_passes_client_auth() {
+        let holder = bare_holder().await;
+        let url = url_from(&redirect_uri_params("https://verifier.example/post"));
+
+        // The DCQL query is resolved after client authentication. Plain URL
+        // parameters are strings, and the crate does not parse a JSON string
+        // as a DCQL query.
+        let err = refused(&holder, url).await;
+        assert!(
+            matches!(err, OID4VPError::DcqlQueryResolution(_)),
+            "{err:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn an_unbound_redirect_uri_request_is_refused() {
+        let holder = bare_holder().await;
+        let url = url_from(&redirect_uri_params("https://attacker.example/post"));
+        assert_refused_by_client_auth(&refused(&holder, url).await, "does not match");
+    }
+
+    /// The crate compares the URL's `client_id` with the Request Object's
+    /// after client authentication (`AuthorizationRequest::validate`).
+    #[tokio::test]
+    async fn a_request_object_with_another_client_id_than_the_url_is_refused() {
+        let holder = bare_holder().await;
+        // Self-consistent on its own: it posts to its own Client Identifier.
+        let request_object = unsigned_jwt(
+            json!({ "alg": "none", "typ": "oauth-authz-req+jwt" }),
+            json!({
+                "client_id": "redirect_uri:https://attacker.example/post",
+                "response_uri": "https://attacker.example/post",
+                "response_type": "vp_token",
+                "response_mode": "direct_post",
+                "nonce": "n",
+                "dcql_query": { "credentials": [] }
+            }),
+        );
+        let url = request_url(&[
+            ("client_id", "redirect_uri:https://verifier.example/post"),
+            ("request", &request_object),
+        ]);
+        assert_refused_by_client_auth(&refused(&holder, url).await, "different client ids");
+    }
+
+    /// `dc_api` requests have no response URI, and the crate's placeholder
+    /// `return_uri()` is `https://example.com/`. A `redirect_uri` request
+    /// naming that placeholder passes client authentication, and the holder
+    /// then refuses the response mode.
+    #[tokio::test]
+    async fn a_dc_api_request_is_refused_after_client_auth() {
+        let holder = bare_holder().await;
+        let url = request_url(&[
+            ("client_id", "redirect_uri:https://example.com"),
+            ("response_type", "vp_token"),
+            ("response_mode", "dc_api"),
+            ("nonce", "n"),
+            ("dcql_query", r#"{"credentials":[]}"#),
+        ]);
+        let err = refused(&holder, url).await;
+        assert!(
+            matches!(err, OID4VPError::UnsupportedResponseMode(_)),
+            "{err:?}"
+        );
+    }
+
+    // ---- Signed Request Objects ----
+
+    /// `header.payload` of a compact JWS, ready to sign.
+    fn signing_input(header: &serde_json::Value, claims: &serde_json::Value) -> String {
+        use base64::prelude::{Engine as _, BASE64_URL_SAFE_NO_PAD};
+        format!(
+            "{}.{}",
+            BASE64_URL_SAFE_NO_PAD.encode(header.to_string()),
+            BASE64_URL_SAFE_NO_PAD.encode(claims.to_string())
+        )
+    }
+
+    fn compact_jws(signing_input: &str, signature: &[u8]) -> String {
+        use base64::prelude::{Engine as _, BASE64_URL_SAFE_NO_PAD};
+        format!(
+            "{signing_input}.{}",
+            BASE64_URL_SAFE_NO_PAD.encode(signature)
+        )
+    }
+
+    /// The same JWS with one byte of its signature changed.
+    pub(crate) fn tamper_signature(jws: &str) -> String {
+        use base64::prelude::{Engine as _, BASE64_URL_SAFE_NO_PAD};
+        let (signing_input, signature) = jws.rsplit_once('.').expect("not a compact JWS");
+        let mut signature = BASE64_URL_SAFE_NO_PAD
+            .decode(signature)
+            .expect("invalid signature encoding");
+        *signature.last_mut().expect("empty signature") ^= 0x01;
+        compact_jws(signing_input, &signature)
+    }
+
+    /// An ES256 Request Object signed with a new P-256 `did:key`, with `kid`
+    /// set to the key's verification method. `claims` gets the DID.
+    pub(crate) async fn sign_with_did_key(
+        claims: impl FnOnce(&str) -> serde_json::Value,
+    ) -> (serde_json::Value, String) {
+        let jwk = JWK::generate_p256();
+        let kid = ssi::dids::DIDKey::generate_url(&jwk)
+            .expect("failed to generate a did:key")
+            .to_string();
+        let (did, _) = kid.split_once('#').expect("no fragment in the did:key URL");
+        let claims = claims(did);
+        let header = json!({ "alg": "ES256", "typ": "oauth-authz-req+jwt", "kid": kid });
+        let input = signing_input(&header, &claims);
+        let signature = jwk
+            .sign_bytes(input.as_bytes())
+            .await
+            .expect("failed to sign the Request Object");
+        (claims, compact_jws(&input, &signature))
+    }
+
+    /// The holder resolves `did:web`, which needs the network, so this calls
+    /// the crate's `verify_with_resolver` directly with a `did:key` resolver,
+    /// and the holder's metadata.
+    #[tokio::test]
+    async fn a_did_signed_request_object_is_accepted_and_a_tampered_one_refused() {
+        let metadata = Holder::metadata().unwrap();
+        let resolver: VerificationMethodDIDResolver<ssi::dids::DIDKey, AnyJwkMethod> =
+            VerificationMethodDIDResolver::new(ssi::dids::DIDKey);
+        let (claims, jwt) = sign_with_did_key(|did| {
+            json!({
+                "client_id": format!("decentralized_identifier:{did}"),
+                "response_uri": "https://verifier.example/post",
+                "response_type": "vp_token",
+                "response_mode": "direct_post",
+                "nonce": "n",
+                "dcql_query": { "credentials": [] }
+            })
+        })
+        .await;
+        let request: AuthorizationRequestObject =
+            serde_json::from_value(claims).expect("invalid request");
+
+        client_auth::ensure_signed(&jwt).expect("the Request Object is signed");
+        verify_with_resolver(&metadata, &request, jwt.clone(), None, &resolver)
+            .await
+            .expect("a correctly signed request must be accepted");
+
+        let tampered = tamper_signature(&jwt);
+        client_auth::ensure_signed(&tampered).expect("the header still says ES256");
+        let err = verify_with_resolver(&metadata, &request, tampered, None, &resolver)
+            .await
+            .expect_err("a tampered signature must be refused");
+        assert!(format!("{err:#}").contains("signature"), "{err:#}");
+    }
+
+    /// A self-signed P-256 leaf certificate (DER) whose only SAN is the DNS
+    /// name `dns_name`, and its key.
+    fn self_signed_leaf(dns_name: &str) -> (Vec<u8>, p256::ecdsa::SigningKey) {
+        use x509_cert::{
+            builder::{Builder, CertificateBuilder, Profile},
+            der::{asn1::Ia5String, Encode},
+            ext::pkix::{name::GeneralName, SubjectAltName},
+            spki::SubjectPublicKeyInfoOwned,
+            time::Validity,
+        };
+
+        let key = p256::ecdsa::SigningKey::random(&mut ssi::crypto::rand::thread_rng());
+        let spki = SubjectPublicKeyInfoOwned::from_key(*key.verifying_key()).unwrap();
+        let mut builder = CertificateBuilder::new(
+            Profile::Manual { issuer: None },
+            1u64.into(),
+            Validity::from_now(std::time::Duration::from_secs(60 * 60)).unwrap(),
+            format!("CN={dns_name}").parse().unwrap(),
+            spki,
+            &key,
+        )
+        .unwrap();
+        builder
+            .add_extension(&SubjectAltName(vec![GeneralName::DnsName(
+                Ia5String::new(dns_name).unwrap(),
+            )]))
+            .unwrap();
+        let certificate = builder.build::<p256::ecdsa::DerSignature>().unwrap();
+        (certificate.to_der().unwrap(), key)
+    }
+
+    /// An ES256 Request Object with the certificate in `x5c`, signed with
+    /// its key.
+    fn sign_with_leaf(
+        certificate: &[u8],
+        key: &p256::ecdsa::SigningKey,
+        claims: &serde_json::Value,
+    ) -> String {
+        use base64::prelude::{Engine as _, BASE64_STANDARD};
+        use p256::ecdsa::signature::Signer as _;
+
+        let header = json!({
+            "alg": "ES256",
+            "typ": "oauth-authz-req+jwt",
+            "x5c": [BASE64_STANDARD.encode(certificate)]
+        });
+        let input = signing_input(&header, claims);
+        let signature: p256::ecdsa::Signature = key.sign(input.as_bytes());
+        compact_jws(&input, &signature.to_bytes())
+    }
+
+    fn x509_claims(client_id: &str) -> serde_json::Value {
+        json!({
+            "client_id": client_id,
+            "response_uri": "https://verifier.example/post",
+            "response_type": "vp_token",
+            "response_mode": "direct_post",
+            "nonce": "n",
+            "dcql_query": { "credentials": [] }
+        })
+    }
+
+    #[tokio::test]
+    async fn an_x509_san_dns_signed_request_object_is_accepted_and_a_tampered_one_refused() {
+        let holder = bare_holder().await;
+        let (certificate, key) = self_signed_leaf("verifier.example");
+        let claims = x509_claims("x509_san_dns:verifier.example");
+        let request: AuthorizationRequestObject =
+            serde_json::from_value(claims.clone()).expect("invalid request");
+        let jwt = sign_with_leaf(&certificate, &key, &claims);
+
+        holder
+            .x509_san_dns(&request, Some(jwt.clone()))
+            .await
+            .expect("a correctly signed request must be accepted");
+
+        let err = holder
+            .x509_san_dns(&request, Some(tamper_signature(&jwt)))
+            .await
+            .expect_err("a tampered signature must be refused");
+        assert!(format!("{err:#}").contains("signature"), "{err:#}");
+
+        // A certificate for another host does not authenticate this client_id.
+        let (other_certificate, other_key) = self_signed_leaf("attacker.example");
+        let other = sign_with_leaf(&other_certificate, &other_key, &claims);
+        assert!(holder.x509_san_dns(&request, Some(other)).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn an_x509_hash_signed_request_object_is_accepted_and_a_tampered_one_refused() {
+        use base64::prelude::{Engine as _, BASE64_URL_SAFE_NO_PAD};
+        use sha2::Digest as _;
+
+        let holder = bare_holder().await;
+        let (certificate, key) = self_signed_leaf("verifier.example");
+        let hash = BASE64_URL_SAFE_NO_PAD.encode(sha2::Sha256::digest(&certificate));
+        let claims = x509_claims(&format!("x509_hash:{hash}"));
+        let request: AuthorizationRequestObject =
+            serde_json::from_value(claims.clone()).expect("invalid request");
+        let jwt = sign_with_leaf(&certificate, &key, &claims);
+
+        holder
+            .x509_hash(&request, Some(jwt.clone()))
+            .await
+            .expect("a correctly signed request must be accepted");
+
+        let err = holder
+            .x509_hash(&request, Some(tamper_signature(&jwt)))
+            .await
+            .expect_err("a tampered signature must be refused");
+        assert!(format!("{err:#}").contains("signature"), "{err:#}");
+
+        // Another certificate does not match the hash.
+        let (other_certificate, other_key) = self_signed_leaf("verifier.example");
+        let other = sign_with_leaf(&other_certificate, &other_key, &claims);
+        assert!(holder.x509_hash(&request, Some(other)).await.is_err());
     }
 }
