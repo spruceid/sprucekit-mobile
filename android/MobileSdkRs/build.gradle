@@ -76,6 +76,10 @@ dependencies {
     // this AAR (a local jar isn't listed in the published POM). Its version must
     // match the crate's: after a Cargo.lock change, run
     // ./update-rustls-platform-verifier.sh.
+    // The SDK initialises one rustls-platform-verifier; a second version in
+    // Cargo.lock (e.g. one pulled in by reqwest) would stay uninitialised, so
+    // cargoLockVersion's "expected one" check turns that into a build error.
+    cargoLockVersion('rustls-platform-verifier')
     def rustlsPlatformVerifierJar = file("libs/rustls-platform-verifier-${cargoLockVersion('rustls-platform-verifier-android')}.jar")
     if (!rustlsPlatformVerifierJar.exists()) {
         throw new GradleException("Missing ${rustlsPlatformVerifierJar}: run android/MobileSdkRs/update-rustls-platform-verifier.sh")
