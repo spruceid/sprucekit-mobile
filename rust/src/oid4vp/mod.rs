@@ -1,6 +1,4 @@
-pub(crate) mod claims_query;
 pub mod dc_api;
-pub mod dcql_claims;
 pub mod draft18;
 pub mod dynamic_credential;
 pub mod error;
@@ -422,3 +420,5 @@ mod tests {
         assert_eq!(get_oid4vp_version(request.into()), Oid4vpVersion::V1);
     }
 }
+#[cfg(test)]
+mod dcql_matching_tests;

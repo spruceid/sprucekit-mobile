@@ -3,7 +3,6 @@ use std::{borrow::Cow, sync::Arc};
 use crate::{
     crypto::KeyAlias,
     oid4vp::{
-        claims_query,
         error::OID4VPError,
         permission_request::RequestedField,
         presentation::{CredentialPresentation, PresentationError, PresentationOptions},
@@ -16,9 +15,10 @@ use json_vc::{JsonVc, JsonVcEncodingError, JsonVcInitError};
 use jwt_vc::{JwtVc, JwtVcInitError};
 use mdoc::{Mdoc, MdocEncodingError, MdocInitError};
 use openid4vp::core::{
-    dcql_query::{DcqlCredentialQuery, DcqlQuery},
+    dcql_query::{mdoc_path, DcqlCredentialClaimsQuery, DcqlCredentialQuery, DcqlQuery},
     response::parameters::VpTokenItem,
 };
+use openid4vp::utils::NonEmptyVec;
 use optical_barcode_credential::{OpticalBarcodeCred, OpticalBarcodeCredError};
 use serde::{Deserialize, Serialize};
 use status::BitStringStatusListResolver;
@@ -579,14 +579,19 @@ impl ParsedCredential {
         format_and_meta && self.satisfies_claims_query(credential_query)
     }
 
-    /// Whether the credential holds the claims the query requests
-    /// (OID4VP 1.0 §6.4.1).
     fn satisfies_claims_query(&self, credential_query: &DcqlCredentialQuery) -> bool {
+        self.select_claims_query(credential_query).is_some()
+    }
+
+    fn select_claims_query<'q>(
+        &self,
+        credential_query: &'q DcqlCredentialQuery,
+    ) -> Option<Vec<&'q DcqlCredentialClaimsQuery>> {
         let id = self.id();
 
         if let ParsedCredentialInner::MsoMdoc(mdoc) = &self.inner {
-            return claims_query::satisfies_claims(credential_query, |claim| {
-                let has = claims_query::mdoc_path(claim.path())
+            return credential_query.select_claims(|claim| {
+                let has = mdoc_path(claim.path())
                     .map(|(namespace, element)| mdoc.has_element(namespace, element));
                 if !matches!(has, Ok(true)) {
                     log::debug!("credential {id} lacks claim {:?}: {has:?}", claim.path());
@@ -595,15 +600,33 @@ impl ParsedCredential {
             });
         }
 
-        let Some(credential) = self.claims_json() else {
-            return false;
-        };
+        let credential = self.claims_json()?;
 
-        claims_query::satisfies_claims(credential_query, |claim| {
-            claims_query::select_json(&credential, claim.path())
-                .inspect_err(|e| log::debug!("credential {id} lacks claim {:?}: {e}", claim.path()))
+        credential_query.select_claims(|claim| {
+            claim
+                .is_satisfied_by_json(&credential)
+                .inspect_err(|e| {
+                    log::debug!(
+                        "credential {id} does not satisfy claim {:?}: {e}",
+                        claim.path()
+                    )
+                })
                 .is_ok()
         })
+    }
+
+    fn narrow_to_claim_set(
+        &self,
+        credential_query: &DcqlCredentialQuery,
+    ) -> Option<DcqlCredentialQuery> {
+        credential_query.claim_sets()?;
+        let selected = self.select_claims_query(credential_query)?;
+        let mut narrowed = credential_query.clone();
+        narrowed.set_claims(NonEmptyVec::maybe_new(
+            selected.into_iter().cloned().collect(),
+        ));
+        narrowed.set_claim_sets(None);
+        Some(narrowed)
     }
 
     /// The JSON claims path pointers apply to (OID4VP 1.0 §7.1):
@@ -649,6 +672,9 @@ impl ParsedCredential {
         let Some(credential_query) = credential_query else {
             return vec![];
         };
+
+        let narrowed = self.narrow_to_claim_set(credential_query);
+        let credential_query = narrowed.as_ref().unwrap_or(credential_query);
 
         match &self.inner {
             ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => {

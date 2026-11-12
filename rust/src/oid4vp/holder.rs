@@ -4,11 +4,12 @@ use super::dynamic_credential::{DynamicCredentialOffer, DynamicCredentialProvide
 use super::error::OID4VPError;
 use super::permission_request::*;
 use super::presentation::PresentationSigner;
-use super::type_values::{self, CredentialTypes};
+use super::type_values;
 use crate::credential::*;
 use crate::crypto::KeyStore;
 use crate::http_client::HttpClient;
 use crate::vdc_collection::VdcCollection;
+use openid4vp::core::dcql_query::CredentialTypes;
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -451,20 +452,18 @@ impl Holder {
 
         // Expand W3C VC types once, only if a query uses `type_values`
         // (OID4VP 1.0 Appendix B.1.1).
-        let expanded_types =
-            if type_values::any_requests_type_values(dcql_query.credentials().iter()) {
-                type_values::expand_all(&all_credentials, self.context_map.clone()).await?
-            } else {
-                vec![CredentialTypes::NotApplicable; all_credentials.len()]
-            };
+        let expanded_types = if dcql_query.requests_type_values() {
+            type_values::expand_all(&all_credentials, self.context_map.clone()).await?
+        } else {
+            vec![CredentialTypes::NotApplicable; all_credentials.len()]
+        };
 
         // Match credentials against each credential query in the DCQL query
         let mut matched_credentials: Vec<(String, Arc<ParsedCredential>)> = Vec::new();
 
         for cred_query in dcql_query.credentials() {
             for (cred, types) in all_credentials.iter().zip(&expanded_types) {
-                if cred.satisfies_dcql_query(cred_query)
-                    && type_values::satisfies_type_values(cred_query, types)
+                if cred.satisfies_dcql_query(cred_query) && cred_query.satisfies_type_values(types)
                 {
                     matched_credentials.push((cred_query.id().to_string(), cred.clone()));
                 }
@@ -1167,6 +1166,51 @@ pub(crate) mod tests {
         assert_eq!(search(other).await, 0);
     }
 
+    #[tokio::test]
+    async fn dcql_type_values_match_a_jwt_vc_by_its_vc_claim() {
+        let vc = JwtVc::new_from_compact_jws(include_str!("../../tests/examples/mdl.jwt").into())
+            .expect("failed to parse JWT VC");
+
+        let holder = Holder::new_with_credentials(
+            vec![ParsedCredential::new_jwt_vc_json(vc)],
+            vec![],
+            Box::new(KeySigner {
+                jwk: JWK::generate_p256(),
+            }),
+            String::new(),
+            None,
+            None,
+        )
+        .await
+        .expect("failed to construct holder");
+
+        let search = |type_values: serde_json::Value| {
+            let query: DcqlQuery = serde_json::from_value(serde_json::json!({
+                "credentials": [{
+                    "id": "mdl",
+                    "format": "jwt_vc_json",
+                    "meta": { "type_values": type_values }
+                }]
+            }))
+            .expect("failed to parse DCQL query");
+            let holder = holder.clone();
+            async move {
+                holder
+                    .search_credentials_vs_dcql_query(&query)
+                    .await
+                    .expect("failed to search credentials")
+                    .len()
+            }
+        };
+
+        let written =
+            serde_json::json!([["VerifiableCredential", "Iso18013DriversLicenseCredential"]]);
+        assert_eq!(search(written).await, 1);
+
+        let other = serde_json::json!([["VerifiableCredential", "AlumniCredential"]]);
+        assert_eq!(search(other).await, 0);
+    }
+
     // ---- DCQL `require_cryptographic_holder_binding` ----
 
     const IDENTITY_VCT: &str = "https://credentials.example/identity";
@@ -1364,6 +1408,328 @@ pub(crate) mod tests {
         let document = &device_response.documents.expect("one document")[0];
         assert_eq!(document.doc_type, "org.iso.18013.5.1.mDL");
         assert!(document.issuer_signed.namespaces.is_none());
+    }
+
+    // ---- DCQL query mixing credential formats ----
+
+    async fn mixed_format_permission_request(
+        sd_jwt_count: usize,
+        identity_multiple: bool,
+    ) -> Arc<PermissionRequest> {
+        mixed_format_permission_request_with_sets(sd_jwt_count, identity_multiple, None).await
+    }
+
+    async fn mixed_format_permission_request_with_sets(
+        sd_jwt_count: usize,
+        identity_multiple: bool,
+        credential_sets: Option<serde_json::Value>,
+    ) -> Arc<PermissionRequest> {
+        use crate::crypto::{KeyAlias, RustTestKeyManager};
+
+        let key_manager = Arc::new(RustTestKeyManager::default());
+        let alias = KeyAlias("mixed_formats".to_string());
+        key_manager
+            .generate_p256_signing_key(alias.clone())
+            .await
+            .unwrap();
+        let mdoc = crate::mdl::util::generate_test_mdl(key_manager.clone(), alias).unwrap();
+
+        let alumni =
+            JsonVc::new_from_json(include_str!("../../tests/examples/alumni_vc.json").into())
+                .expect("failed to parse alumni credential");
+
+        let mut credentials = vec![
+            ParsedCredential::new_mso_mdoc(Arc::new(mdoc)),
+            ParsedCredential::new_ldp_vc(alumni),
+        ];
+        for _ in 0..sd_jwt_count {
+            credentials.push(ParsedCredential::new_dc_sd_jwt(
+                identity_sd_jwt_vc(true).await,
+            ));
+        }
+
+        let mut request = serde_json::json!({
+            "client_id": "redirect_uri:https://wallet.example/callback",
+            "response_uri": "https://wallet.example/callback",
+            "response_type": "vp_token",
+            "response_mode": "direct_post",
+            "state": "state-mixed",
+            "nonce": "nonce-mixed",
+            "client_metadata": {
+                "vp_formats_supported": {
+                    "ldp_vc": { "proof_type_values": ["ecdsa-rdfc-2019"] }
+                }
+            },
+            "dcql_query": {
+                "credentials": [
+                    {
+                        "id": "alumni",
+                        "format": "ldp_vc",
+                        "meta": {
+                            "type_values": [["VerifiableCredential", "AlumniCredential"]]
+                        },
+                        "claims": [{ "path": ["credentialSubject", "alumniOf", "name"] }]
+                    },
+                    {
+                        "id": "identity",
+                        "format": "dc+sd-jwt",
+                        "meta": { "vct_values": [IDENTITY_VCT] },
+                        "multiple": identity_multiple,
+                        "claims": [{ "path": ["given_name"] }]
+                    },
+                    {
+                        "id": "mdl",
+                        "format": "mso_mdoc",
+                        "meta": { "doctype_value": "org.iso.18013.5.1.mDL" },
+                        "claims": [{ "path": ["org.iso.18013.5.1", "given_name"] }]
+                    }
+                ]
+            }
+        });
+        if let Some(credential_sets) = credential_sets {
+            request["dcql_query"]["credential_sets"] = credential_sets;
+        }
+        let request: AuthorizationRequestObject =
+            serde_json::from_value(request).expect("failed to parse request");
+
+        let holder = Holder::new_with_credentials(
+            credentials,
+            vec![],
+            Box::new(KeySigner {
+                jwk: JWK::generate_p256(),
+            }),
+            String::new(),
+            Some(default_ld_json_context()),
+            Some(key_manager),
+        )
+        .await
+        .expect("failed to construct holder");
+
+        holder
+            .authorization_request(AuthRequest::Request(Box::new(request)))
+            .await
+            .expect("failed to build permission request")
+    }
+
+    fn query_formats(
+        permission_request: &PermissionRequest,
+    ) -> Vec<(String, Vec<CredentialFormat>)> {
+        permission_request
+            .credentials_grouped_by_query()
+            .into_iter()
+            .map(|group| {
+                let formats = group
+                    .credentials
+                    .iter()
+                    .map(|credential| credential.as_parsed_credential().format())
+                    .collect();
+                (group.credential_query_id, formats)
+            })
+            .collect()
+    }
+
+    async fn present_selected(
+        permission_request: &PermissionRequest,
+        credentials: Vec<Arc<PresentableCredential>>,
+    ) -> Result<serde_json::Value, OID4VPError> {
+        let fields = credentials
+            .iter()
+            .map(|credential| {
+                permission_request
+                    .requested_fields(credential)
+                    .iter()
+                    .map(|field| field.path())
+                    .collect()
+            })
+            .collect();
+
+        let response = permission_request
+            .create_permission_response(credentials, fields, ResponseOptions::default())
+            .await?;
+
+        Ok(serde_json::from_str(&response.vp_token().unwrap()).unwrap())
+    }
+
+    #[tokio::test]
+    async fn mixed_format_query_matches_each_credential_to_its_own_query() {
+        let permission_request = mixed_format_permission_request(1, false).await;
+
+        assert_eq!(
+            query_formats(&permission_request),
+            [
+                ("alumni".to_string(), vec![CredentialFormat::LdpVc]),
+                ("identity".to_string(), vec![CredentialFormat::DcSdJwt]),
+                ("mdl".to_string(), vec![CredentialFormat::MsoMdoc]),
+            ]
+        );
+        assert!(permission_request.is_multi_credential_selection());
+        assert!(!permission_request.is_multi_credential_matching());
+    }
+
+    #[tokio::test]
+    async fn mixed_format_query_presents_one_item_per_query() {
+        use base64::Engine as _;
+        use isomdl::definitions::DeviceResponse;
+
+        let permission_request = mixed_format_permission_request(1, false).await;
+        let vp_token = present_selected(&permission_request, permission_request.credentials())
+            .await
+            .expect("failed to create permission response");
+
+        let mut queries: Vec<&String> = vp_token.as_object().unwrap().keys().collect();
+        queries.sort();
+        assert_eq!(queries, ["alumni", "identity", "mdl"]);
+
+        let alumni = &vp_token["alumni"].as_array().unwrap();
+        assert_eq!(alumni.len(), 1);
+        assert!(alumni[0].to_string().contains("AlumniCredential"));
+
+        let identity = vp_token["identity"].as_array().unwrap();
+        assert_eq!(identity.len(), 1);
+        assert!(has_kb_jwt(identity[0].as_str().unwrap()));
+
+        let mdl = vp_token["mdl"].as_array().unwrap();
+        assert_eq!(mdl.len(), 1);
+        let device_response = base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .decode(mdl[0].as_str().unwrap())
+            .unwrap();
+        let device_response: DeviceResponse = isomdl::cbor::from_slice(&device_response).unwrap();
+        let document = &device_response.documents.expect("one document")[0];
+        assert_eq!(document.doc_type, "org.iso.18013.5.1.mDL");
+    }
+
+    #[tokio::test]
+    async fn mixed_format_query_counts_multiple_per_query() {
+        let permission_request = mixed_format_permission_request(2, false).await;
+        assert_eq!(
+            query_formats(&permission_request)[1],
+            (
+                "identity".to_string(),
+                vec![CredentialFormat::DcSdJwt, CredentialFormat::DcSdJwt]
+            )
+        );
+        assert!(permission_request.is_multi_credential_matching());
+
+        let error = present_selected(&permission_request, permission_request.credentials())
+            .await
+            .expect_err("two credentials for `identity` without `multiple`")
+            .to_string();
+        assert!(error.contains("identity"), "{error}");
+        assert!(error.contains("does not allow `multiple`"), "{error}");
+
+        let one_per_query = permission_request
+            .credentials_grouped_by_query()
+            .into_iter()
+            .map(|group| group.credentials[0].clone())
+            .collect();
+        let vp_token = present_selected(&permission_request, one_per_query)
+            .await
+            .expect("one credential per query is always allowed");
+        assert_eq!(vp_token["identity"].as_array().unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn mixed_format_query_presents_multiple_for_the_query_that_allows_it() {
+        let permission_request = mixed_format_permission_request(2, true).await;
+        let vp_token = present_selected(&permission_request, permission_request.credentials())
+            .await
+            .expect("`identity` allows `multiple`");
+
+        assert_eq!(vp_token["alumni"].as_array().unwrap().len(), 1);
+        assert_eq!(vp_token["identity"].as_array().unwrap().len(), 2);
+        assert_eq!(vp_token["mdl"].as_array().unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn mixed_format_credential_sets_offer_alternative_formats() {
+        let permission_request = mixed_format_permission_request_with_sets(
+            1,
+            false,
+            Some(serde_json::json!([
+                { "options": [["mdl"], ["identity"]] },
+                { "options": [["alumni"]], "required": false }
+            ])),
+        )
+        .await;
+
+        let requirements: Vec<_> = permission_request
+            .credential_requirements()
+            .into_iter()
+            .map(|requirement| {
+                let formats: Vec<CredentialFormat> = requirement
+                    .credentials
+                    .iter()
+                    .map(|credential| credential.as_parsed_credential().format())
+                    .collect();
+                (
+                    requirement.credential_query_ids,
+                    requirement.required,
+                    formats,
+                )
+            })
+            .collect();
+        assert_eq!(
+            requirements,
+            [
+                (
+                    vec!["mdl".to_string(), "identity".to_string()],
+                    true,
+                    vec![CredentialFormat::MsoMdoc, CredentialFormat::DcSdJwt]
+                ),
+                (
+                    vec!["alumni".to_string()],
+                    false,
+                    vec![CredentialFormat::LdpVc]
+                ),
+            ]
+        );
+
+        let by_query = |id: &str| {
+            permission_request
+                .credentials()
+                .into_iter()
+                .filter(|credential| credential.credential_query_id == id)
+                .collect::<Vec<_>>()
+        };
+
+        let vp_token = present_selected(&permission_request, by_query("mdl"))
+            .await
+            .expect("the mdl option alone");
+        assert_eq!(
+            vp_token.as_object().unwrap().keys().collect::<Vec<_>>(),
+            ["mdl"]
+        );
+
+        let vp_token = present_selected(&permission_request, by_query("identity"))
+            .await
+            .expect("the identity option alone");
+        assert_eq!(
+            vp_token.as_object().unwrap().keys().collect::<Vec<_>>(),
+            ["identity"]
+        );
+    }
+
+    #[tokio::test]
+    async fn mixed_format_credential_sets_accept_both_options_together() {
+        let permission_request = mixed_format_permission_request_with_sets(
+            1,
+            false,
+            Some(serde_json::json!([{ "options": [["mdl"], ["identity"]] }])),
+        )
+        .await;
+
+        let both = permission_request
+            .credentials()
+            .into_iter()
+            .filter(|credential| credential.credential_query_id != "alumni")
+            .collect();
+        let vp_token = present_selected(&permission_request, both)
+            .await
+            .expect("no check rejects a second option today");
+
+        let mut queries: Vec<&String> = vp_token.as_object().unwrap().keys().collect();
+        queries.sort();
+        assert_eq!(queries, ["identity", "mdl"]);
     }
 
     // ---- DynamicCredentialProvider hook ----

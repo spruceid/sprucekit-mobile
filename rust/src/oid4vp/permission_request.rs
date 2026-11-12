@@ -679,44 +679,13 @@ impl PermissionRequest {
         }
     }
 
-    /// Reject more than one selected item for a query without `multiple`
-    /// (OID4VP 1.0 §8.1).
     fn ensure_multiple_allowed<'a>(
         &self,
         credential_query_ids: impl Iterator<Item = &'a str>,
     ) -> Result<(), OID4VPError> {
-        let mut counts: HashMap<&str, usize> = HashMap::new();
-        for id in credential_query_ids {
-            *counts.entry(id).or_default() += 1;
-        }
-
-        for (id, count) in counts {
-            let multiple = self
-                .dcql_query
-                .credentials()
-                .iter()
-                .find(|query| query.id() == id)
-                .is_some_and(|query| query.multiple());
-
-            if count > 1 && !multiple {
-                return Err(PermissionRequestError::CredentialPresentation(format!(
-                    "{count} credentials selected for credential query {id}, \
-                     which does not allow `multiple`"
-                ))
-                .into());
-            }
-        }
-
-        Ok(())
-    }
-
-    /// The query's `require_cryptographic_holder_binding` (OID4VP 1.0 §6.1).
-    fn requires_holder_binding(&self, credential_query_id: &str) -> bool {
         self.dcql_query
-            .credentials()
-            .iter()
-            .find(|query| query.id() == credential_query_id)
-            .is_none_or(|query| query.require_cryptographic_holder_binding())
+            .check_multiple(credential_query_ids)
+            .map_err(|e| PermissionRequestError::CredentialPresentation(e.to_string()).into())
     }
 
     /// Apply the selected fields to the selected stored credentials and build
@@ -756,8 +725,9 @@ impl PermissionRequest {
             // Each credential's presentation is signed with its own key.
             let mut options =
                 self.presentation_options(cred.resolve_key_id(&self.key_id), response_options);
-            options.require_holder_binding =
-                self.requires_holder_binding(&cred.credential_query_id);
+            options.require_holder_binding = self
+                .dcql_query
+                .requires_holder_binding(&cred.credential_query_id);
 
             let token_item = cred.as_vp_token(&options).await?;
             vp_token_map
