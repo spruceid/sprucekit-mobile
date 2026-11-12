@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{borrow::Cow, sync::Arc};
 
 use crate::{
     crypto::KeyAlias,
@@ -15,9 +15,10 @@ use json_vc::{JsonVc, JsonVcEncodingError, JsonVcInitError};
 use jwt_vc::{JwtVc, JwtVcInitError};
 use mdoc::{Mdoc, MdocEncodingError, MdocInitError};
 use openid4vp::core::{
-    dcql_query::{DcqlCredentialQuery, DcqlQuery},
+    dcql_query::{mdoc_path, DcqlCredentialClaimsQuery, DcqlCredentialQuery, DcqlQuery},
     response::parameters::VpTokenItem,
 };
+use openid4vp::utils::NonEmptyVec;
 use optical_barcode_credential::{OpticalBarcodeCred, OpticalBarcodeCredError};
 use serde::{Deserialize, Serialize};
 use status::BitStringStatusListResolver;
@@ -562,7 +563,7 @@ impl PresentableCredential {
 impl ParsedCredential {
     /// Check if the credential satisfies a DCQL credential query.
     pub fn satisfies_dcql_query(&self, credential_query: &DcqlCredentialQuery) -> bool {
-        match &self.inner {
+        let format_and_meta = match &self.inner {
             ParsedCredentialInner::JwtVcJson(vc) => vc.satisfies_dcql_query(credential_query),
             ParsedCredentialInner::JwtVcJsonLd(vc) => vc.satisfies_dcql_query(credential_query),
             ParsedCredentialInner::LdpVc(vc) => vc.satisfies_dcql_query(credential_query),
@@ -573,6 +574,86 @@ impl ParsedCredential {
             ParsedCredentialInner::MsoMdoc(mdoc) => mdoc.satisfies_dcql_query(credential_query),
             ParsedCredentialInner::Cwt(_cwt) => false,
             ParsedCredentialInner::OpticalBarcodeCredential(_) => false,
+        };
+
+        format_and_meta && self.satisfies_claims_query(credential_query)
+    }
+
+    fn satisfies_claims_query(&self, credential_query: &DcqlCredentialQuery) -> bool {
+        self.select_claims_query(credential_query).is_some()
+    }
+
+    fn select_claims_query<'q>(
+        &self,
+        credential_query: &'q DcqlCredentialQuery,
+    ) -> Option<Vec<&'q DcqlCredentialClaimsQuery>> {
+        let id = self.id();
+
+        if let ParsedCredentialInner::MsoMdoc(mdoc) = &self.inner {
+            return credential_query.select_claims(|claim| {
+                let has = mdoc_path(claim.path())
+                    .map(|(namespace, element)| mdoc.has_element(namespace, element));
+                if !matches!(has, Ok(true)) {
+                    log::debug!("credential {id} lacks claim {:?}: {has:?}", claim.path());
+                }
+                matches!(has, Ok(true))
+            });
+        }
+
+        let credential = self.claims_json()?;
+
+        credential_query.select_claims(|claim| {
+            claim
+                .is_satisfied_by_json(&credential)
+                .inspect_err(|e| {
+                    log::debug!(
+                        "credential {id} does not satisfy claim {:?}: {e}",
+                        claim.path()
+                    )
+                })
+                .is_ok()
+        })
+    }
+
+    fn narrow_to_claim_set(
+        &self,
+        credential_query: &DcqlCredentialQuery,
+    ) -> Option<DcqlCredentialQuery> {
+        credential_query.claim_sets()?;
+        let selected = self.select_claims_query(credential_query)?;
+        let mut narrowed = credential_query.clone();
+        narrowed.set_claims(NonEmptyVec::maybe_new(
+            selected.into_iter().cloned().collect(),
+        ));
+        narrowed.set_claim_sets(None);
+        Some(narrowed)
+    }
+
+    /// The JSON claims path pointers apply to (OID4VP 1.0 §7.1):
+    /// [`Self::w3c_vc_json`], or the disclosed SD-JWT VC claims.
+    fn claims_json(&self) -> Option<Cow<'_, serde_json::Value>> {
+        match &self.inner {
+            ParsedCredentialInner::DcSdJwt(sd_jwt) => Some(Cow::Borrowed(&sd_jwt.claims)),
+            _ => self.w3c_vc_json(),
+        }
+    }
+
+    /// The W3C VCDM credential (for a JWT VC, its `vc` claim), which
+    /// `type_values` and claims path pointers apply to (OID4VP 1.0 Appendix
+    /// B.1.1, B.1.2).
+    pub(crate) fn w3c_vc_json(&self) -> Option<Cow<'_, serde_json::Value>> {
+        match &self.inner {
+            ParsedCredentialInner::LdpVc(vc) => Some(Cow::Borrowed(&vc.raw)),
+            ParsedCredentialInner::JwtVcJson(vc) | ParsedCredentialInner::JwtVcJsonLd(vc) => {
+                vc.vc_claim().map(Cow::Borrowed)
+            }
+            ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => {
+                sd_jwt.revealed_claims_as_json().ok().map(Cow::Owned)
+            }
+            ParsedCredentialInner::DcSdJwt(_)
+            | ParsedCredentialInner::MsoMdoc(_)
+            | ParsedCredentialInner::Cwt(_)
+            | ParsedCredentialInner::OpticalBarcodeCredential(_) => None,
         }
     }
 
@@ -591,6 +672,9 @@ impl ParsedCredential {
         let Some(credential_query) = credential_query else {
             return vec![];
         };
+
+        let narrowed = self.narrow_to_claim_set(credential_query);
+        let credential_query = narrowed.as_ref().unwrap_or(credential_query);
 
         match &self.inner {
             ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => {

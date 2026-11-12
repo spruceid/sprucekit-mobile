@@ -1224,7 +1224,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ab67060fc6b8ef687992d439ca0fa36e7ed17e9a0b16b25b601e8757df720de"
 dependencies = [
  "data-encoding",
- "syn 1.0.109",
+ "syn 2.0.117",
 ]
 
 [[package]]
@@ -3334,7 +3334,7 @@ dependencies = [
  "num-traits",
  "oid4vci 0.1.0 (git+https://github.com/spruceid/oid4vci-rs?rev=490c135)",
  "oid4vci 0.1.0 (git+https://github.com/spruceid/oid4vci-rs?rev=e64ae8d)",
- "openid4vp 0.1.0 (git+https://github.com/spruceid/openid4vp?branch=skit-backport)",
+ "openid4vp 0.1.0 (git+https://github.com/spruceid/openid4vp?branch=skit-backport-dcql-matching)",
  "openid4vp 0.1.0 (git+https://github.com/spruceid/openid4vp?branch=skit-draft18-backport)",
  "p256",
  "printpdf",
@@ -3708,7 +3708,7 @@ checksum = "c08d65885ee38876c4f86fa503fb49d7b507c2b62552df7c70b2fce627e06381"
 [[package]]
 name = "openid4vp"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/openid4vp?branch=skit-backport#d2348732971150b9dc53c17261ff8cd24ee97599"
+source = "git+https://github.com/spruceid/openid4vp?branch=skit-backport-dcql-matching#298b747ec80adee751816ad55bb8ae8e961b7a0b"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3718,7 +3718,7 @@ dependencies = [
  "josekit",
  "json-syntax",
  "jsonschema",
- "openid4vp-frontend 0.1.0 (git+https://github.com/spruceid/openid4vp?branch=skit-backport)",
+ "openid4vp-frontend 0.1.0 (git+https://github.com/spruceid/openid4vp?branch=skit-backport-dcql-matching)",
  "p256",
  "rand 0.8.5",
  "reqwest",
@@ -3768,7 +3768,7 @@ dependencies = [
 [[package]]
 name = "openid4vp-frontend"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/openid4vp?branch=skit-backport#d2348732971150b9dc53c17261ff8cd24ee97599"
+source = "git+https://github.com/spruceid/openid4vp?branch=skit-backport-dcql-matching#298b747ec80adee751816ad55bb8ae8e961b7a0b"
 dependencies = [
  "serde",
  "serde_json",
