@@ -212,6 +212,7 @@ pub struct PresentationOptions<'a> {
     /// The query's `require_cryptographic_holder_binding` (OID4VP 1.0 §6.1,
     /// `true` by default).
     pub(crate) require_holder_binding: bool,
+    pub(crate) query_has_claims: bool,
 }
 
 impl std::fmt::Debug for PresentationOptions<'_> {
@@ -222,6 +223,7 @@ impl std::fmt::Debug for PresentationOptions<'_> {
             .field("response_options", &self.response_options)
             .field("keystore", &self.keystore.as_ref().map(|_| "KeyStore"))
             .field("require_holder_binding", &self.require_holder_binding)
+            .field("query_has_claims", &self.query_has_claims)
             .finish()
     }
 }

@@ -11,7 +11,7 @@ use crate::http_client::HttpClient;
 use crate::vdc_collection::VdcCollection;
 use openid4vp::core::dcql_query::CredentialTypes;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use anyhow::Context;
@@ -528,7 +528,16 @@ impl Holder {
             }
         }
 
-        if credentials.is_empty() && dynamic_offers.is_empty() {
+        let matched_query_ids: HashSet<&str> = credentials
+            .iter()
+            .map(|c| c.credential_query_id.as_str())
+            .chain(
+                dynamic_offers
+                    .iter()
+                    .map(|o| o.credential_query_id.as_str()),
+            )
+            .collect();
+        if matched_query_ids.is_empty() || !is_satisfiable(&dcql_query, &matched_query_ids) {
             return Err(OID4VPError::PermissionRequest(
                 PermissionRequestError::NoCredentialsFound,
             ));
@@ -659,6 +668,20 @@ impl OID4VPWallet for Holder {
 
     fn metadata(&self) -> &WalletMetadata {
         &self.metadata
+    }
+}
+
+pub(crate) fn is_satisfiable(dcql_query: &DcqlQuery, matched_query_ids: &HashSet<&str>) -> bool {
+    let all_matched = |ids: &[String]| ids.iter().all(|id| matched_query_ids.contains(id.as_str()));
+    match dcql_query.credential_sets() {
+        None => dcql_query
+            .credentials()
+            .iter()
+            .all(|query| matched_query_ids.contains(query.id())),
+        Some(sets) => sets
+            .iter()
+            .filter(|set| set.is_required())
+            .all(|set| set.options().iter().any(|option| all_matched(option))),
     }
 }
 
@@ -1338,13 +1361,8 @@ pub(crate) mod tests {
 
     // ---- DCQL query without `claims` ----
 
-    /// OID4VP 1.0 §6.4.1: asked for no claims, an mdoc discloses no data
-    /// element.
-    #[tokio::test]
-    async fn mdoc_without_claims_presents_no_data_element() {
+    async fn mdl_permission_request(claims: Option<serde_json::Value>) -> Arc<PermissionRequest> {
         use crate::crypto::{KeyAlias, RustTestKeyManager};
-        use base64::Engine as _;
-        use isomdl::definitions::DeviceResponse;
 
         let key_manager = Arc::new(RustTestKeyManager::default());
         let alias = KeyAlias("mdoc_without_claims".to_string());
@@ -1354,7 +1372,7 @@ pub(crate) mod tests {
             .unwrap();
         let mdoc = crate::mdl::util::generate_test_mdl(key_manager.clone(), alias).unwrap();
 
-        let request: AuthorizationRequestObject = serde_json::from_value(serde_json::json!({
+        let mut request = serde_json::json!({
             "client_id": "redirect_uri:https://wallet.example/callback",
             "response_uri": "https://wallet.example/callback",
             "response_type": "vp_token",
@@ -1368,8 +1386,12 @@ pub(crate) mod tests {
                     "meta": { "doctype_value": "org.iso.18013.5.1.mDL" }
                 }]
             }
-        }))
-        .expect("failed to parse request");
+        });
+        if let Some(claims) = claims {
+            request["dcql_query"]["credentials"][0]["claims"] = claims;
+        }
+        let request: AuthorizationRequestObject =
+            serde_json::from_value(request).expect("failed to parse request");
 
         let holder = Holder::new_with_credentials(
             vec![ParsedCredential::new_mso_mdoc(Arc::new(mdoc))],
@@ -1384,10 +1406,20 @@ pub(crate) mod tests {
         .await
         .expect("failed to construct holder");
 
-        let permission_request = holder
+        holder
             .authorization_request(AuthRequest::Request(Box::new(request)))
             .await
-            .expect("failed to build permission request");
+            .expect("failed to build permission request")
+    }
+
+    /// OID4VP 1.0 §6.4.1: asked for no claims, an mdoc discloses no data
+    /// element.
+    #[tokio::test]
+    async fn mdoc_without_claims_presents_no_data_element() {
+        use base64::Engine as _;
+        use isomdl::definitions::DeviceResponse;
+
+        let permission_request = mdl_permission_request(None).await;
         let credentials = permission_request.credentials();
         assert!(permission_request
             .requested_fields(&credentials[0])
@@ -1408,6 +1440,113 @@ pub(crate) mod tests {
         let document = &device_response.documents.expect("one document")[0];
         assert_eq!(document.doc_type, "org.iso.18013.5.1.mDL");
         assert!(document.issuer_signed.namespaces.is_none());
+    }
+
+    #[tokio::test]
+    async fn mdoc_with_claims_rejects_an_empty_selection() {
+        let permission_request = mdl_permission_request(Some(serde_json::json!([
+            { "path": ["org.iso.18013.5.1", "given_name"] }
+        ])))
+        .await;
+        let credentials = permission_request.credentials();
+
+        let error = permission_request
+            .create_permission_response(credentials, vec![vec![]], ResponseOptions::default())
+            .await
+            .expect_err("an empty selection must not answer a query with claims");
+        assert!(
+            error.to_string().contains("No fields selected"),
+            "unexpected error: {error}"
+        );
+    }
+
+    async fn present_badge(
+        require_holder_binding: bool,
+        ldp_vc_formats: serde_json::Value,
+    ) -> Result<serde_json::Value, OID4VPError> {
+        let badge = JsonVc::new_from_json(
+            include_str!("../../tests/examples/open_badge_rdfc_only_vc.json").into(),
+        )
+        .expect("failed to parse badge");
+
+        let request: AuthorizationRequestObject = serde_json::from_value(serde_json::json!({
+            "client_id": "redirect_uri:https://wallet.example/callback",
+            "response_uri": "https://wallet.example/callback",
+            "response_type": "vp_token",
+            "response_mode": "direct_post",
+            "state": "state-badge",
+            "nonce": "nonce-badge",
+            "client_metadata": {
+                "vp_formats_supported": { "ldp_vc": ldp_vc_formats }
+            },
+            "dcql_query": {
+                "credentials": [{
+                    "id": "badge",
+                    "format": "ldp_vc",
+                    "meta": {
+                        "type_values": [["VerifiableCredential", "OpenBadgeCredential"]]
+                    },
+                    "require_cryptographic_holder_binding": require_holder_binding
+                }]
+            }
+        }))
+        .expect("failed to parse request");
+
+        let holder = Holder::new_with_credentials(
+            vec![ParsedCredential::new_ldp_vc(badge)],
+            vec![],
+            Box::new(KeySigner {
+                jwk: JWK::generate_p256(),
+            }),
+            String::new(),
+            Some(default_ld_json_context()),
+            None,
+        )
+        .await
+        .expect("failed to construct holder");
+
+        let permission_request = holder
+            .authorization_request(AuthRequest::Request(Box::new(request)))
+            .await
+            .expect("failed to build permission request");
+        let credentials = permission_request.credentials();
+
+        let response = permission_request
+            .create_permission_response(credentials, vec![vec![]], ResponseOptions::default())
+            .await?;
+        Ok(serde_json::from_str(&response.vp_token().unwrap()).unwrap())
+    }
+
+    #[tokio::test]
+    async fn ldp_vc_without_holder_binding_skips_the_signer_suite_check() {
+        let vp_token = present_badge(
+            false,
+            serde_json::json!({
+                "proof_type_values": ["DataIntegrityProof"],
+                "cryptosuite_values": ["ecdsa-rdfc-2019"]
+            }),
+        )
+        .await
+        .expect("the signer is not used without holder binding");
+        let item = &vp_token["badge"][0];
+        assert!(item["type"]
+            .as_array()
+            .unwrap()
+            .contains(&serde_json::json!("OpenBadgeCredential")));
+        assert!(item.get("verifiableCredential").is_none());
+
+        let error = present_badge(
+            true,
+            serde_json::json!({ "proof_type_values": ["eddsa-rdfc-2022"] }),
+        )
+        .await
+        .expect_err("the verifier does not accept the signer's ecdsa-rdfc-2019");
+        assert!(
+            error
+                .to_string()
+                .contains("Cryptographic Suite not supported"),
+            "unexpected error: {error}"
+        );
     }
 
     // ---- DCQL query mixing credential formats ----

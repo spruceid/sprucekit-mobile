@@ -379,10 +379,13 @@ impl Mdoc {
             }
         }
 
-        // No selected field discloses no data element: none is mandatory
-        // (OID4VP 1.0 §6.4.1), and `IssuerSigned.nameSpaces` is optional.
         let revealed_namespaces: Option<NonEmptyMap<String, NonEmptyVec<Tag24<IssuerSignedItem>>>> =
             NonEmptyMap::maybe_new(revealed_namespaces);
+        if revealed_namespaces.is_none() && options.query_has_claims {
+            return Err(OID4VPError::CredentialEncoding(
+                CredentialEncodingError::VpToken("No fields selected for mdoc presentation".into()),
+            ));
+        }
 
         // Create Handover per OID4VP 1.0 §B.2.6.1 (Invocation via Redirects)
         let jwk_thumbprint = get_encryption_jwk_thumbprint(options.request);

@@ -243,3 +243,67 @@ async fn mdoc_claims_ignore_the_requested_values() {
     );
     assert!(credential.satisfies_dcql_query(&query));
 }
+
+fn satisfiable(dcql: Json, matched: &[&str]) -> bool {
+    let dcql: DcqlQuery = serde_json::from_value(dcql).unwrap();
+    let matched = matched.iter().copied().collect();
+    crate::oid4vp::holder::is_satisfiable(&dcql, &matched)
+}
+
+#[test]
+fn every_query_must_match_without_credential_sets() {
+    let dcql = json!({
+        "credentials": [
+            { "id": "dl", "format": "jwt_vc_json", "meta": {} },
+            { "id": "registration", "format": "ldp_vc", "meta": {} },
+            { "id": "insurance", "format": "ldp_vc", "meta": {} }
+        ]
+    });
+    assert!(satisfiable(
+        dcql.clone(),
+        &["dl", "registration", "insurance"]
+    ));
+    assert!(!satisfiable(dcql, &["dl"]));
+}
+
+#[test]
+fn required_credential_sets_need_one_complete_option() {
+    let dcql = json!({
+        "credentials": [
+            { "id": "mdl", "format": "mso_mdoc", "meta": { "doctype_value": "org.iso.18013.5.1.mDL" } },
+            { "id": "dl", "format": "jwt_vc_json", "meta": {} },
+            { "id": "registration", "format": "ldp_vc", "meta": {} },
+            { "id": "insurance", "format": "ldp_vc", "meta": {} }
+        ],
+        "credential_sets": [
+            { "options": [["mdl"], ["dl"]] },
+            { "options": [["registration", "insurance"]] },
+            { "options": [["insurance"]], "required": false }
+        ]
+    });
+    assert!(satisfiable(
+        dcql.clone(),
+        &["dl", "registration", "insurance"]
+    ));
+    assert!(satisfiable(
+        dcql.clone(),
+        &["mdl", "registration", "insurance"]
+    ));
+    assert!(!satisfiable(dcql.clone(), &["mdl", "registration"]));
+    assert!(!satisfiable(dcql, &["registration", "insurance"]));
+}
+
+#[test]
+fn optional_credential_sets_can_go_unmatched() {
+    let dcql = json!({
+        "credentials": [
+            { "id": "dl", "format": "jwt_vc_json", "meta": {} },
+            { "id": "insurance", "format": "ldp_vc", "meta": {} }
+        ],
+        "credential_sets": [
+            { "options": [["dl"]] },
+            { "options": [["insurance"]], "required": false }
+        ]
+    });
+    assert!(satisfiable(dcql, &["dl"]));
+}

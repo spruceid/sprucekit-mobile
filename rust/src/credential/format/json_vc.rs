@@ -401,18 +401,17 @@ impl CredentialPresentation for JsonVc {
         let id = UriBuf::new(format!("urn:uuid:{}", Uuid::new_v4()).as_bytes().to_vec())
             .map_err(|e| CredentialEncodingError::VpToken(format!("Error parsing ID: {e:?}")))?;
 
-        // Check the signer supports the requested vp format crypto suite.
-        options.supports_security_method(ClaimFormatDesignation::LdpVc)?;
+        let holder = if options.require_holder_binding {
+            Some(presentation_holder(options)?)
+        } else {
+            None
+        };
 
         let unsigned_presentation = match self.parsed.clone() {
             AnyJsonCredential::V1(cred_v1) => {
-                let holder_id: UriBuf = options.subject().parse().map_err(|e| {
-                    CredentialEncodingError::VpToken(format!("Error parsing DID: {e:?}"))
-                })?;
-
-                if !options.require_holder_binding {
+                let Some(holder_id) = holder else {
                     return credential_item(&cred_v1);
-                }
+                };
 
                 let unsigned_presentation_v1 =
                     JsonPresentationV1::new(Some(id.clone()), Some(holder_id), vec![cred_v1]);
@@ -420,10 +419,6 @@ impl CredentialPresentation for JsonVc {
                 AnyJsonPresentation::V1(unsigned_presentation_v1)
             }
             AnyJsonCredential::V2(cred_v2) => {
-                let holder_id = IdOr::Id(options.subject().parse().map_err(|e| {
-                    CredentialEncodingError::VpToken(format!("Error parsing DID: {e:?}"))
-                })?);
-
                 // A dual-proof credential has two conformant `ldp_vc`
                 // presentations, and the wallet picks the proof. When the
                 // verifier lists claims and accepts `ecdsa-sd-2023`, we
@@ -457,12 +452,12 @@ impl CredentialPresentation for JsonVc {
                         .derive_selective(options.context_map.as_ref(), &fields)
                         .await?;
 
-                    if !options.require_holder_binding {
+                    let Some(holder_id) = holder else {
                         return credential_item(&derived);
-                    }
+                    };
 
                     let presentation =
-                        JsonPresentationV2::new(Some(id), vec![holder_id], vec![derived]);
+                        JsonPresentationV2::new(Some(id), vec![IdOr::Id(holder_id)], vec![derived]);
                     let signed = options.sign_derived_presentation(presentation).await?;
 
                     let signed = serde_json::to_value(&signed).map_err(|e| {
@@ -506,12 +501,12 @@ impl CredentialPresentation for JsonVc {
                         .collect::<Vec<_>>();
                 }
 
-                if !options.require_holder_binding {
+                let Some(holder_id) = holder else {
                     return credential_item(&cred_v2);
-                }
+                };
 
                 let unsigned_presentation_v2 =
-                    JsonPresentationV2::new(Some(id), vec![holder_id], vec![cred_v2]);
+                    JsonPresentationV2::new(Some(id), vec![IdOr::Id(holder_id)], vec![cred_v2]);
 
                 AnyJsonPresentation::V2(unsigned_presentation_v2)
             }
@@ -521,6 +516,14 @@ impl CredentialPresentation for JsonVc {
 
         Ok(VpTokenItem::from(signed_presentation))
     }
+}
+
+fn presentation_holder(options: &PresentationOptions<'_>) -> Result<UriBuf, OID4VPError> {
+    options.supports_security_method(ClaimFormatDesignation::LdpVc)?;
+    options
+        .subject()
+        .parse()
+        .map_err(|e| CredentialEncodingError::VpToken(format!("Error parsing DID: {e:?}")).into())
 }
 
 /// The credential itself as a `vp_token` item, for a query that does not

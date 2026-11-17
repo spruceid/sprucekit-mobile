@@ -676,6 +676,7 @@ impl PermissionRequest {
             response_options,
             keystore: self.keystore.clone(),
             require_holder_binding: true,
+            query_has_claims: true,
         }
     }
 
@@ -729,6 +730,10 @@ impl PermissionRequest {
                 .dcql_query
                 .requires_holder_binding(&cred.credential_query_id)
                 .map_err(|e| PermissionRequestError::CredentialPresentation(e.to_string()))?;
+            options.query_has_claims = self
+                .dcql_query
+                .credential_query(&cred.credential_query_id)
+                .is_some_and(|query| query.claims().is_some());
 
             let token_item = cred.as_vp_token(&options).await?;
             vp_token_map
