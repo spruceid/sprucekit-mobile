@@ -192,8 +192,8 @@ impl InProgressRequestDcApi {
     /// The response is either a JWE or a serialized JSON Object.
     ///
     /// `device_signed` is a CBOR map of namespace to element identifier to value.
-    /// Requested elements the credential does not hold are taken from it and
-    /// signed with the device key in DeviceSigned.
+    /// Requested elements the credential does not hold are returned from it in
+    /// DeviceSigned.
     #[uniffi::method(default(device_signed = None))]
     pub async fn respond(
         &self,

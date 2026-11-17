@@ -98,11 +98,10 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
     }
 
     /**
-     * Values the wallet signs with the device key, as a CBOR map of namespace to element
-     * identifier to value. Requested elements the credential does not hold are taken from it
-     * and returned in DeviceSigned. Values for elements the verifier did not request are dropped.
+     * Elements to return in DeviceSigned, as a CBOR map of namespace to element identifier to
+     * value. Only requested elements the credential does not hold are used.
      *
-     * Called after consent. By default, nothing is device-signed.
+     * Called after consent. Returns null by default.
      */
     open suspend fun deviceSignedElements(match: RequestMatch180137, origin: String): ByteArray? =
         null

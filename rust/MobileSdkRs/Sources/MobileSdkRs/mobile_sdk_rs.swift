@@ -6536,8 +6536,8 @@ public protocol InProgressRequestDcApiProtocol: AnyObject, Sendable {
      * The response is either a JWE or a serialized JSON Object.
      *
      * `device_signed` is a CBOR map of namespace to element identifier to value.
-     * Requested elements the credential does not hold are taken from it and
-     * signed with the device key in DeviceSigned.
+     * Requested elements the credential does not hold are returned from it in
+     * DeviceSigned.
      */
     func respond(keystore: KeyStore, approvedFields: [FieldId180137], deviceSigned: Data?) async throws  -> String
     
@@ -6617,8 +6617,8 @@ open func getOrigin() -> String  {
      * The response is either a JWE or a serialized JSON Object.
      *
      * `device_signed` is a CBOR map of namespace to element identifier to value.
-     * Requested elements the credential does not hold are taken from it and
-     * signed with the device key in DeviceSigned.
+     * Requested elements the credential does not hold are returned from it in
+     * DeviceSigned.
      */
 open func respond(keystore: KeyStore, approvedFields: [FieldId180137], deviceSigned: Data? = nil)async throws  -> String  {
     return
@@ -38227,7 +38227,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_inprogressrequestdcapi_get_origin() != 34713) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_inprogressrequestdcapi_respond() != 33295) {
+    if (uniffi_mobile_sdk_rs_checksum_method_inprogressrequestdcapi_respond() != 58849) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_iosiso18013mobiledocumentrequest_to_matches() != 23038) {

@@ -43,9 +43,8 @@ enum class Oid4vpProtocol(val id: String) {
  * @param iconName the name of an image file in the application's assets directory, to be shown in
  * the wallet selection modal.
  * @param walletName the name to display for this wallet in the credential selection UI.
- * @param deviceSignedFields elements the wallet signs with the device key at presentation, keyed
- * by namespace (see [Activity.deviceSignedElements]). They are registered for every mdoc so the
- * matcher offers it for requests that include them.
+ * @param deviceSignedFields elements provided by [Activity.deviceSignedElements], keyed by
+ * namespace. Registered for every mdoc so the matcher offers it for requests that include them.
  */
 class Registry(
     application: Application,
@@ -148,7 +147,7 @@ class Registry(
             }
         }
 
-        // The values only exist at presentation, so the matcher sees a placeholder
+        // The values are only known at presentation
         deviceSignedFields.forEach { (namespace, identifiers) ->
             val held = mdoc.details()[namespace].orEmpty().map { it.identifier }.toSet()
             identifiers

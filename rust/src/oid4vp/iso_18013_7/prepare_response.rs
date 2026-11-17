@@ -35,8 +35,7 @@ use super::{
 /// Re-export the library's Handover type for convenience.
 pub use openid4vp::core::iso_18013_7::Handover;
 
-/// Element values the wallet attests with the device key, keyed by namespace
-/// and element identifier.
+/// Values to return in DeviceSigned, by namespace and element identifier.
 pub type DeviceSignedValues = BTreeMap<String, BTreeMap<String, Cbor>>;
 
 /// Wrapper around the library's SessionTranscript to implement isomdl's SessionTranscript trait.
@@ -148,7 +147,7 @@ impl From<RawResponseUri> for Json {
 /// * `credential` - The mdoc credential being presented
 /// * `revealed_namespaces` - Pre-selected namespaces and elements to reveal
 /// * `errors` - Optional map of namespace -> element -> error for missing fields
-/// * `device_namespaces` - Elements signed by the device key, covered by DeviceAuthentication
+/// * `device_namespaces` - Elements returned in DeviceSigned
 /// * `handover` - The handover structure for the SessionTranscript
 pub fn build_device_response<H: Serialize + DeserializeOwned + Debug>(
     key_store: Arc<dyn KeyStore>,
@@ -240,8 +239,8 @@ pub fn build_device_response<H: Serialize + DeserializeOwned + Debug>(
 /// This function handles field selection based on FieldId180137 and FieldMap,
 /// then delegates to `build_device_response` for the core signing logic.
 ///
-/// A missing field with a value in `device_signed` is returned in DeviceSigned.
-/// Values for elements the verifier did not request are not returned.
+/// Missing fields with a value in `device_signed` are returned in DeviceSigned,
+/// the others as `DataNotReturned` errors.
 pub fn prepare_response<H: Serialize + DeserializeOwned + Debug>(
     key_store: Arc<dyn KeyStore>,
     credential: &Mdoc,
@@ -275,7 +274,6 @@ pub fn prepare_response<H: Serialize + DeserializeOwned + Debug>(
     let revealed_namespaces: NonEmptyMap<String, NonEmptyVec<Tag24<IssuerSignedItem>>> =
         NonEmptyMap::maybe_new(revealed_namespaces).context("no approved fields")?;
 
-    // Missing fields go in DeviceSigned when the wallet attests them, otherwise in errors
     let mut device_namespaces = DeviceNamespaces::new();
     let mut errors: BTreeMap<String, NonEmptyMap<String, DocumentErrorCode>> = BTreeMap::new();
     for (namespace, element_identifiers) in missing_fields {
@@ -360,7 +358,7 @@ mod tests {
         .unwrap();
         let request_match = parse_request(&dcql_query, [&credential].into_iter()).remove(0);
 
-        // unrequested is not requested, and method has no value.
+        // `unrequested` is not requested and `method` has no value.
         let device_signed: DeviceSignedValues = BTreeMap::from([(
             NAMESPACE.to_string(),
             BTreeMap::from([

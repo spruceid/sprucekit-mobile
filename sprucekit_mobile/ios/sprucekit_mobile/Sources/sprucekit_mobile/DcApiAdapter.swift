@@ -37,7 +37,7 @@ class DcApiAdapter: DcApi {
         deviceSignedFields: [String: [String]]?,
         completion: @escaping (Result<DcApiResult, Error>) -> Void
     ) {
-        // Note: walletName and deviceSignedFields are currently only used on Android
+        // walletName and deviceSignedFields are only used on Android.
         // iOS uses the app name from the extension's Info.plist
         Task {
             do {
