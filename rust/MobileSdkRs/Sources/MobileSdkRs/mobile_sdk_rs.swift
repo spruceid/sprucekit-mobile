@@ -6534,8 +6534,12 @@ public protocol InProgressRequestDcApiProtocol: AnyObject, Sendable {
      * Generate a response for the request.
      *
      * The response is either a JWE or a serialized JSON Object.
+     *
+     * `device_signed` is a CBOR map of namespace to element identifier to value.
+     * Requested elements the credential does not hold are taken from it and
+     * signed with the device key in DeviceSigned.
      */
-    func respond(keystore: KeyStore, approvedFields: [FieldId180137]) async throws  -> String
+    func respond(keystore: KeyStore, approvedFields: [FieldId180137], deviceSigned: Data?) async throws  -> String
     
 }
 open class InProgressRequestDcApi: InProgressRequestDcApiProtocol, @unchecked Sendable {
@@ -6611,14 +6615,18 @@ open func getOrigin() -> String  {
      * Generate a response for the request.
      *
      * The response is either a JWE or a serialized JSON Object.
+     *
+     * `device_signed` is a CBOR map of namespace to element identifier to value.
+     * Requested elements the credential does not hold are taken from it and
+     * signed with the device key in DeviceSigned.
      */
-open func respond(keystore: KeyStore, approvedFields: [FieldId180137])async throws  -> String  {
+open func respond(keystore: KeyStore, approvedFields: [FieldId180137], deviceSigned: Data? = nil)async throws  -> String  {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
                 uniffi_mobile_sdk_rs_fn_method_inprogressrequestdcapi_respond(
                     self.uniffiCloneHandle(),
-                    FfiConverterTypeKeyStore_lower(keystore),FfiConverterSequenceTypeFieldId180137.lower(approvedFields)
+                    FfiConverterTypeKeyStore_lower(keystore),FfiConverterSequenceTypeFieldId180137.lower(approvedFields),FfiConverterOptionData.lower(deviceSigned)
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
@@ -38219,7 +38227,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_inprogressrequestdcapi_get_origin() != 34713) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_inprogressrequestdcapi_respond() != 56658) {
+    if (uniffi_mobile_sdk_rs_checksum_method_inprogressrequestdcapi_respond() != 33295) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_iosiso18013mobiledocumentrequest_to_matches() != 23038) {

@@ -276,11 +276,15 @@ class DcApi {
   ///
   /// @param packIds List of credential pack IDs containing mDocs to register
   /// @param walletName Optional name to display for the wallet in credential selection UI
+  /// @param deviceSignedFields Android only: elements the wallet signs with the device key at
+  /// presentation, keyed by namespace, registered so the matcher offers the credentials for
+  /// requests that include them
   /// @return DcApiResult indicating success or error
   Future<DcApiResult> registerCredentials(
     List<String> packIds,
-    String? walletName,
-  ) async {
+    String? walletName, [
+    Map<String, List<String>>? deviceSignedFields,
+  ]) async {
     final pigeonVar_channelName =
         'dev.flutter.pigeon.sprucekit_mobile.DcApi.registerCredentials$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -289,7 +293,7 @@ class DcApi {
       binaryMessenger: pigeonVar_binaryMessenger,
     );
     final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[packIds, walletName],
+      <Object?>[packIds, walletName, deviceSignedFields],
     );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {

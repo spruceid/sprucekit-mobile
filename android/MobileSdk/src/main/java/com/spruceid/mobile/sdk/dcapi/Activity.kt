@@ -97,6 +97,16 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
         onContinue(match.requestedFields().map { it.id })
     }
 
+    /**
+     * Values the wallet signs with the device key, as a CBOR map of namespace to element
+     * identifier to value. Requested elements the credential does not hold are taken from it
+     * and returned in DeviceSigned. Values for elements the verifier did not request are dropped.
+     *
+     * Called after consent. By default, nothing is device-signed.
+     */
+    open suspend fun deviceSignedElements(match: RequestMatch180137, origin: String): ByteArray? =
+        null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -272,8 +282,11 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
 
         when (consentOutcome) {
             is ConsentOutcome.Cancelled -> throw Exception("user cancelled on the consent screen")
-            is ConsentOutcome.Approved -> openid4vpResponse =
-                responder.respond(KeyManager(), consentOutcome.approvedFields)
+            is ConsentOutcome.Approved -> openid4vpResponse = responder.respond(
+                KeyManager(),
+                consentOutcome.approvedFields,
+                deviceSignedElements(responder.getMatch(), origin)
+            )
         }
 
         activityState.value = ActivityState.Authenticating()

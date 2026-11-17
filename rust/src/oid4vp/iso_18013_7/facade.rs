@@ -435,6 +435,7 @@ impl Oid4vp180137Facade {
             credential,
             approved_response.approved_fields,
             &request_match.missing_fields,
+            &Default::default(),
             request_match.field_map.clone(),
             handover,
         )?;
@@ -487,6 +488,7 @@ impl Oid4vp180137Facade {
                     credential,
                     approved_response.approved_fields.clone(),
                     &request_match.missing_fields,
+                    &Default::default(),
                     request_match.field_map.clone(),
                     handover,
                 )?;
@@ -512,6 +514,7 @@ impl Oid4vp180137Facade {
                     credential,
                     approved_response.approved_fields,
                     &request_match.missing_fields,
+                    &Default::default(),
                     request_match.field_map.clone(),
                     handover,
                 )?;

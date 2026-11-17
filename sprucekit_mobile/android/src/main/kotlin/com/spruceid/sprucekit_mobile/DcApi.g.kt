@@ -271,9 +271,12 @@ interface DcApi {
    *
    * @param packIds List of credential pack IDs containing mDocs to register
    * @param walletName Optional name to display for the wallet in credential selection UI
+   * @param deviceSignedFields Android only: elements the wallet signs with the device key at
+   * presentation, keyed by namespace, registered so the matcher offers the credentials for
+   * requests that include them
    * @return DcApiResult indicating success or error
    */
-  fun registerCredentials(packIds: List<String>, walletName: String?, callback: (Result<DcApiResult>) -> Unit)
+  fun registerCredentials(packIds: List<String>, walletName: String?, deviceSignedFields: Map<String, List<String>>?, callback: (Result<DcApiResult>) -> Unit)
   /**
    * Unregister credentials from the platform's identity provider
    *
@@ -333,7 +336,8 @@ interface DcApi {
             val args = message as List<Any?>
             val packIdsArg = args[0] as List<String>
             val walletNameArg = args[1] as String?
-            api.registerCredentials(packIdsArg, walletNameArg) { result: Result<DcApiResult> ->
+            val deviceSignedFieldsArg = args[2] as Map<String, List<String>>?
+            api.registerCredentials(packIdsArg, walletNameArg, deviceSignedFieldsArg) { result: Result<DcApiResult> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(DcApiPigeonUtils.wrapError(error))

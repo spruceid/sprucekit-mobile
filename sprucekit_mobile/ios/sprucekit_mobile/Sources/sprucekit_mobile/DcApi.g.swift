@@ -311,8 +311,11 @@ protocol DcApi {
   ///
   /// @param packIds List of credential pack IDs containing mDocs to register
   /// @param walletName Optional name to display for the wallet in credential selection UI
+  /// @param deviceSignedFields Android only: elements the wallet signs with the device key at
+  /// presentation, keyed by namespace, registered so the matcher offers the credentials for
+  /// requests that include them
   /// @return DcApiResult indicating success or error
-  func registerCredentials(packIds: [String], walletName: String?, completion: @escaping (Result<DcApiResult, Error>) -> Void)
+  func registerCredentials(packIds: [String], walletName: String?, deviceSignedFields: [String: [String]]?, completion: @escaping (Result<DcApiResult, Error>) -> Void)
   /// Unregister credentials from the platform's identity provider
   ///
   /// Removes the credentials from the system's credential picker.
@@ -375,6 +378,9 @@ class DcApiSetup {
     ///
     /// @param packIds List of credential pack IDs containing mDocs to register
     /// @param walletName Optional name to display for the wallet in credential selection UI
+    /// @param deviceSignedFields Android only: elements the wallet signs with the device key at
+    /// presentation, keyed by namespace, registered so the matcher offers the credentials for
+    /// requests that include them
     /// @return DcApiResult indicating success or error
     let registerCredentialsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.DcApi.registerCredentials\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
@@ -382,7 +388,8 @@ class DcApiSetup {
         let args = message as! [Any?]
         let packIdsArg = args[0] as! [String]
         let walletNameArg: String? = nilOrValue(args[1])
-        api.registerCredentials(packIds: packIdsArg, walletName: walletNameArg) { result in
+        let deviceSignedFieldsArg: [String: [String]]? = nilOrValue(args[2])
+        api.registerCredentials(packIds: packIdsArg, walletName: walletNameArg, deviceSignedFields: deviceSignedFieldsArg) { result in
           switch result {
           case .success(let res):
             reply(wrapResult(res))

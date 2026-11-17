@@ -201,6 +201,7 @@ impl InProgressRequest180137 {
             credential,
             approved_fields,
             &request_match.missing_fields,
+            &Default::default(),
             field_map,
             handover,
         )?;
