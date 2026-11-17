@@ -311,9 +311,8 @@ protocol DcApi {
   ///
   /// @param packIds List of credential pack IDs containing mDocs to register
   /// @param walletName Optional name to display for the wallet in credential selection UI
-  /// @param deviceSignedFields Android only: elements the wallet signs with the device key at
-  /// presentation, keyed by namespace, registered so the matcher offers the credentials for
-  /// requests that include them
+  /// @param deviceSignedFields Android only. Elements the wallet returns in DeviceSigned, keyed
+  /// by namespace, so the matcher offers the credentials for requests that include them
   /// @return DcApiResult indicating success or error
   func registerCredentials(packIds: [String], walletName: String?, deviceSignedFields: [String: [String]]?, completion: @escaping (Result<DcApiResult, Error>) -> Void)
   /// Unregister credentials from the platform's identity provider
@@ -378,9 +377,8 @@ class DcApiSetup {
     ///
     /// @param packIds List of credential pack IDs containing mDocs to register
     /// @param walletName Optional name to display for the wallet in credential selection UI
-    /// @param deviceSignedFields Android only: elements the wallet signs with the device key at
-    /// presentation, keyed by namespace, registered so the matcher offers the credentials for
-    /// requests that include them
+    /// @param deviceSignedFields Android only. Elements the wallet returns in DeviceSigned, keyed
+    /// by namespace, so the matcher offers the credentials for requests that include them
     /// @return DcApiResult indicating success or error
     let registerCredentialsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.DcApi.registerCredentials\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {

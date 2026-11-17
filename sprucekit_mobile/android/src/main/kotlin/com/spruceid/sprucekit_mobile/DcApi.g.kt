@@ -271,9 +271,8 @@ interface DcApi {
    *
    * @param packIds List of credential pack IDs containing mDocs to register
    * @param walletName Optional name to display for the wallet in credential selection UI
-   * @param deviceSignedFields Android only: elements the wallet signs with the device key at
-   * presentation, keyed by namespace, registered so the matcher offers the credentials for
-   * requests that include them
+   * @param deviceSignedFields Android only. Elements the wallet returns in DeviceSigned, keyed
+   * by namespace, so the matcher offers the credentials for requests that include them
    * @return DcApiResult indicating success or error
    */
   fun registerCredentials(packIds: List<String>, walletName: String?, deviceSignedFields: Map<String, List<String>>?, callback: (Result<DcApiResult>) -> Unit)
