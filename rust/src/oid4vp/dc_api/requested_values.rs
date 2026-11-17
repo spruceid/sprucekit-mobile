@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use anyhow::{bail, Result};
 use itertools::Itertools;
@@ -93,7 +93,10 @@ pub fn find_match(query: &DcqlCredentialQuery, credential: &Mdoc) -> Result<Requ
             .get(namespace)
             .and_then(|elements| elements.get(element_identifier))
         else {
-            missing_fields.insert(namespace.clone(), element_identifier.clone());
+            missing_fields
+                .entry(namespace.clone())
+                .or_insert_with(BTreeSet::new)
+                .insert(element_identifier.clone());
             continue 'fields;
         };
         let displayable_value = field_map

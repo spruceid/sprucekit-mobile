@@ -1,4 +1,7 @@
-use std::{collections::BTreeMap, sync::Arc};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    sync::Arc,
+};
 
 use anyhow::{bail, Result};
 use ciborium::Value as Cbor;
@@ -18,7 +21,8 @@ pub struct RequestMatch180137 {
     pub credential_id: Uuid,
     pub field_map: FieldMap,
     pub requested_fields: Vec<RequestedField180137>,
-    pub missing_fields: BTreeMap<String, String>,
+    /// Requested elements the credential does not hold, keyed by namespace.
+    pub missing_fields: BTreeMap<String, BTreeSet<String>>,
     pub validity_status: MdocValidityStatus,
 }
 
@@ -171,7 +175,10 @@ pub fn find_match(
             .get(namespace)
             .and_then(|elements| elements.get(element_identifier))
         else {
-            missing_fields.insert(namespace.clone(), element_identifier.clone());
+            missing_fields
+                .entry(namespace.clone())
+                .or_insert_with(BTreeSet::new)
+                .insert(element_identifier.clone());
             continue 'fields;
         };
         let displayable_value = field_map
