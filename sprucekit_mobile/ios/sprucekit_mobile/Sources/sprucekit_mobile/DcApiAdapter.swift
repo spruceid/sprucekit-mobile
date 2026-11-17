@@ -34,10 +34,9 @@ class DcApiAdapter: DcApi {
     func registerCredentials(
         packIds: [String],
         walletName: String?,
-        deviceSignedFields: [String: [String]]?,
         completion: @escaping (Result<DcApiResult, Error>) -> Void
     ) {
-        // walletName and deviceSignedFields are only used on Android.
+        // Note: walletName is currently only used on Android for DC API display
         // iOS uses the app name from the extension's Info.plist
         Task {
             do {

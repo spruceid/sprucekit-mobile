@@ -90,15 +90,9 @@ abstract class DcApi {
   ///
   /// @param packIds List of credential pack IDs containing mDocs to register
   /// @param walletName Optional name to display for the wallet in credential selection UI
-  /// @param deviceSignedFields Android only. Elements the wallet returns in DeviceSigned, keyed
-  /// by namespace, so the matcher offers the credentials for requests that include them
   /// @return DcApiResult indicating success or error
   @async
-  DcApiResult registerCredentials(
-    List<String> packIds,
-    String? walletName, [
-    Map<String, List<String>>? deviceSignedFields,
-  ]);
+  DcApiResult registerCredentials(List<String> packIds, String? walletName);
 
   /// Unregister credentials from the platform's identity provider
   ///

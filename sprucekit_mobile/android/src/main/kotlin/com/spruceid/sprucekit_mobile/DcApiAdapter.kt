@@ -53,18 +53,12 @@ internal class DcApiAdapter(
     override fun registerCredentials(
         packIds: List<String>,
         walletName: String?,
-        deviceSignedFields: Map<String, List<String>>?,
         callback: (Result<DcApiResult>) -> Unit
     ) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 // Initialize registry
-                registry = Registry(
-                    application,
-                    DEFAULT_ICON,
-                    walletName = walletName ?: "Wallet",
-                    deviceSignedFields = deviceSignedFields.orEmpty()
-                )
+                registry = Registry(application, DEFAULT_ICON, walletName = walletName ?: "Wallet")
 
                 // Collect all credential packs
                 val nativePacks = packIds.mapNotNull { packId ->
