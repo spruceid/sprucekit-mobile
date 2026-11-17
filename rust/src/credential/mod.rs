@@ -15,7 +15,7 @@ use json_vc::{JsonVc, JsonVcEncodingError, JsonVcInitError};
 use jwt_vc::{JwtVc, JwtVcInitError};
 use mdoc::{Mdoc, MdocEncodingError, MdocInitError};
 use openid4vp::core::{
-    dcql_query::{mdoc_path, DcqlCredentialClaimsQuery, DcqlCredentialQuery, DcqlQuery},
+    dcql_query::{DcqlCredentialClaimsQuery, DcqlCredentialQuery, DcqlQuery},
     response::parameters::VpTokenItem,
 };
 use openid4vp::utils::NonEmptyVec;
@@ -591,7 +591,8 @@ impl ParsedCredential {
 
         if let ParsedCredentialInner::MsoMdoc(mdoc) = &self.inner {
             return credential_query.select_claims(|claim| {
-                let has = mdoc_path(claim.path())
+                let has = claim
+                    .mdoc_path()
                     .map(|(namespace, element)| mdoc.has_element(namespace, element));
                 if !matches!(has, Ok(true)) {
                     log::debug!("credential {id} lacks claim {:?}: {has:?}", claim.path());

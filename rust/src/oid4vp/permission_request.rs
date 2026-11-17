@@ -727,7 +727,8 @@ impl PermissionRequest {
                 self.presentation_options(cred.resolve_key_id(&self.key_id), response_options);
             options.require_holder_binding = self
                 .dcql_query
-                .requires_holder_binding(&cred.credential_query_id);
+                .requires_holder_binding(&cred.credential_query_id)
+                .map_err(|e| PermissionRequestError::CredentialPresentation(e.to_string()))?;
 
             let token_item = cred.as_vp_token(&options).await?;
             vp_token_map
