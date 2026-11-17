@@ -269,6 +269,12 @@ abstract class CredentialPack {
     String? userHash,
   );
 
+  /// Drop a credential pack from memory. Storage and the VdcCollection stay
+  /// as they are, so credentials that other packs share are kept.
+  ///
+  /// @param packId The pack identifier
+  void releasePack(String packId);
+
   /// Get all credential pack IDs
   ///
   /// @return List of pack IDs (in-memory only)

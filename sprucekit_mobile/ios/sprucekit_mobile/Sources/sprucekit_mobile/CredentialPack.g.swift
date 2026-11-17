@@ -682,6 +682,11 @@ protocol CredentialPack {
   /// @param userHash Optional user hash for per-user isolation (null = device-global key)
   /// @return CredentialOperationResult indicating success or error
   func deletePack(packId: String, appGroupId: String?, userHash: String?, completion: @escaping (Result<CredentialOperationResult, Error>) -> Void)
+  /// Drop a credential pack from memory. Storage and the VdcCollection stay
+  /// as they are, so credentials that other packs share are kept.
+  ///
+  /// @param packId The pack identifier
+  func releasePack(packId: String) throws
   /// Get all credential pack IDs
   ///
   /// @return List of pack IDs (in-memory only)
@@ -966,6 +971,25 @@ class CredentialPackSetup {
       }
     } else {
       deletePackChannel.setMessageHandler(nil)
+    }
+    /// Drop a credential pack from memory. Storage and the VdcCollection stay
+    /// as they are, so credentials that other packs share are kept.
+    ///
+    /// @param packId The pack identifier
+    let releasePackChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.CredentialPack.releasePack\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      releasePackChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let packIdArg = args[0] as! String
+        do {
+          try api.releasePack(packId: packIdArg)
+          reply(wrapResult(nil))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      releasePackChannel.setMessageHandler(nil)
     }
     /// Get all credential pack IDs
     ///
