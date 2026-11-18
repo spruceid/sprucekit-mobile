@@ -307,6 +307,12 @@ class CredentialPackAdapter: CredentialPack {
         }
     }
 
+    func releasePack(packId: String) throws {
+        lock.lock()
+        packs.removeValue(forKey: packId)
+        lock.unlock()
+    }
+
     func listPacks() throws -> [String] {
         lock.lock()
         let keys = Array(packs.keys)

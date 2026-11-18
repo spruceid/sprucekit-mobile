@@ -775,6 +775,13 @@ interface CredentialPack {
    */
   fun deletePack(packId: String, appGroupId: String?, userHash: String?, callback: (Result<CredentialOperationResult>) -> Unit)
   /**
+   * Drop a credential pack from memory. Storage and the VdcCollection stay
+   * as they are, so credentials that other packs share are kept.
+   *
+   * @param packId The pack identifier
+   */
+  fun releasePack(packId: String)
+  /**
    * Get all credential pack IDs
    *
    * @return List of pack IDs (in-memory only)
@@ -1015,6 +1022,24 @@ interface CredentialPack {
                 reply.reply(CredentialPackPigeonUtils.wrapResult(data))
               }
             }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.sprucekit_mobile.CredentialPack.releasePack$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val packIdArg = args[0] as String
+            val wrapped: List<Any?> = try {
+              api.releasePack(packIdArg)
+              listOf(null)
+            } catch (exception: Throwable) {
+              CredentialPackPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
           }
         } else {
           channel.setMessageHandler(null)
