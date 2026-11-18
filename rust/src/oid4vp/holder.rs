@@ -4,6 +4,7 @@ use super::dynamic_credential::{DynamicCredentialOffer, DynamicCredentialProvide
 use super::error::OID4VPError;
 use super::permission_request::*;
 use super::presentation::PresentationSigner;
+use super::type_values::{self, CredentialTypes};
 use crate::credential::*;
 use crate::crypto::KeyStore;
 use crate::http_client::HttpClient;
@@ -448,12 +449,23 @@ impl Holder {
             },
         };
 
+        // Expand W3C VC types once, only if a query uses `type_values`
+        // (OID4VP 1.0 Appendix B.1.1).
+        let expanded_types =
+            if type_values::any_requests_type_values(dcql_query.credentials().iter()) {
+                type_values::expand_all(&all_credentials, self.context_map.clone()).await?
+            } else {
+                vec![CredentialTypes::NotApplicable; all_credentials.len()]
+            };
+
         // Match credentials against each credential query in the DCQL query
         let mut matched_credentials: Vec<(String, Arc<ParsedCredential>)> = Vec::new();
 
         for cred_query in dcql_query.credentials() {
-            for cred in &all_credentials {
-                if cred.satisfies_dcql_query(cred_query) {
+            for (cred, types) in all_credentials.iter().zip(&expanded_types) {
+                if cred.satisfies_dcql_query(cred_query)
+                    && type_values::satisfies_type_values(cred_query, types)
+                {
                     matched_credentials.push((cred_query.id().to_string(), cred.clone()));
                 }
             }
@@ -467,6 +479,11 @@ impl Holder {
         &self,
         request: AuthorizationRequestObject,
     ) -> Result<Arc<PermissionRequest>, OID4VPError> {
+        // TODO(transaction_data): not supported yet, so the parameter is
+        // ignored, while OID4VP 1.0 §8.4 requires an error then. Start here;
+        // see §5.1, §8.4, Appendix B.2.1 (mdoc) and B.3.3 (SD-JWT). The
+        // `openid4vp` crate already parses it (`parameters::TransactionData`).
+
         // Resolve the DCQL query from the request.
         let dcql_query = request
             .dcql_query()
@@ -1089,6 +1106,264 @@ pub(crate) mod tests {
         holder.submit_permission_response(response).await?;
 
         Ok(())
+    }
+
+    // ---- DCQL `meta.type_values` ----
+
+    /// OID4VP 1.0 Appendix B.1.1: `type_values` matches expanded or written
+    /// types.
+    #[tokio::test]
+    async fn dcql_type_values_match_expanded_or_written_types() {
+        let alumni =
+            JsonVc::new_from_json(include_str!("../../tests/examples/alumni_vc.json").into())
+                .expect("failed to parse alumni credential");
+
+        let holder = Holder::new_with_credentials(
+            vec![ParsedCredential::new_ldp_vc(alumni)],
+            vec![],
+            Box::new(KeySigner {
+                jwk: JWK::generate_p256(),
+            }),
+            String::new(),
+            None,
+            None,
+        )
+        .await
+        .expect("failed to construct holder");
+
+        let search = |type_values: serde_json::Value| {
+            let query: DcqlQuery = serde_json::from_value(serde_json::json!({
+                "credentials": [{
+                    "id": "alumni",
+                    "format": "ldp_vc",
+                    "meta": { "type_values": type_values }
+                }]
+            }))
+            .expect("failed to parse DCQL query");
+            let holder = holder.clone();
+            async move {
+                holder
+                    .search_credentials_vs_dcql_query(&query)
+                    .await
+                    .expect("failed to search credentials")
+                    .len()
+            }
+        };
+
+        // The alumni credential's inline `@context` defines `AlumniCredential`.
+        let expanded = serde_json::json!([[
+            "https://www.w3.org/2018/credentials#VerifiableCredential",
+            "https://examples.vcplayground.org/contexts/alumni/vocab#AlumniCredential"
+        ]]);
+        assert_eq!(search(expanded).await, 1);
+
+        // The terms as written also match, for interoperability.
+        let terms = serde_json::json!([["VerifiableCredential", "AlumniCredential"]]);
+        assert_eq!(search(terms).await, 1);
+
+        // A type the credential does not have.
+        let other =
+            serde_json::json!([["https://example.org/examples#UniversityDegreeCredential"]]);
+        assert_eq!(search(other).await, 0);
+    }
+
+    // ---- DCQL `require_cryptographic_holder_binding` ----
+
+    const IDENTITY_VCT: &str = "https://credentials.example/identity";
+
+    /// An SD-JWT VC with a selectively disclosable `given_name`, and a `cnf`
+    /// claim when `cnf` is set.
+    async fn identity_sd_jwt_vc(cnf: bool) -> Arc<ietf_sd_jwt_vc::IetfSdJwtVc> {
+        use ssi::claims::{jwt::JWTClaims, sd_jwt::ConcealJwtClaims, sd_jwt::SdAlg};
+
+        let mut claims = serde_json::json!({
+            "iss": "https://issuer.example",
+            "vct": IDENTITY_VCT,
+            "given_name": "Arthur"
+        });
+        if cnf {
+            claims["cnf"] = serde_json::json!({ "jwk": JWK::generate_p256().to_public() });
+        }
+        let claims: JWTClaims = serde_json::from_value(claims).expect("invalid JWT claims");
+
+        let sd_jwt = claims
+            .conceal_and_sign(
+                SdAlg::Sha256,
+                &[ssi::JsonPointerBuf::new("/given_name".to_owned()).unwrap()],
+                &JWK::generate_p256(),
+            )
+            .await
+            .expect("failed to sign SD-JWT");
+
+        ietf_sd_jwt_vc::IetfSdJwtVc::new_from_compact_sd_jwt(sd_jwt.to_string())
+            .expect("failed to parse SD-JWT VC")
+    }
+
+    /// The `vp_token` item for an identity query, or `None` without a match.
+    async fn present_identity(
+        credential: Arc<ietf_sd_jwt_vc::IetfSdJwtVc>,
+        require_holder_binding: bool,
+    ) -> Option<String> {
+        let request: AuthorizationRequestObject = serde_json::from_value(serde_json::json!({
+            "client_id": "redirect_uri:https://wallet.example/callback",
+            "response_uri": "https://wallet.example/callback",
+            "response_type": "vp_token",
+            "response_mode": "direct_post",
+            "state": "state-kb",
+            "nonce": "nonce-kb",
+            "dcql_query": {
+                "credentials": [{
+                    "id": "identity",
+                    "format": "dc+sd-jwt",
+                    "meta": { "vct_values": [IDENTITY_VCT] },
+                    "require_cryptographic_holder_binding": require_holder_binding,
+                    "claims": [{ "path": ["given_name"] }]
+                }]
+            }
+        }))
+        .expect("failed to parse request");
+
+        let holder = Holder::new_with_credentials(
+            vec![ParsedCredential::new_dc_sd_jwt(credential)],
+            vec![],
+            Box::new(KeySigner {
+                jwk: JWK::generate_p256(),
+            }),
+            String::new(),
+            None,
+            None,
+        )
+        .await
+        .expect("failed to construct holder");
+
+        let permission_request = match holder
+            .authorization_request(AuthRequest::Request(Box::new(request)))
+            .await
+        {
+            Ok(permission_request) => permission_request,
+            Err(OID4VPError::PermissionRequest(PermissionRequestError::NoCredentialsFound)) => {
+                return None
+            }
+            Err(e) => panic!("failed to build permission request: {e}"),
+        };
+
+        let credentials = permission_request.credentials();
+        let fields = credentials
+            .iter()
+            .map(|credential| {
+                permission_request
+                    .requested_fields(credential)
+                    .iter()
+                    .map(|field| field.path())
+                    .collect()
+            })
+            .collect();
+
+        let response = permission_request
+            .create_permission_response(credentials, fields, ResponseOptions::default())
+            .await
+            .expect("failed to create permission response");
+
+        let vp_token: serde_json::Value =
+            serde_json::from_str(&response.vp_token().unwrap()).unwrap();
+        Some(vp_token["identity"][0].as_str().unwrap().to_owned())
+    }
+
+    /// Whether a compact SD-JWT carries a KB-JWT (does not end with `~`).
+    fn has_kb_jwt(sd_jwt: &str) -> bool {
+        !sd_jwt.ends_with('~')
+    }
+
+    /// OID4VP 1.0 Appendix B.3.
+    #[tokio::test]
+    async fn dc_sd_jwt_holder_binding() {
+        // Required (the default): SD-JWT+KB, and only with `cnf`.
+        let bound = present_identity(identity_sd_jwt_vc(true).await, true).await;
+        assert!(has_kb_jwt(&bound.expect("the credential has `cnf`")));
+        assert_eq!(
+            present_identity(identity_sd_jwt_vc(false).await, true).await,
+            None
+        );
+
+        // Not required: an SD-JWT without `cnf` is returned without KB-JWT.
+        let unbound = present_identity(identity_sd_jwt_vc(false).await, false).await;
+        assert!(!has_kb_jwt(
+            &unbound.expect("no holder binding is required")
+        ));
+    }
+
+    // ---- DCQL query without `claims` ----
+
+    /// OID4VP 1.0 §6.4.1: asked for no claims, an mdoc discloses no data
+    /// element.
+    #[tokio::test]
+    async fn mdoc_without_claims_presents_no_data_element() {
+        use crate::crypto::{KeyAlias, RustTestKeyManager};
+        use base64::Engine as _;
+        use isomdl::definitions::DeviceResponse;
+
+        let key_manager = Arc::new(RustTestKeyManager::default());
+        let alias = KeyAlias("mdoc_without_claims".to_string());
+        key_manager
+            .generate_p256_signing_key(alias.clone())
+            .await
+            .unwrap();
+        let mdoc = crate::mdl::util::generate_test_mdl(key_manager.clone(), alias).unwrap();
+
+        let request: AuthorizationRequestObject = serde_json::from_value(serde_json::json!({
+            "client_id": "redirect_uri:https://wallet.example/callback",
+            "response_uri": "https://wallet.example/callback",
+            "response_type": "vp_token",
+            "response_mode": "direct_post",
+            "state": "state-mdoc",
+            "nonce": "nonce-mdoc",
+            "dcql_query": {
+                "credentials": [{
+                    "id": "mdl",
+                    "format": "mso_mdoc",
+                    "meta": { "doctype_value": "org.iso.18013.5.1.mDL" }
+                }]
+            }
+        }))
+        .expect("failed to parse request");
+
+        let holder = Holder::new_with_credentials(
+            vec![ParsedCredential::new_mso_mdoc(Arc::new(mdoc))],
+            vec![],
+            Box::new(KeySigner {
+                jwk: JWK::generate_p256(),
+            }),
+            String::new(),
+            None,
+            Some(key_manager),
+        )
+        .await
+        .expect("failed to construct holder");
+
+        let permission_request = holder
+            .authorization_request(AuthRequest::Request(Box::new(request)))
+            .await
+            .expect("failed to build permission request");
+        let credentials = permission_request.credentials();
+        assert!(permission_request
+            .requested_fields(&credentials[0])
+            .is_empty());
+
+        let response = permission_request
+            .create_permission_response(credentials, vec![vec![]], ResponseOptions::default())
+            .await
+            .expect("failed to create permission response");
+
+        let vp_token: serde_json::Value =
+            serde_json::from_str(&response.vp_token().unwrap()).unwrap();
+        let device_response = base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .decode(vp_token["mdl"][0].as_str().unwrap())
+            .unwrap();
+        let device_response: DeviceResponse = isomdl::cbor::from_slice(&device_response).unwrap();
+
+        let document = &device_response.documents.expect("one document")[0];
+        assert_eq!(document.doc_type, "org.iso.18013.5.1.mDL");
+        assert!(document.issuer_signed.namespaces.is_none());
     }
 
     // ---- DynamicCredentialProvider hook ----

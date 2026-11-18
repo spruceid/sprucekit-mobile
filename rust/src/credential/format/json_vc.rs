@@ -250,6 +250,23 @@ impl JsonVc {
         })
     }
 
+    /// Whether a proof secures the full credential: an
+    /// `ACCEPTED_CRYPTOSUITES` suite, or a proof type without a cryptosuite.
+    fn has_full_disclosure_proof(&self) -> bool {
+        let proofs = match self.raw.get("proof") {
+            Some(Json::Array(proofs)) => proofs.as_slice(),
+            Some(proof) => std::slice::from_ref(proof),
+            None => return false,
+        };
+
+        proofs.iter().any(
+            |proof| match proof.get("cryptosuite").and_then(Json::as_str) {
+                Some(suite) => ACCEPTED_CRYPTOSUITES.contains(&suite),
+                None => true,
+            },
+        )
+    }
+
     /// Derive a selectively disclosed credential from the `ecdsa-sd-2023` base
     /// proof, revealing exactly the selected fields plus whatever the base
     /// proof itself marks mandatory. The wallet volunteers nothing else:
@@ -393,6 +410,10 @@ impl CredentialPresentation for JsonVc {
                     CredentialEncodingError::VpToken(format!("Error parsing DID: {e:?}"))
                 })?;
 
+                if !options.require_holder_binding {
+                    return credential_item(&cred_v1);
+                }
+
                 let unsigned_presentation_v1 =
                     JsonPresentationV1::new(Some(id.clone()), Some(holder_id), vec![cred_v1]);
 
@@ -415,9 +436,14 @@ impl CredentialPresentation for JsonVc {
                 // for the full credential. Presenting the SD proof here would
                 // shrink the disclosure to the issuer's mandatory pointers,
                 // which is not what a verifier asking for the credential wants.
+                // Secured only by the SD base proof, a credential asked for
+                // no claims derives the mandatory pointers alone.
                 // https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#section-6.4.1
                 let selected = match selected_fields {
-                    Some(fields) if !fields.is_empty() && self.should_derive(options)? => {
+                    Some(fields)
+                        if (!fields.is_empty() || !self.has_full_disclosure_proof())
+                            && self.should_derive(options)? =>
+                    {
                         Some(fields)
                     }
                     _ => None,
@@ -430,6 +456,10 @@ impl CredentialPresentation for JsonVc {
                     let derived = self
                         .derive_selective(options.context_map.as_ref(), &fields)
                         .await?;
+
+                    if !options.require_holder_binding {
+                        return credential_item(&derived);
+                    }
 
                     let presentation =
                         JsonPresentationV2::new(Some(id), vec![holder_id], vec![derived]);
@@ -476,6 +506,10 @@ impl CredentialPresentation for JsonVc {
                         .collect::<Vec<_>>();
                 }
 
+                if !options.require_holder_binding {
+                    return credential_item(&cred_v2);
+                }
+
                 let unsigned_presentation_v2 =
                     JsonPresentationV2::new(Some(id), vec![holder_id], vec![cred_v2]);
 
@@ -486,6 +520,22 @@ impl CredentialPresentation for JsonVc {
         let signed_presentation = options.sign_presentation(unsigned_presentation).await?;
 
         Ok(VpTokenItem::from(signed_presentation))
+    }
+}
+
+/// The credential itself as a `vp_token` item, for a query that does not
+/// require Holder Binding (OID4VP 1.0 Appendix B.1).
+fn credential_item(credential: &impl serde::Serialize) -> Result<VpTokenItem, OID4VPError> {
+    match serde_json::to_value(credential) {
+        Ok(Json::Object(object)) => Ok(VpTokenItem::JsonObject(object)),
+        Ok(_) => Err(CredentialEncodingError::VpToken(
+            "credential is not a JSON object".to_string(),
+        )
+        .into()),
+        Err(e) => Err(CredentialEncodingError::VpToken(format!(
+            "Error encoding credential: {e:?}"
+        ))
+        .into()),
     }
 }
 

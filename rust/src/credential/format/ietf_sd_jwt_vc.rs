@@ -174,7 +174,25 @@ impl IetfSdJwtVc {
             }
         }
 
+        // OID4VP 1.0 Appendix B.3: without `cnf`, an SD-JWT cannot be
+        // returned when Holder Binding is required.
+        if credential_query.require_cryptographic_holder_binding()
+            && !self.supports_holder_binding()
+        {
+            log::debug!(
+                "credential {} has no `cnf`, but query {:?} requires holder binding",
+                self.id,
+                credential_query.id()
+            );
+            return false;
+        }
+
         true
+    }
+
+    /// Whether the SD-JWT supports Holder Binding, i.e. has a `cnf` claim.
+    fn supports_holder_binding(&self) -> bool {
+        self.claims.get("cnf").is_some()
     }
 
     /// Return the requested fields for the credential, according to a DCQL credential query.
@@ -329,6 +347,12 @@ impl CredentialPresentation for IetfSdJwtVc {
         } else {
             self.inner.clone()
         };
+
+        // Appendix B.3 lets the KB-JWT go when Holder Binding is not
+        // required; omit it only without `cnf`, as there is no key to bind.
+        if !options.require_holder_binding && !self.supports_holder_binding() {
+            return Ok(VpTokenItem::String(sd_jwt.as_str().to_string()));
+        }
 
         // Create and attach Key Binding JWT (KB-JWT).
         let aud = options
