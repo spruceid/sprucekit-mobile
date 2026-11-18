@@ -1,7 +1,15 @@
 name: sprucekit_mobile
-description: "Flutter plugin for SpruceKit Mobile SDK"
+description: "Flutter plugin for the SpruceKit Mobile SDKs: issue, store and present verifiable credentials and mobile driver's licenses (OID4VCI, OID4VP, ISO 18013-5)."
 version: 0.27.1
 homepage: https://github.com/spruceid/sprucekit-mobile
+repository: https://github.com/spruceid/sprucekit-mobile/tree/main/sprucekit_mobile
+issue_tracker: https://github.com/spruceid/sprucekit-mobile/issues
+topics:
+  - verifiable-credentials
+  - mdl
+  - identity
+  - oid4vp
+  - oid4vci
 
 environment:
   sdk: ^3.10.0
@@ -10,6 +18,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # The generated Pigeon code imports package:meta.
+  meta: ^1.16.0
   plugin_platform_interface: ^2.0.2
 
 dev_dependencies:

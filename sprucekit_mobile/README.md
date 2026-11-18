@@ -7,8 +7,14 @@ generation commands.
 
 ## Installation
 
-The plugin is not on pub.dev. Add it as a git dependency in the
-`pubspec.yaml` of your app:
+Add the plugin from pub.dev:
+
+```bash
+flutter pub add sprucekit_mobile
+```
+
+To use a release that is not on pub.dev, add the plugin as a git
+dependency in the `pubspec.yaml` of your app:
 
 ```yaml
 dependencies:
