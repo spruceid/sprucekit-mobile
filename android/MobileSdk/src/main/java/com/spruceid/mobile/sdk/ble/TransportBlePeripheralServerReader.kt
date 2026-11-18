@@ -33,6 +33,7 @@ class TransportBlePeripheralServerReader(
 ) {
     private val stateMachine = BleConnectionStateMachine.getInstance(BleConnectionStateMachineInstanceType.SERVER)
     private val logger = BleLogger.getInstance("TransportBlePeripheralServerReader")
+    private val sessionEnd = ReaderSessionEnd(BleSessionEmitter(callback))
     // Lazy initialization to avoid accessing state machine before it's started
     private val bluetoothAdapter: BluetoothAdapter by lazy {
         stateMachine.getBluetoothManager().adapter
@@ -98,6 +99,7 @@ class TransportBlePeripheralServerReader(
         val gattServerCallback: GattServerCallback = object : GattServerCallback() {
             override fun onPeerConnected() {
                 logger.d("onPeerConnected")
+                sessionEnd.holderConnected()
                 blePeripheral.stopAdvertise()
                 gattServer.sendMessage(encodedEDeviceKeyBytes)
             }
@@ -107,6 +109,7 @@ class TransportBlePeripheralServerReader(
                 // Transition to disconnected state
                 stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTED)
                 gattServer.stop()
+                sessionEnd.holderEnded()
             }
 
             override fun onMessageSendProgress(progress: Int, max: Int) {}
@@ -120,6 +123,9 @@ class TransportBlePeripheralServerReader(
                         data.take(16).joinToString("") { "%02x".format(it) }
                 )
 
+                // Before stopping the server, so the disconnect it causes is not reported as the
+                // holder ending the session.
+                sessionEnd.responseReceived()
                 try {
                     gattServer.sendTransportSpecificTermination()
                     gattServer.stop()
@@ -136,6 +142,17 @@ class TransportBlePeripheralServerReader(
 
             override fun onTransportSpecificSessionTermination() {
                 logger.d("Terminated")
+                // Before START there is no session to end, so a stray write must not stop the
+                // server.
+                if (!sessionEnd.isHolderConnected) {
+                    logger.w("Ignoring session termination before the holder connected")
+                    return
+                }
+                // The holder ended the session. This server holds the link, so the holder's
+                // disconnect may not follow: close the session here.
+                stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTED)
+                gattServer.stop()
+                sessionEnd.holderEnded()
             }
 
             override fun onError(error: Throwable) {

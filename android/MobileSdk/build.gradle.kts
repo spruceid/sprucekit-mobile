@@ -151,6 +151,8 @@ dependencies {
     //noinspection GradleCompatible
     implementation("com.android.support:appcompat-v7:28.0.0")
     implementation("androidx.activity:activity-compose:1.10.1")
+    // Public API: authenticateUser takes a FragmentActivity and BiometricManager flags.
+    api("androidx.biometric:biometric:1.1.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     /* Begin UI dependencies */
     implementation("androidx.compose.material3:material3:1.3.2")

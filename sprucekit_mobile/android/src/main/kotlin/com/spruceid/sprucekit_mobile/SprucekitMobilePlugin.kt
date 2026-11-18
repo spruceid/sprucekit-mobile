@@ -14,8 +14,8 @@ import java.util.concurrent.CopyOnWriteArrayList
  *
  * Implements [ActivityAware] so that adapters which need an [android.app.Activity]
  * reference ([MdlReaderAdapter] for NFC reader-mode, [MdlPresentationAdapter]
- * for the NFC preferred-service call) can receive the binding when the plugin
- * attaches to a host Activity.
+ * for the NFC preferred-service call, [DeviceKeyAuthAdapter] for BiometricPrompt)
+ * can receive the binding when the plugin attaches to a host Activity.
  */
 class SprucekitMobilePlugin : FlutterPlugin, ActivityAware {
     companion object {
@@ -43,6 +43,7 @@ class SprucekitMobilePlugin : FlutterPlugin, ActivityAware {
     private lateinit var mdlReaderAdapter: MdlReaderAdapter
     private lateinit var oid4vpMdocAdapter: Oid4vpMdocAdapter
     private lateinit var dcApiAdapter: DcApiAdapter
+    private lateinit var deviceKeyAuthAdapter: DeviceKeyAuthAdapter
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         val context = flutterPluginBinding.applicationContext
@@ -90,6 +91,10 @@ class SprucekitMobilePlugin : FlutterPlugin, ActivityAware {
         dcApiAdapter = DcApiAdapter(context, credentialPackAdapter)
         DcApi.setUp(flutterPluginBinding.binaryMessenger, dcApiAdapter)
 
+        // Initialize DeviceKeyAuth adapter (user-authentication policy for device keys)
+        deviceKeyAuthAdapter = DeviceKeyAuthAdapter()
+        DeviceKeyAuth.setUp(flutterPluginBinding.binaryMessenger, deviceKeyAuthAdapter)
+
         // Register Scanner Platform View
         flutterPluginBinding.platformViewRegistry.registerViewFactory(
             "com.spruceid.sprucekit_mobile/scanner",
@@ -107,6 +112,10 @@ class SprucekitMobilePlugin : FlutterPlugin, ActivityAware {
         MdlReader.setUp(binding.binaryMessenger, null)
         Oid4vpMdoc.setUp(binding.binaryMessenger, null)
         DcApi.setUp(binding.binaryMessenger, null)
+        DeviceKeyAuth.setUp(binding.binaryMessenger, null)
+        if (::deviceKeyAuthAdapter.isInitialized) {
+            deviceKeyAuthAdapter.dispose()
+        }
         if (::mdlReaderAdapter.isInitialized) {
             // Cancels mainScope + releases NFC/BLE handles so callbacks can't
             // try to invoke the Flutter binary messenger after it's gone.
@@ -124,20 +133,24 @@ class SprucekitMobilePlugin : FlutterPlugin, ActivityAware {
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
         mdlReaderAdapter.setActivityBinding(binding)
         mdlPresentationAdapter.setActivityBinding(binding)
+        deviceKeyAuthAdapter.setActivityBinding(binding)
     }
 
     override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
         mdlReaderAdapter.setActivityBinding(binding)
         mdlPresentationAdapter.setActivityBinding(binding)
+        deviceKeyAuthAdapter.setActivityBinding(binding)
     }
 
     override fun onDetachedFromActivityForConfigChanges() {
         mdlReaderAdapter.setActivityBinding(null)
         mdlPresentationAdapter.setActivityBinding(null)
+        deviceKeyAuthAdapter.setActivityBinding(null)
     }
 
     override fun onDetachedFromActivity() {
         mdlReaderAdapter.setActivityBinding(null)
         mdlPresentationAdapter.setActivityBinding(null)
+        deviceKeyAuthAdapter.setActivityBinding(null)
     }
 }

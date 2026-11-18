@@ -32,6 +32,12 @@ internal object BleSessionUpdates {
     /** Inbound mDL response received (Reader role). */
     fun mdl(data: ByteArray): Map<String, Any> = mapOf("mdl" to data)
 
+    /**
+     * The holder ended the session before sending a response, for example because the user
+     * declined (Reader role). Terminal: no response follows.
+     */
+    fun sessionEnded(): Map<String, Any> = mapOf("sessionEnded" to "")
+
     /** Scan/connection attempt timed out. */
     fun timeout(): Map<String, Any> = mapOf("timeout" to "")
 

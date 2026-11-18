@@ -45,6 +45,8 @@
 	<string>Bluetooth is required to share your mobile driver's license with verifiers</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Camera access is required to scan QR codes and barcodes</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Confirm it's you before sharing your credentials.</string>
 	<key>NFCReaderUsageDescription</key>
 	<string>NFC is required to read mobile driver's license credentials from a holder phone</string>
 	<!--

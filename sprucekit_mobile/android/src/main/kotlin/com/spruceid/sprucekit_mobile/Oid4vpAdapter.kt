@@ -2,14 +2,19 @@ package com.spruceid.sprucekit_mobile
 
 import android.content.Context
 import com.spruceid.mobile.sdk.KeyManager
+import com.spruceid.mobile.sdk.UserAuthenticationRequiredException
+import com.spruceid.mobile.sdk.UserAuthenticationUnavailableException
 import com.spruceid.mobile.sdk.rs.DidMethod
 import com.spruceid.mobile.sdk.rs.DidMethodUtils
 import com.spruceid.mobile.sdk.rs.DynamicCredentialOffer as RsDynamicCredentialOffer
+import com.spruceid.mobile.sdk.rs.Oid4vpException
+import com.spruceid.mobile.sdk.rs.Oid4vpFacadeException
 import com.spruceid.mobile.sdk.rs.Oid4vpHolder
 import com.spruceid.mobile.sdk.rs.Oid4vpPresentableCredential
 import com.spruceid.mobile.sdk.rs.Oid4vpPresentationSigner
 import com.spruceid.mobile.sdk.rs.Oid4vpSession
 import com.spruceid.mobile.sdk.rs.ParsedCredential
+import com.spruceid.mobile.sdk.rs.PresentationException
 import com.spruceid.mobile.sdk.rs.Oid4vpVersion as RsOid4vpVersion
 import com.spruceid.mobile.sdk.rs.Oid4vpResponseOptions as RsResponseOptions
 import kotlinx.coroutines.CoroutineScope
@@ -25,6 +30,8 @@ class Oid4vpSigner(private val keyId: String) : Oid4vpPresentationSigner {
 
     // Only the fallback/legacy key is created on demand; a per-credential key
     // must already exist from issuance, else it can't match the cnf binding.
+    // Creating the fallback key with the current policy throws
+    // UserAuthenticationUnavailableException when the device can't satisfy the policy.
     private fun ensureKey(keyId: String): String {
         val mayGenerate = keyId.isEmpty() || keyId == this.keyId
         val resolvedId = if (mayGenerate) this.keyId.ifEmpty { DEFAULT_KEY_ID } else keyId
@@ -32,18 +39,56 @@ class Oid4vpSigner(private val keyId: String) : Oid4vpPresentationSigner {
             require(mayGenerate) {
                 "No signing key for per-credential kid '$resolvedId'; it must exist from issuance"
             }
-            keyManager.generateSigningKey(id = resolvedId)
+            keyManager.generateSigningKey(
+                id = resolvedId,
+                userAuthentication = DeviceKeyAuthState.policy
+            )
         }
         return resolvedId
     }
 
-    private fun jwkFor(keyId: String): String =
-        keyManager.getJwk(ensureKey(keyId))?.toString()
-            ?: throw IllegalArgumentException("Invalid kid: $keyId")
+    /**
+     * Creates the fallback/legacy key if it doesn't exist yet.
+     *
+     * [Oid4vpAdapter.createHolder] calls this before handing the signer to Rust: Rust calls the
+     * non-throwing [jwk], [did] and [verificationMethod] before [sign], and an exception thrown
+     * there makes the Rust side panic, so a protected key that can't be created must fail here.
+     * @throws UserAuthenticationUnavailableException if the device can't satisfy the policy.
+     */
+    fun prepareFallbackKey() {
+        ensureKey(keyId)
+    }
 
-    override suspend fun sign(keyId: String, payload: ByteArray): ByteArray =
-        keyManager.signPayload(ensureKey(keyId), payload)
-            ?: throw IllegalStateException("Failed to sign payload")
+    // The Rust callback interface declares jwk, did and verificationMethod as non-throwing.
+    // createHolder already created the fallback key (prepareFallbackKey), so creating it here is
+    // only a backstop and doesn't fail in normal use. What's left (a per-credential key that
+    // doesn't exist, or a key deleted after createHolder) can't be reported to Rust from here.
+    private fun jwkFor(keyId: String): String {
+        val resolvedId = try {
+            ensureKey(keyId)
+        } catch (e: Exception) {
+            throw IllegalStateException("Oid4vpSigner: no usable key for kid '$keyId': ${e.message}", e)
+        }
+        return keyManager.getJwk(resolvedId)?.toString()
+            ?: throw IllegalStateException("Oid4vpSigner: no public key for kid '$resolvedId'")
+    }
+
+    // Throws only Oid4vpFacadeException, the type the Rust callback interface declares: any other
+    // throwable crossing the callback makes the Rust side panic. An authentication failure keeps
+    // the "User authentication required" (retry) or "User authentication unavailable" marker.
+    override suspend fun sign(keyId: String, payload: ByteArray): ByteArray {
+        val message = try {
+            return keyManager.signPayload(ensureKey(keyId), payload)
+                ?: throw IllegalStateException("no signing key")
+        } catch (e: UserAuthenticationRequiredException) {
+            e.message ?: UserAuthenticationRequiredException.MESSAGE_PREFIX
+        } catch (e: UserAuthenticationUnavailableException) {
+            e.message ?: UserAuthenticationUnavailableException.MESSAGE_PREFIX
+        } catch (e: Exception) {
+            "Failed to sign payload: $e"
+        }
+        throw Oid4vpFacadeException.V1(Oid4vpException.Presentation(PresentationException.Signing(message)))
+    }
 
     override fun algorithm(): String = "ES256"
 
@@ -158,7 +203,16 @@ internal class Oid4vpAdapter(
                     return@launch
                 }
 
+                // Create the fallback key now, so a protected key the device can't support fails
+                // here ("User authentication unavailable") and not in the signer's non-throwing
+                // callbacks.
                 val signer = Oid4vpSigner(keyId)
+                try {
+                    signer.prepareFallbackKey()
+                } catch (e: Exception) {
+                    callback(Result.success(Oid4vpError(message = e.message ?: e.toString())))
+                    return@launch
+                }
 
                 // Create holder (version-agnostic facade)
                 val newHolder = Oid4vpHolder.newWithCredentialsAndProviders(

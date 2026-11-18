@@ -7,7 +7,6 @@ import android.util.Log
 import androidx.activity.compose.setContent
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
 import androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL
-import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -29,6 +28,7 @@ import com.google.android.gms.identitycredentials.Credential
 import com.google.android.gms.identitycredentials.IntentHelper
 import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobile.sdk.KeyManager
+import com.spruceid.mobile.sdk.authenticateUser
 import com.spruceid.mobile.sdk.rs.FieldId180137
 import com.spruceid.mobile.sdk.rs.RequestMatch180137
 import com.spruceid.mobile.sdk.rs.handleDcApiRequest
@@ -268,52 +268,26 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
         activityState.value = ActivityState.RequestingConsent(responder.getMatch(), consent, origin)
 
         val consentOutcome = consent.filterNotNull().first()
-        val openid4vpResponse: String
-
-        when (consentOutcome) {
+        val approvedFields = when (consentOutcome) {
             is ConsentOutcome.Cancelled -> throw Exception("user cancelled on the consent screen")
-            is ConsentOutcome.Approved -> openid4vpResponse =
-                responder.respond(KeyManager(), consentOutcome.approvedFields)
+            is ConsentOutcome.Approved -> consentOutcome.approvedFields
         }
 
+        // Authenticate before signing, so the prompt gates the signature itself and a device key
+        // generated with a UserAuthenticationPolicy is authorized when it signs.
         activityState.value = ActivityState.Authenticating()
 
-        val authenticate: MutableStateFlow<AuthenticationOutcome?> = MutableStateFlow(null)
-
-        val biometricPrompt = BiometricPrompt(
-            this@Activity, object : BiometricPrompt.AuthenticationCallback() {
-                override fun onAuthenticationFailed() {
-                    super.onAuthenticationFailed()
-                    Log.d(TAG, "biometric authentication failed")
-                    authenticate.value = AuthenticationOutcome.Failure()
-                }
-
-                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                    super.onAuthenticationError(errorCode, errString)
-                    Log.d(TAG, "biometric authentication failed ($errorCode): $errString")
-                    authenticate.value = AuthenticationOutcome.Failure()
-                }
-
-                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                    super.onAuthenticationSucceeded(result)
-                    Log.d(TAG, "biometric authentication succeeded")
-                    authenticate.value = AuthenticationOutcome.Success()
-                }
-            })
-
-        biometricPrompt.authenticate(
-            BiometricPrompt.PromptInfo.Builder().setTitle("Verify your identity")
-                .setSubtitle("Approve transmission of your data to $origin")
-                .setConfirmationRequired(false).setAllowedAuthenticators(allowedAuthenticators)
-                .build()
+        val authenticated = authenticateUser(
+            this@Activity,
+            title = "Verify your identity",
+            subtitle = "Approve transmission of your data to $origin",
+            allowedAuthenticators = allowedAuthenticators,
         )
-
-        val authenticationOutcome = authenticate.filterNotNull().first()
-
-        when (authenticationOutcome) {
-            is AuthenticationOutcome.Failure -> throw Exception("biometric authentication failed")
-            is AuthenticationOutcome.Success -> {}
+        if (!authenticated) {
+            throw Exception("biometric authentication failed")
         }
+
+        val openid4vpResponse = responder.respond(KeyManager(), approvedFields)
 
         var data: JSONObject
         try {
@@ -362,11 +336,6 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
     private sealed class ConsentOutcome {
         class Approved(val approvedFields: List<FieldId180137>) : ConsentOutcome()
         class Cancelled : ConsentOutcome()
-    }
-
-    private sealed class AuthenticationOutcome {
-        class Success : AuthenticationOutcome()
-        class Failure : AuthenticationOutcome()
     }
 
     private sealed class ActivityState() {

@@ -3,8 +3,14 @@ import SpruceIDMobileSdk
 import SpruceIDMobileSdkRs
 
 /// Error types for OID4VP Signer
-enum Oid4vpSignerError: Error {
+enum Oid4vpSignerError: Error, CustomStringConvertible {
     case illegalArgumentException(reason: String)
+
+    var description: String {
+        switch self {
+        case .illegalArgumentException(let reason): return reason
+        }
+    }
 }
 
 class Oid4vpSigner: Oid4vpPresentationSigner {
@@ -28,6 +34,8 @@ class Oid4vpSigner: Oid4vpPresentationSigner {
         return (keyId, false)
     }
 
+    // Creating the fallback key with the current policy fails with
+    // UserAuthenticationUnavailableError when the device can't satisfy the policy.
     private func ensureKey(_ keyId: String) throws -> String {
         let (id, mayGenerate) = resolveAlias(keyId)
         if !KeyManager.keyExists(id: id) {
@@ -35,9 +43,19 @@ class Oid4vpSigner: Oid4vpPresentationSigner {
                 throw Oid4vpSignerError.illegalArgumentException(
                     reason: "No signing key for per-credential kid '\(id)'; it must exist from issuance")
             }
-            _ = KeyManager.generateSigningKey(id: id)
+            _ = try KeyManager.getOrInsertJwk(
+                id: id, userAuthentication: DeviceKeyAuthState.shared.policy)
         }
         return id
+    }
+
+    /// Creates the fallback/legacy key if it doesn't exist yet.
+    ///
+    /// `createHolder` calls this before handing the signer to Rust: Rust calls the non-throwing
+    /// `jwk`, `did` and `verificationMethod` before `sign`, so a protected key that can't be
+    /// created must fail here, as an error Dart sees, and not in those callbacks.
+    func prepareFallbackKey() throws {
+        _ = try ensureKey(keyId)
     }
 
     private func resolveJwk(_ keyId: String) throws -> String {
@@ -48,24 +66,39 @@ class Oid4vpSigner: Oid4vpPresentationSigner {
         return jwk.description
     }
 
+    // Throws only Oid4vpFacadeError, the type the Rust callback interface declares: any other
+    // error crossing the callback makes the Rust side panic. An authentication failure keeps the
+    // "User authentication required" (retry) or "User authentication unavailable" marker.
     func sign(keyId: String, payload: Data) async throws -> Data {
-        let id = try ensureKey(keyId)
-        guard let signature = KeyManager.signPayload(id: id, payload: [UInt8](payload)) else {
-            throw Oid4vpSignerError.illegalArgumentException(reason: "Failed to sign payload")
+        do {
+            let id = try ensureKey(keyId)
+            return Data(
+                try KeyManager.signPayloadThrowing(
+                    id: id, payload: [UInt8](payload),
+                    context: DeviceKeyAuthState.shared.currentContext()))
+        } catch let error as UserAuthenticationError {
+            throw Oid4vpFacadeError.V1(.Presentation(.Signing(error.message)))
+        } catch {
+            throw Oid4vpFacadeError.V1(
+                .Presentation(.Signing("Failed to sign payload: \(error)")))
         }
-        return Data(signature)
     }
 
     func algorithm() -> String {
         return "ES256"
     }
 
+    // The Rust callback interface declares verificationMethod, did and jwk as non-throwing.
+    // createHolder already created the fallback key (prepareFallbackKey), so creating it here
+    // is only a backstop and doesn't fail in normal use. What's left (a per-credential key that
+    // doesn't exist, or a key deleted after createHolder) can't be reported to Rust from here.
     func verificationMethod(keyId: String) async -> String {
         do {
             let jwk = try resolveJwk(keyId)
             return try await didJwk.vmFromJwk(jwk: jwk)
         } catch {
-            fatalError("Oid4vpSigner: failed to derive verification method from JWK: \(error)")
+            fatalError(
+                "Oid4vpSigner: no usable key for kid '\(keyId)' to derive the verification method: \(error)")
         }
     }
 
@@ -74,7 +107,7 @@ class Oid4vpSigner: Oid4vpPresentationSigner {
             let jwk = try resolveJwk(keyId)
             return try didJwk.didFromJwk(jwk: jwk)
         } catch {
-            fatalError("Oid4vpSigner: failed to derive DID from JWK: \(error)")
+            fatalError("Oid4vpSigner: no usable key for kid '\(keyId)' to derive the DID: \(error)")
         }
     }
 
@@ -82,7 +115,7 @@ class Oid4vpSigner: Oid4vpPresentationSigner {
         do {
             return try resolveJwk(keyId)
         } catch {
-            fatalError("Oid4vpSigner: failed to resolve JWK: \(error)")
+            fatalError("Oid4vpSigner: no usable key for kid '\(keyId)' to resolve the JWK: \(error)")
         }
     }
 
@@ -196,8 +229,16 @@ class Oid4vpAdapter: Oid4vp {
                     return
                 }
 
-                // Create signer
+                // Create signer. Create the fallback key now, so a protected key the device
+                // can't support fails here ("User authentication unavailable") and not in the
+                // signer's non-throwing callbacks.
                 let signer = Oid4vpSigner(keyId: keyId)
+                do {
+                    try signer.prepareFallbackKey()
+                } catch {
+                    completion(.success(Oid4vpError(message: "\(error)")))
+                    return
+                }
 
                 // Create holder (version-agnostic facade)
                 let newHolder = try await Oid4vpHolder.newWithCredentialsAndProviders(
@@ -206,7 +247,7 @@ class Oid4vpAdapter: Oid4vp {
                     signer: signer,
                     keyId: keyId,
                     contextMap: contextMap,
-                    keystore: KeyManager(),
+                    keystore: DeviceKeyStore(),
                     providers: providers
                 )
 
