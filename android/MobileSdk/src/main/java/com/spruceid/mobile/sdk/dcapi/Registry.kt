@@ -43,12 +43,15 @@ enum class Oid4vpProtocol(val id: String) {
  * @param iconName the name of an image file in the application's assets directory, to be shown in
  * the wallet selection modal.
  * @param walletName the name to display for this wallet in the credential selection UI.
+ * @param deviceSignedFields elements provided by [Activity.deviceSignedElements], keyed by
+ * namespace. Registered for every mdoc so the matcher offers it for requests that include them.
  */
 class Registry(
     application: Application,
     iconName: String,
     matcherName: String = "openid4vp-matcher.wasm",
-    private val walletName: String = "SpruceKit Showcase Wallet"
+    private val walletName: String = "SpruceKit Showcase Wallet",
+    private val deviceSignedFields: Map<String, List<String>> = emptyMap()
 ) {
     private val icon: ByteArray = loadAsset(application.assets, iconName)
     private val matcher: ByteArray = loadAsset(application.assets, matcherName)
@@ -122,8 +125,7 @@ class Registry(
         val fields = mutableListOf<MdocField>()
         mdoc.details().forEach { (namespace, elements) ->
             elements.forEach { element ->
-                val displayName = element.identifier.split('_')
-                    .joinToString(" ") { s -> s.replaceFirstChar { it.uppercaseChar() } }
+                val displayName = displayName(element.identifier)
 
                 // For large binary fields, register with placeholder value so matcher knows field exists
                 val fieldValue = if (EXCLUDED_ELEMENTS.contains(element.identifier)) {
@@ -145,6 +147,25 @@ class Registry(
             }
         }
 
+        // The values are only known at presentation
+        deviceSignedFields.forEach { (namespace, identifiers) ->
+            val held = mdoc.details()[namespace].orEmpty().map { it.identifier }.toSet()
+            identifiers
+                .filterNot { it in held }
+                .forEach { identifier ->
+                    fields.add(
+                        MdocField(
+                            namespace = namespace,
+                            identifier = identifier,
+                            fieldValue = DEVICE_SIGNED_PLACEHOLDER,
+                            fieldDisplayPropertySet = setOf(
+                                VerificationFieldDisplayProperties(displayName = displayName(identifier))
+                            )
+                        )
+                    )
+                }
+        }
+
         return MdocEntry(
             docType = mdoc.doctype(),
             fields = fields,
@@ -159,8 +180,13 @@ class Registry(
         )
     }
 
+    private fun displayName(identifier: String) = identifier.split('_')
+        .joinToString(" ") { s -> s.replaceFirstChar { it.uppercaseChar() } }
+
     companion object {
         private const val TAG = "dcapi.Registry"
+
+        private const val DEVICE_SIGNED_PLACEHOLDER = "[device signed]"
 
         // Protocols to register credentials with (supports both unsigned and signed requests)
         private val SUPPORTED_PROTOCOLS = listOf(

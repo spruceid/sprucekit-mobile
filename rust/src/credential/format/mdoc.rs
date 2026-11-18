@@ -7,6 +7,7 @@ use base64::prelude::*;
 use isomdl::{
     cbor,
     definitions::{
+        device_signed::DeviceNamespaces,
         helpers::{NonEmptyMap, NonEmptyVec, Tag24},
         issuer_signed_dehydrated::{IssuerSignedDehydrated, NameSpacedData},
         IssuerSigned, IssuerSignedItem, Mso,
@@ -386,14 +387,17 @@ impl Mdoc {
             })?;
 
         // Build and sign the DeviceResponse
-        let device_response =
-            build_device_response(keystore, self, revealed_namespaces, None, handover).map_err(
-                |e| {
-                    CredentialEncodingError::VpToken(format!(
-                        "Failed to build device response: {e}"
-                    ))
-                },
-            )?;
+        let device_response = build_device_response(
+            keystore,
+            self,
+            revealed_namespaces,
+            None,
+            DeviceNamespaces::new(),
+            handover,
+        )
+        .map_err(|e| {
+            CredentialEncodingError::VpToken(format!("Failed to build device response: {e}"))
+        })?;
 
         // Encode as base64url
         let device_response_bytes = cbor::to_vec(&device_response).map_err(|e| {

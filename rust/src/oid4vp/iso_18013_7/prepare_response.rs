@@ -5,6 +5,7 @@ use std::{
 };
 
 use anyhow::{bail, Context, Result};
+use ciborium::Value as Cbor;
 use isomdl::{
     cose::sign1::PreparedCoseSign1,
     definitions::{
@@ -33,6 +34,9 @@ use super::{
 
 /// Re-export the library's Handover type for convenience.
 pub use openid4vp::core::iso_18013_7::Handover;
+
+/// Values to return in DeviceSigned, by namespace and element identifier.
+pub type DeviceSignedValues = BTreeMap<String, BTreeMap<String, Cbor>>;
 
 /// Wrapper around the library's SessionTranscript to implement isomdl's SessionTranscript trait.
 #[derive(Debug, Clone)]
@@ -143,18 +147,20 @@ impl From<RawResponseUri> for Json {
 /// * `credential` - The mdoc credential being presented
 /// * `revealed_namespaces` - Pre-selected namespaces and elements to reveal
 /// * `errors` - Optional map of namespace -> element -> error for missing fields
+/// * `device_namespaces` - Elements returned in DeviceSigned
 /// * `handover` - The handover structure for the SessionTranscript
 pub fn build_device_response<H: Serialize + DeserializeOwned + Debug>(
     key_store: Arc<dyn KeyStore>,
     credential: &Mdoc,
     revealed_namespaces: NonEmptyMap<String, NonEmptyVec<Tag24<IssuerSignedItem>>>,
     errors: Option<NonEmptyMap<String, NonEmptyMap<String, DocumentErrorCode>>>,
+    device_namespaces: DeviceNamespaces,
     handover: H,
 ) -> Result<DeviceResponse> {
     let mdoc = credential.document();
 
-    let device_namespaces = Tag24::new(DeviceNamespaces::new())
-        .context("failed to encode device namespaces as CBOR")?;
+    let device_namespaces =
+        Tag24::new(device_namespaces).context("failed to encode device namespaces as CBOR")?;
 
     let session_transcript = OID4VPSessionTranscript::new(handover);
 
@@ -232,11 +238,15 @@ pub fn build_device_response<H: Serialize + DeserializeOwned + Debug>(
 ///
 /// This function handles field selection based on FieldId180137 and FieldMap,
 /// then delegates to `build_device_response` for the core signing logic.
+///
+/// Missing fields with a value in `device_signed` are returned in DeviceSigned,
+/// the others as `DataNotReturned` errors.
 pub fn prepare_response<H: Serialize + DeserializeOwned + Debug>(
     key_store: Arc<dyn KeyStore>,
     credential: &Mdoc,
     approved_fields: Vec<FieldId180137>,
     missing_fields: &BTreeMap<String, BTreeSet<String>>,
+    device_signed: &DeviceSignedValues,
     mut field_map: FieldMap,
     handover: H,
 ) -> Result<DeviceResponse> {
@@ -264,11 +274,22 @@ pub fn prepare_response<H: Serialize + DeserializeOwned + Debug>(
     let revealed_namespaces: NonEmptyMap<String, NonEmptyVec<Tag24<IssuerSignedItem>>> =
         NonEmptyMap::maybe_new(revealed_namespaces).context("no approved fields")?;
 
-    // Build errors map for missing fields
+    let mut device_namespaces = DeviceNamespaces::new();
     let mut errors: BTreeMap<String, NonEmptyMap<String, DocumentErrorCode>> = BTreeMap::new();
     for (namespace, element_identifiers) in missing_fields {
         for element_identifier in element_identifiers {
-            if let Some(elems) = errors.get_mut(namespace) {
+            let device_value = device_signed
+                .get(namespace)
+                .and_then(|elements| elements.get(element_identifier));
+            if let Some(value) = device_value {
+                tracing::info!("device signing field: {namespace} {element_identifier}");
+                if let Some(elems) = device_namespaces.get_mut(namespace) {
+                    elems.insert(element_identifier.clone(), value.clone());
+                } else {
+                    let element_map = NonEmptyMap::new(element_identifier.clone(), value.clone());
+                    device_namespaces.insert(namespace.clone(), element_map);
+                }
+            } else if let Some(elems) = errors.get_mut(namespace) {
                 elems.insert(
                     element_identifier.clone(),
                     DocumentErrorCode::DataNotReturned,
@@ -288,6 +309,93 @@ pub fn prepare_response<H: Serialize + DeserializeOwned + Debug>(
         credential,
         revealed_namespaces,
         NonEmptyMap::maybe_new(errors),
+        device_namespaces,
         handover,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{collections::BTreeMap, sync::Arc};
+
+    use ciborium::Value as Cbor;
+    use isomdl::definitions::device_response::DocumentErrorCode;
+    use openid4vp::core::dcql_query::DcqlQuery;
+    use serde_json::json;
+
+    use super::{handover_from_components, prepare_response, DeviceSignedValues};
+    use crate::{
+        crypto::{KeyAlias, RustTestKeyManager},
+        oid4vp::iso_18013_7::requested_values::parse_request,
+    };
+
+    const NAMESPACE: &str = "org.example.wallet";
+
+    #[tokio::test]
+    async fn requested_device_signed_values_are_returned_in_device_signed() {
+        let key_manager = Arc::new(RustTestKeyManager::default());
+        let key_alias = KeyAlias("".to_string());
+        key_manager
+            .generate_p256_signing_key(key_alias.clone())
+            .await
+            .unwrap();
+        let credential =
+            crate::mdl::util::generate_test_mdl(key_manager.clone(), key_alias).unwrap();
+
+        let dcql_query: DcqlQuery = serde_json::from_value(json!({
+            "credentials": [{
+                "id": "mDL",
+                "format": "mso_mdoc",
+                "meta": { "doctype_value": "org.iso.18013.5.1.mDL" },
+                "claims": [
+                    { "path": ["org.iso.18013.5.1", "family_name"] },
+                    { "path": [NAMESPACE, "verified"] },
+                    { "path": [NAMESPACE, "score"] },
+                    { "path": [NAMESPACE, "method"] }
+                ]
+            }]
+        }))
+        .unwrap();
+        let request_match = parse_request(&dcql_query, [&credential].into_iter()).remove(0);
+
+        // `unrequested` is not requested and `method` has no value.
+        let device_signed: DeviceSignedValues = BTreeMap::from([(
+            NAMESPACE.to_string(),
+            BTreeMap::from([
+                ("verified".to_string(), Cbor::Bool(true)),
+                ("score".to_string(), Cbor::Float(0.61)),
+                ("unrequested".to_string(), Cbor::Float(0.93)),
+            ]),
+        )]);
+
+        let response = prepare_response(
+            key_manager,
+            &credential,
+            request_match
+                .requested_fields
+                .iter()
+                .map(|field| field.id.clone())
+                .collect(),
+            &request_match.missing_fields,
+            &device_signed,
+            request_match.field_map.clone(),
+            handover_from_components("client", "nonce", "https://example.com/response", None)
+                .unwrap(),
+        )
+        .unwrap();
+
+        let document = &response.documents.unwrap()[0];
+        let device_namespaces = document.device_signed.namespaces.as_ref();
+        let namespace = &device_namespaces[NAMESPACE];
+        assert_eq!(namespace.len(), 2);
+        assert_eq!(namespace["verified"], Cbor::Bool(true));
+        assert_eq!(namespace["score"], Cbor::Float(0.61));
+
+        let errors = document.errors.as_ref().unwrap();
+        assert_eq!(errors[NAMESPACE].len(), 1);
+        assert_eq!(
+            errors[NAMESPACE]["method"],
+            DocumentErrorCode::DataNotReturned
+        );
+    }
 }
