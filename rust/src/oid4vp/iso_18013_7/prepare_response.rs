@@ -1,4 +1,8 @@
-use std::{collections::BTreeMap, fmt::Debug, sync::Arc};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fmt::Debug,
+    sync::Arc,
+};
 
 use anyhow::{bail, Context, Result};
 use isomdl::{
@@ -232,7 +236,7 @@ pub fn prepare_response<H: Serialize + DeserializeOwned + Debug>(
     key_store: Arc<dyn KeyStore>,
     credential: &Mdoc,
     approved_fields: Vec<FieldId180137>,
-    missing_fields: &BTreeMap<String, String>,
+    missing_fields: &BTreeMap<String, BTreeSet<String>>,
     mut field_map: FieldMap,
     handover: H,
 ) -> Result<DeviceResponse> {
@@ -262,18 +266,20 @@ pub fn prepare_response<H: Serialize + DeserializeOwned + Debug>(
 
     // Build errors map for missing fields
     let mut errors: BTreeMap<String, NonEmptyMap<String, DocumentErrorCode>> = BTreeMap::new();
-    for (namespace, element_identifier) in missing_fields {
-        if let Some(elems) = errors.get_mut(namespace) {
-            elems.insert(
-                element_identifier.clone(),
-                DocumentErrorCode::DataNotReturned,
-            );
-        } else {
-            let element_map = NonEmptyMap::new(
-                element_identifier.clone(),
-                DocumentErrorCode::DataNotReturned,
-            );
-            errors.insert(namespace.clone(), element_map);
+    for (namespace, element_identifiers) in missing_fields {
+        for element_identifier in element_identifiers {
+            if let Some(elems) = errors.get_mut(namespace) {
+                elems.insert(
+                    element_identifier.clone(),
+                    DocumentErrorCode::DataNotReturned,
+                );
+            } else {
+                let element_map = NonEmptyMap::new(
+                    element_identifier.clone(),
+                    DocumentErrorCode::DataNotReturned,
+                );
+                errors.insert(namespace.clone(), element_map);
+            }
         }
     }
 
