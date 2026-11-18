@@ -247,6 +247,10 @@ internal class CredentialPackAdapter(private val context: Context) : CredentialP
         }
     }
 
+    override fun releasePack(packId: String) {
+        packs.remove(packId)
+    }
+
     override fun listPacks(): List<String> {
         return packs.keys.toList()
     }

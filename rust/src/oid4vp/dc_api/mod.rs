@@ -31,7 +31,7 @@ use crate::http_client::HttpClient;
 use crate::{credential::mdoc::Mdoc, crypto::KeyStore};
 
 use super::iso_18013_7::{
-    prepare_response::prepare_response,
+    prepare_response::{prepare_response, DeviceSignedValues},
     requested_values::{FieldId180137, RequestMatch180137},
 };
 
@@ -190,11 +190,24 @@ impl InProgressRequestDcApi {
     /// Generate a response for the request.
     ///
     /// The response is either a JWE or a serialized JSON Object.
+    ///
+    /// `device_signed` is a CBOR map of namespace to element identifier to value.
+    /// Requested elements the credential does not hold are returned from it in
+    /// DeviceSigned.
+    #[uniffi::method(default(device_signed = None))]
     pub async fn respond(
         &self,
         keystore: Arc<dyn KeyStore>,
         approved_fields: Vec<FieldId180137>,
+        device_signed: Option<Vec<u8>>,
     ) -> Result<String, DcApiError> {
+        let device_signed: DeviceSignedValues = device_signed
+            .map(|bytes| isomdl::cbor::from_slice(&bytes))
+            .transpose()
+            .context("failed to decode the device-signed values")
+            .map_err(DcApiError::internal_error)?
+            .unwrap_or_default();
+
         // Per OID4VP v1.0 §B.2.6.2, the DC API Handover uses [origin, nonce, jwkThumbprint].
         // jwkThumbprint is the SHA-256 thumbprint of the verifier's encryption key,
         // or null if the response is not encrypted.
@@ -212,6 +225,7 @@ impl InProgressRequestDcApi {
             &self.mdoc,
             approved_fields,
             &self.request_match.missing_fields,
+            &device_signed,
             self.request_match.field_map.clone(),
             handover,
         )

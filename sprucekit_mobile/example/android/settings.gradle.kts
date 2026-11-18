@@ -21,8 +21,8 @@ pluginManagement {
 // the published Maven Central artifact. Lets you iterate on `android/MobileSdk`
 // (and `android/MobileSdkRs`) and have `flutter run` pick up the changes
 // without `publishToMavenLocal`. Set SPRUCEKIT_SDK_FROM_SOURCE=false to use
-// the published artifact instead. CI does, to check the plugin against what
-// consumers get.
+// the published artifact instead. CI uses the source build, so a PR that
+// changes the SDK and the plugin together passes.
 if (System.getenv("SPRUCEKIT_SDK_FROM_SOURCE") != "false") {
     includeBuild("../../../android") {
         dependencySubstitution {

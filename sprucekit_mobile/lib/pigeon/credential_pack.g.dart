@@ -827,6 +827,28 @@ class CredentialPack {
     return pigeonVar_replyValue! as CredentialOperationResult;
   }
 
+  /// Drop a credential pack from memory. Storage and the VdcCollection stay
+  /// as they are, so credentials that other packs share are kept.
+  ///
+  /// @param packId The pack identifier
+  Future<void> releasePack(String packId) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.CredentialPack.releasePack$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[packId]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
   /// Get all credential pack IDs
   ///
   /// @return List of pack IDs (in-memory only)

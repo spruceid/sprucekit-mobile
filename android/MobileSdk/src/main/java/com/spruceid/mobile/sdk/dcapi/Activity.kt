@@ -97,6 +97,15 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
         onContinue(match.requestedFields().map { it.id })
     }
 
+    /**
+     * Elements to return in DeviceSigned, as a CBOR map of namespace to element identifier to
+     * value. Only requested elements the credential does not hold are used.
+     *
+     * Called after consent. Returns null by default.
+     */
+    open suspend fun deviceSignedElements(match: RequestMatch180137, origin: String): ByteArray? =
+        null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -272,6 +281,7 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
             is ConsentOutcome.Cancelled -> throw Exception("user cancelled on the consent screen")
             is ConsentOutcome.Approved -> consentOutcome.approvedFields
         }
+        val deviceSigned = deviceSignedElements(responder.getMatch(), origin)
 
         // Authenticate before signing, so the prompt gates the signature itself and a device key
         // generated with a UserAuthenticationPolicy is authorized when it signs.
@@ -287,7 +297,7 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
             throw Exception("biometric authentication failed")
         }
 
-        val openid4vpResponse = responder.respond(KeyManager(), approvedFields)
+        val openid4vpResponse = responder.respond(KeyManager(), approvedFields, deviceSigned)
 
         var data: JSONObject
         try {

@@ -27,7 +27,6 @@
 rustup target install \
     armv7-linux-androideabi \
     aarch64-linux-android \
-    i686-linux-android \
     x86_64-linux-android \
     aarch64-apple-ios-sim \
     aarch64-apple-ios \
@@ -167,6 +166,7 @@ cd flutter
 fvm flutter pub get
 fvm flutter analyze
 fvm dart format --set-exit-if-changed lib/sprucekit_mobile.dart pigeons/ example/
+fvm flutter pub publish --dry-run  # pub.dev validation; warns about uncommitted files
 ```
 
 **Android** — the CI job requires cross-compilation toolchains that are heavy to run locally. Running the Rust and Flutter checks above is usually sufficient. If you've changed Kotlin code in the Showcase or SDK, you can run lint with:
@@ -185,12 +185,25 @@ typos android/Showcase/src ios/Showcase sprucekit_mobile/example/lib
 
 Install it with `brew install typos-cli` or `cargo install typos-cli`. When a flagged word is a name we do not own — an ISO mDL claim key, a third-party API — add it to `_typos.toml` rather than renaming it.
 
+**Native library size** — the `rust` CI job fails if OpenSSL or `native-tls` is in the Android or iOS dependency graph, and warns if `reqwest`, `hyper`, `h2`, `http` or `rustls` is there in two versions. After a dependency change, run `rust/scripts/check-deps.sh` (a few seconds, no build). The `size-report` job compares the release library sizes (Android arm64 `.so`, iOS device `.a`) with `main` in its job summary: it warns above +1% or +100 KB (100,000 B). It doesn't fail the build unless `SIZE_FAIL_PCT` is set. The thresholds are in `.github/workflows/ci.yml`.
+
 ## Releases
 
 ### SDKs
 Use the [`cd` Github Action](https://github.com/spruceid/sprucekit-mobile/actions/workflows/cd.yml) which is a manually triggered action, and provide the version in the `x.y.z` format.
 
 The Android SDK is published to Maven Central. The iOS pods are published to the private [`spruceid/cocoapods-specs`](https://github.com/spruceid/cocoapods-specs) Specs repo.
+
+### Flutter plugin
+The `cd` workflow sets the plugin version, adds an entry to `sprucekit_mobile/CHANGELOG.md`, and pushes the release tag. The tag push starts the [`publish-flutter` workflow](.github/workflows/publish-flutter.yml), which publishes `sprucekit_mobile` to pub.dev. The workflow authenticates with the GitHub OIDC token, so the repository holds no pub.dev secret.
+
+The pub.dev package admin page must have these settings:
+
+- Automated publishing from GitHub Actions is on, for the repository `spruceid/sprucekit-mobile`.
+- The tag pattern is `{{version}}`.
+- "Require GitHub Actions environment" is on, with the environment `pub.dev`.
+
+pub.dev accepts automated publishing only for a package that exists. Publish the first version from a computer with `flutter pub publish`, then set the options above.
 
 ### Consuming the iOS SDK via CocoaPods
 The pods source their code from the release git tag, so add the private Specs repo alongside the CDN at the top of your `Podfile`:

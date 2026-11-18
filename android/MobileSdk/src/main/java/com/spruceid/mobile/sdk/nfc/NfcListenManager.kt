@@ -60,7 +60,12 @@ object NfcListenManager {
             Log.e(TAG, "trying to set APDU listen state, but componentName was null")
             return
         }
-        val cardEmulation = CardEmulation.getInstance(NfcAdapter.getDefaultAdapter(_applicationCtx))
+        val adapter = NfcAdapter.getDefaultAdapter(_applicationCtx)
+        if (adapter == null) {
+            Log.w(TAG, "the device has no NFC, so APDU listening stays off")
+            return
+        }
+        val cardEmulation = CardEmulation.getInstance(adapter)
 
         cardEmulation.registerAidsForService(
             _componentName,
