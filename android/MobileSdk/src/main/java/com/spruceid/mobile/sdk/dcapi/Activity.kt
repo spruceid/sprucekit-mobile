@@ -38,6 +38,7 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import kotlin.coroutines.cancellation.CancellationException
 
 /** To be triggered by a GetCredential intent to handle a Digital Credentials "get" request.
  *
@@ -133,13 +134,15 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
         Log.d(TAG, "onCreate")
 
         lifecycleScope.launch {
-            // On cold start the combo ID map is empty. Load persisted packs
-            // to rebuild it so processIntent can resolve short IDs.
-            Registry.ensureComboIdMap(CredentialPack.loadPacks(storageManager))
-
             val requests: List<OpenID4VPRequest>
             try {
+                // On cold start the combo ID map is empty. Load persisted packs
+                // to rebuild it so processIntent can resolve short IDs.
+                Registry.ensureComboIdMap(CredentialPack.loadPacks(storageManager))
+
                 requests = processIntent();
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.w(TAG, "an error occurred while processing the intent", e)
                 val resultData = Intent()

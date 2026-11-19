@@ -26,6 +26,10 @@ public enum MdocInvalidationPolicy: Sendable {
 /// - multiple copies of the same credential (for one-time use),
 /// - different encodings of the same credential (JwtVC & JsonVC),
 /// - multiple instances of the same credential type (vehicle title credentials for more than 1 vehicle).
+///
+/// A pack loaded from storage remembers the ids of the credentials it could not load, and keeps
+/// them when it is saved or removes them when it is removed. `list()` shows only the loaded
+/// credentials.
 public class CredentialPack {
     /// Document types that are registered with the system identity document provider for
     /// presentation over the Digital Credentials API.
@@ -40,17 +44,28 @@ public class CredentialPack {
 
     public let id: UUID
     private var credentials: [ParsedCredential]
+    /// Ids of the credentials in the stored pack that could not be loaded.
+    private let unloadedCredentialIds: [Uuid]
 
     /// Initialize an empty CredentialPack.
     public init() {
         id = UUID()
         credentials = []
+        unloadedCredentialIds = []
     }
 
     /// Initialize a CredentialPack from existing credentials.
     public init(id: UUID, credentials: [ParsedCredential]) {
         self.id = id
         self.credentials = credentials
+        self.unloadedCredentialIds = []
+    }
+
+    /// Initialize a loaded CredentialPack that remembers the credentials it could not load.
+    init(id: UUID, credentials: [ParsedCredential], unloadedCredentialIds: [Uuid]) {
+        self.id = id
+        self.credentials = credentials
+        self.unloadedCredentialIds = unloadedCredentialIds
     }
 
     /// Add a JwtVc to the CredentialPack.
@@ -556,6 +571,9 @@ public class CredentialPack {
     ///
     /// If a credential already exists in the VdcCollection (matching on id), then it will be skipped without updating.
     ///
+    /// The ids of credentials that could not be loaded with this pack stay in the saved pack, so a temporary
+    /// loading failure does not drop them. They are not saved again to the VdcCollection.
+    ///
     /// - Parameter scope: Optional isolation scope. When non-nil, the pack is stored under a
     ///   scope-prefixed key so `loadAll`/`list` filtered by the same scope only enumerate matching packs.
     ///   Credentials in the VdcCollection are NOT scoped (they remain in the shared namespace keyed by UUID).
@@ -581,7 +599,8 @@ public class CredentialPack {
 
     /// Remove this CredentialPack from the StorageManager.
     ///
-    /// Credentials that are in this pack __are__ removed from the VdcCollection.
+    /// Credentials that are in this pack __are__ removed from the VdcCollection, including the ones that could
+    /// not be loaded with this pack.
     ///
     /// - Parameter scope: Must match the scope used at save time (see `save(storageManager:scope:)`).
     public func remove(storageManager: StorageManagerInterface, scope: String? = nil) async throws {
@@ -602,6 +621,16 @@ public class CredentialPack {
                         try await store.removeRegistration(forDocumentIdentifier: documentIdentifier)
                     }
                 }
+                // A credential that could not be loaded can't be checked for its doctype, but a
+                // registration uses the credential id as its document identifier.
+                for credentialId in self.unloadedCredentialIds {
+                    let isRegistered = storedRegistrations.contains { storedRegistration in
+                        storedRegistration.documentIdentifier == credentialId
+                    }
+                    if isRegistered {
+                        try await store.removeRegistration(forDocumentIdentifier: credentialId)
+                    }
+                }
             } catch {
                 print("Failed to remove document from document store: \(error)")
             }
@@ -612,15 +641,22 @@ public class CredentialPack {
 
     /// Loads all CredentialPacks from the StorageManager.
     ///
+    /// A pack that fails to load is logged and skipped, so one bad pack does not hide the others.
+    ///
     /// - Parameter scope: When non-nil, returns only packs saved under this scope.
     public static func loadAll(storageManager: StorageManagerInterface, scope: String? = nil)
         async throws -> [CredentialPack] {
-        try await CredentialPackContents.list(storageManager: storageManager, scope: scope)
-            .asyncMap { contents in
-                try await contents.load(
-                    vdcCollection: VdcCollection(engine: storageManager)
-                )
+        let vdcCollection = VdcCollection(engine: storageManager)
+        var packs: [CredentialPack] = []
+        for contents in try await CredentialPackContents.list(storageManager: storageManager, scope: scope) {
+            do {
+                packs.append(try await contents.load(vdcCollection: vdcCollection))
+            } catch {
+                try rethrowIfCancelled(error)
+                print("skipping CredentialPack '\(contents.id)' that could not be loaded: \(errorType(error))")
             }
+        }
+        return packs
     }
 
     /// Loads a single CredentialPack by id from the StorageManager.
@@ -640,12 +676,13 @@ public class CredentialPack {
         )
     }
 
+    /// The loaded credentials' ids, then the ids of those that could not be loaded.
     private func intoContents() -> CredentialPackContents {
-        CredentialPackContents(
+        var seen = Set<Uuid>()
+        return CredentialPackContents(
             id: self.id,
-            credentials: self.credentials.map { credential in
-                credential.id()
-            }
+            credentials: (self.credentials.map { credential in credential.id() } + self.unloadedCredentialIds)
+                .filter { credentialId in seen.insert(credentialId).inserted }
         )
     }
 }
@@ -720,28 +757,43 @@ public struct CredentialPackContents {
     }
 
     /// Loads all of the credentials from the VdcCollection for this CredentialPack.
+    ///
+    /// A credential that is missing from the VdcCollection, or that cannot be loaded or parsed, is
+    /// logged and skipped: the pack is returned with the remaining credentials. The pack remembers
+    /// the ids of the credentials that could not be loaded or parsed (not the missing ones): saving
+    /// the pack keeps them, and removing the pack removes them.
     public func load(vdcCollection: VdcCollection) async throws
         -> CredentialPack {
-        let credentials = try await credentials.asyncMap { credentialId in
+        var credentials: [ParsedCredential] = []
+        var unloadedCredentialIds: [Uuid] = []
+        for credentialId in self.credentials {
             do {
                 guard
                     let credential = try await vdcCollection.get(
                         id: credentialId
                     )
                 else {
-                    throw CredentialPackError.credentialNotFound(
-                        id: credentialId
+                    print(
+                        "skipping credential '\(credentialId)' of CredentialPack '\(id)': not in the VdcCollection"
                     )
+                    continue
                 }
-                return try ParsedCredential.parseFromCredential(
-                    credential: credential
+                credentials.append(
+                    try ParsedCredential.parseFromCredential(
+                        credential: credential
+                    )
                 )
             } catch {
-                throw CredentialPackError.credentialLoading(reason: error)
+                try rethrowIfCancelled(error)
+                print(
+                    "skipping credential '\(credentialId)' of CredentialPack '\(id)' that could not be loaded: "
+                        + errorType(error)
+                )
+                unloadedCredentialIds.append(credentialId)
             }
         }
 
-        return CredentialPack(id: self.id, credentials: credentials)
+        return CredentialPack(id: self.id, credentials: credentials, unloadedCredentialIds: unloadedCredentialIds)
     }
 
     /// Clears all CredentialPacks under the given scope.
@@ -764,22 +816,38 @@ public struct CredentialPackContents {
     /// Lists all CredentialPacks under the given scope.
     ///
     /// These can then be individually loaded. For eager loading of all packs, see `CredentialPack.loadAll`.
+    ///
+    /// A pack that cannot be read or parsed is logged and skipped, so one bad entry does not hide the
+    /// others. Only a failure to list the storage throws.
     public static func list(storageManager: StorageManagerInterface, scope: String? = nil)
         async throws -> [CredentialPackContents] {
         let prefix = Self.storagePrefix(scope: scope)
+        let files: [Key]
         do {
-            return try await storageManager.list()
-                .filter { file in Self.matches(key: file, prefix: prefix, scope: scope) }
-                .asyncMap { file in
-                    guard let contents = try await storageManager.get(key: file)
-                    else {
-                        throw CredentialPackError.missing(file: file)
-                    }
-                    return try CredentialPackContents(fromBytes: contents)
-                }
+            files = try await storageManager.list()
+        } catch let error as CancellationError {
+            throw error
         } catch {
             throw CredentialPackError.listing(reason: error)
         }
+
+        var packs: [CredentialPackContents] = []
+        for file in files where Self.matches(key: file, prefix: prefix, scope: scope) {
+            // Log the pack id only: a scoped key embeds the scope (a user hash).
+            let packId = file.dropFirst(prefix.count)
+            do {
+                guard let contents = try await storageManager.get(key: file)
+                else {
+                    print("skipping CredentialPack '\(packId)': listed but missing from storage")
+                    continue
+                }
+                packs.append(try CredentialPackContents(fromBytes: contents))
+            } catch {
+                try rethrowIfCancelled(error)
+                print("skipping CredentialPack '\(packId)' that could not be loaded: \(errorType(error))")
+            }
+        }
+        return packs
     }
 
     /// Prefix match with legacy-mode exclusion of scoped keys.
@@ -840,6 +908,24 @@ public struct CredentialPackContents {
             throw CredentialPackError.removing(reason: error)
         }
     }
+}
+
+/// Rethrows when the current task was cancelled, so that skipping a bad entry never hides a cancellation.
+private func rethrowIfCancelled(_ error: Error) throws {
+    if error is CancellationError {
+        throw error
+    }
+    try Task.checkCancellation()
+}
+
+/// Describes an error for logging by its type, plus the enum case when the case has associated
+/// values. The associated values themselves are never logged: they may hold storage keys or
+/// credential contents.
+private func errorType(_ error: Error) -> String {
+    let type = String(reflecting: Swift.type(of: error))
+    let mirror = Mirror(reflecting: error)
+    guard mirror.displayStyle == .enum, let label = mirror.children.first?.label else { return type }
+    return "\(type).\(label)"
 }
 
 enum CredentialPackError: Error, Sendable {
