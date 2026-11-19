@@ -70,11 +70,17 @@ feature-depth = 1
 # A list of advisory IDs to ignore. Note that ignored advisories will still
 # output a note when they are encountered.
 ignore = [
-    #"RUSTSEC-0000-0000",
-    #{ id = "RUSTSEC-0000-0000", reason = "you can specify a reason the advisory is ignored" },
-    #"a-crate-that-is-yanked@0.1.1", # you can also ignore yanked crate versions if you wish
-    #{ crate = "a-crate-that-is-yanked@0.1.1", reason = "you can specify why you are ignoring the yanked crate" },
+    # Each entry needs a reason and an upgrade path. Remove the entry when the
+    # upgrade lands; cargo-deny warns about an ignore that no longer matches.
+    { id = "RUSTSEC-2023-0071", reason = "rsa 0.6 (Marvin attack) comes in through ssi-jwk. The attack needs RSA private-key operations, and this SDK holds no RSA private keys: RS256 is only verified. The fix is rsa 0.10, which needs an ssi-jwk upgrade upstream." },
+    { id = "RUSTSEC-2026-0387", reason = "crypto-bigint 0.3 (through rsa 0.6) and 0.5 (through elliptic-curve 0.13). The 0.3 path has the same scope as RUSTSEC-2023-0071. The 0.5 path reaches p256: device keys sign in the platform key store, not in Rust, but isomdl session ECDH and the generate_test_* issuer keys use it. The fix is crypto-bigint 0.7, which needs elliptic-curve 0.14 in isomdl, ssi and josekit." },
+    { id = "RUSTSEC-2026-0187", reason = "lopdf 0.31 comes in through printpdf 0.7. The stack overflow is in PDF parsing, and the SDK only writes PDFs (src/pdf). The fix is lopdf 0.42 or later, which needs printpdf 0.11 or later. printpdf 0.8 replaced the layer API that src/pdf/render.rs uses, so the upgrade is a rewrite of the renderer." },
+    { id = "RUSTSEC-2026-0543", reason = "chrono is unmaintained. The SDK uses it in src/credential/activity_log.rs only, but 17 upstream crates also pull it in. A move to time changes the RFC 3339 offset in ActivityLogEntry.date from +00:00 to Z, so it needs its own change." },
+    { id = "RUSTSEC-2021-0127", reason = "serde_cbor is unmaintained. The SDK uses it in 5 files (27 uses); the replacement is ciborium, which isomdl already uses. This needs its own change." },
 ]
+# Report unmaintained crates only when a workspace crate depends on them
+# directly. A transitive one can only be replaced upstream.
+unmaintained = "workspace"
 # If this is true, then cargo deny will use the git executable to fetch advisory database.
 # If this is false, then it uses a built-in git library.
 # Setting this to true can be helpful if you have special authentication requirements that cargo-deny does not support.

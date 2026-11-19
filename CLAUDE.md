@@ -36,6 +36,8 @@ The `spelling` job runs `typos` over the Showcase apps and the Flutter example t
 
 `RUSTFLAGS="-Dwarnings"` is set globally -- all Rust warnings are errors in CI.
 
+The `rust` job also runs `cargo deny check advisories`. Each ignore in `rust/deny.toml` `[advisories]` needs a reason and an upgrade path. The separate `pr-template` workflow fails a PR whose description does not answer the breaking-change and security questions of `.github/pull_request_template.md`. Dependabot (`.github/dependabot.yml`) opens weekly update PRs, but it does not touch the SpruceID git dependencies.
+
 ## Dependency License Checks
 
 All layers enforce that dependency licenses are in an allowlist of permissive licenses. The canonical allowlist is in `rust/deny.toml` under `[licenses] allow`. It is duplicated in:
