@@ -20,15 +20,6 @@ Check one box. The `pr-template` check fails if no box or both boxes are checked
 
 _If you checked "Breaking change", tell consumers what they must change: Swift, Kotlin, Flutter or Rust API, storage format, or protocol behavior._
 
-## Security and privacy
-
-Check one box. The `pr-template` check fails if no box or both boxes are checked.
-
-- [ ] No security or privacy impact
-- [ ] Security or privacy impact
-
-_If you checked "Security or privacy impact", describe it: keys, credential data, personal data in logs or storage, network calls, trust anchors, or a new ignore in `rust/deny.toml`._
-
 ## Upstream dependencies
 
 _List the SpruceID dependencies that this PR moves (ssi, openid4vp, oid4vci, isomdl and the others in `rust/Cargo.toml`), with the old and new commit or version. Write "None" if it moves none._

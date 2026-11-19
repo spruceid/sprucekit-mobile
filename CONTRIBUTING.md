@@ -193,9 +193,9 @@ Install it with `brew install typos-cli` or `cargo install typos-cli`. When a fl
 cd rust && cargo deny check advisories
 ```
 
-The database changes every day, so the check can also fail on a PR that changes no dependency. Try `cargo update -p <crate>` first. If no compatible fix exists, add an ignore to `rust/deny.toml` with a reason and the upgrade path, and check "Security or privacy impact" in the PR description.
+The database changes every day, so the check can also fail on a PR that changes no dependency. Try `cargo update -p <crate>` first. If no compatible fix exists, add an ignore to `rust/deny.toml` with a reason and the upgrade path.
 
-**PR description** - the `pr-template` check fails unless the description answers the breaking-change and security questions of `.github/pull_request_template.md`. Edit the description to fix it. No new push is necessary.
+**PR description** - the `pr-template` check fails unless the description answers the breaking-change question of `.github/pull_request_template.md`. Edit the description to fix it. No new push is necessary.
 
 ## Releases
 

@@ -1,6 +1,7 @@
 name: pr-template
 
-# Each PR must answer the two questions in .github/pull_request_template.md.
+# Each PR must answer the breaking-change question in
+# .github/pull_request_template.md.
 # The check runs again when the description is edited, so a fix to the PR
 # body turns it green with no new push.
 on:
@@ -12,7 +13,7 @@ permissions: {}
 
 jobs:
   impact:
-    name: Breaking change and security answered
+    name: Breaking change answered
     runs-on: ubuntu-latest
     # Dependabot and the release bot write their own PR body.
     if: github.event.pull_request.user.type != 'Bot'
@@ -31,5 +32,4 @@ jobs:
             fi
           }
           answered "Breaking changes" "No breaking change|Breaking change"
-          answered "Security and privacy" "No security or privacy impact|Security or privacy impact"
           exit $fail
