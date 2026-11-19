@@ -187,6 +187,16 @@ Install it with `brew install typos-cli` or `cargo install typos-cli`. When a fl
 
 **Native library size** — the `rust` CI job fails if OpenSSL or `native-tls` is in the Android or iOS dependency graph, and warns if `reqwest`, `hyper`, `h2`, `http` or `rustls` is there in two versions. After a dependency change, run `rust/scripts/check-deps.sh` (a few seconds, no build). The `size-report` job compares the release library sizes (Android arm64 `.so`, iOS device `.a`) with `main` in its job summary: it warns above +1% or +100 KB (100,000 B). It doesn't fail the build unless `SIZE_FAIL_PCT` is set. The thresholds are in `.github/workflows/ci.yml`.
 
+**Security advisories** - the `rust` CI job runs `cargo deny check advisories` against the RustSec database. Run it after a dependency change:
+
+```bash
+cd rust && cargo deny check advisories
+```
+
+The database changes every day, so the check can also fail on a PR that changes no dependency. Try `cargo update -p <crate>` first. If no compatible fix exists, add an ignore to `rust/deny.toml` with a reason and the upgrade path.
+
+**PR description** - the `pr-template` check fails unless the description answers the breaking-change question of `.github/pull_request_template.md`. Edit the description to fix it. No new push is necessary.
+
 ## Releases
 
 ### SDKs

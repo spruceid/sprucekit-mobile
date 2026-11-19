@@ -1,0 +1,35 @@
+name: pr-template
+
+# Each PR must answer the breaking-change question in
+# .github/pull_request_template.md.
+# The check runs again when the description is edited, so a fix to the PR
+# body turns it green with no new push.
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, reopened, synchronize]
+
+permissions: {}
+
+jobs:
+  impact:
+    name: Breaking change answered
+    runs-on: ubuntu-latest
+    # Dependabot and the release bot write their own PR body.
+    if: github.event.pull_request.user.type != 'Bot'
+    steps:
+      - name: Check the PR description
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          fail=0
+          # $1: question name. $2: regex for the two answer labels.
+          answered() {
+            n=$(printf '%s\n' "$BODY" | grep -ciE "^[[:space:]]*[-*] \[x\] ($2)" || true)
+            if [ "$n" -ne 1 ]; then
+              echo "::error::Check exactly one box under \"$1\" in the PR description ($n checked)."
+              fail=1
+            fi
+          }
+          answered "Breaking changes" "No breaking change|Breaking change"
+          exit $fail

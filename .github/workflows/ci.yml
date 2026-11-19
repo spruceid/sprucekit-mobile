@@ -63,6 +63,9 @@ jobs:
       - name: Check dependencies licences are compatible
         run: cargo deny check licenses
 
+      - name: Check dependencies for security advisories
+        run: cargo deny check advisories
+
   ios:
     runs-on: macos-15 # macos-latest is currently macos-14 and we need iOS 18.2
     if: github.actor != 'sprucekit-mobile-monorepo[bot]' # not running CI on release commits
