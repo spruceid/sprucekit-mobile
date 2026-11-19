@@ -375,6 +375,12 @@ impl PermissionRequest {
             .into());
         }
 
+        self.ensure_multiple_allowed(
+            selected_credentials
+                .iter()
+                .map(|credential| credential.credential_query_id.as_str()),
+        )?;
+
         let (selected_credentials, vp_token_map) = self
             .build_stored_vp_token(selected_credentials, selected_fields, &response_options)
             .await?;
@@ -429,6 +435,18 @@ impl PermissionRequest {
             )
             .into());
         }
+
+        // Offers share the queries' `vp_token` entries, so they count too.
+        self.ensure_multiple_allowed(
+            selected_credentials
+                .iter()
+                .map(|credential| credential.credential_query_id.as_str())
+                .chain(
+                    selected_offers
+                        .iter()
+                        .map(|offer| offer.credential_query_id.as_str()),
+                ),
+        )?;
 
         // Build the stored-credential vp_token exactly like the existing path.
         let (selected_credentials, mut vp_token_map) = self
@@ -657,7 +675,18 @@ impl PermissionRequest {
             context_map: self.context_map.clone(),
             response_options,
             keystore: self.keystore.clone(),
+            require_holder_binding: true,
+            query_has_claims: true,
         }
+    }
+
+    fn ensure_multiple_allowed<'a>(
+        &self,
+        credential_query_ids: impl Iterator<Item = &'a str>,
+    ) -> Result<(), OID4VPError> {
+        self.dcql_query
+            .check_multiple(credential_query_ids)
+            .map_err(|e| PermissionRequestError::CredentialPresentation(e.to_string()).into())
     }
 
     /// Apply the selected fields to the selected stored credentials and build
@@ -695,8 +724,16 @@ impl PermissionRequest {
 
         for cred in &selected_credentials {
             // Each credential's presentation is signed with its own key.
-            let options =
+            let mut options =
                 self.presentation_options(cred.resolve_key_id(&self.key_id), response_options);
+            options.require_holder_binding = self
+                .dcql_query
+                .requires_holder_binding(&cred.credential_query_id)
+                .map_err(|e| PermissionRequestError::CredentialPresentation(e.to_string()))?;
+            options.query_has_claims = self
+                .dcql_query
+                .credential_query(&cred.credential_query_id)
+                .is_some_and(|query| query.claims().is_some());
 
             let token_item = cred.as_vp_token(&options).await?;
             vp_token_map

@@ -7,6 +7,7 @@ pub mod holder;
 pub mod iso_18013_7;
 pub mod permission_request;
 pub mod presentation;
+pub(crate) mod type_values;
 pub mod verifier;
 
 use serde_json::Value;
@@ -419,3 +420,5 @@ mod tests {
         assert_eq!(get_oid4vp_version(request.into()), Oid4vpVersion::V1);
     }
 }
+#[cfg(test)]
+mod dcql_matching_tests;
