@@ -1,5 +1,6 @@
 pub(crate) mod client_auth;
 pub mod dc_api;
+pub mod dcql_claims;
 pub mod draft18;
 pub mod dynamic_credential;
 pub mod error;

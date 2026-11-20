@@ -82,9 +82,15 @@ pub trait CredentialPresentation {
             return false;
         }
 
-        // For now, if the format matches, we consider it a match.
-        // More sophisticated matching (e.g., checking meta.vct_values) can be added later.
-        true
+        let Ok(json) = serde_json::to_value(self.credential()) else {
+            return false;
+        };
+        let root = match cred_format {
+            ClaimFormatDesignation::JwtVcJson => json.get("vc").cloned().unwrap_or(json),
+            _ => json,
+        };
+
+        super::dcql_claims::claim_values_satisfied(credential_query, &root)
     }
 
     /// Return the requested fields from the credential matching
