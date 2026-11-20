@@ -10,8 +10,35 @@ use ssi::{
 use super::{CredentialFormat, RawCredential};
 
 /// Verifies the signature of a raw credential.
-#[uniffi::export]
+///
+/// Resolving the issuer's DID can make network requests (e.g. `did:web`),
+/// which need a Tokio runtime, and JSON-LD canonicalization recurses deeply
+/// enough to overflow a small thread stack. Both are handled here by running
+/// the verification on a dedicated big-stack thread with its own runtime, so
+/// callers need neither.
+#[uniffi::export(async_runtime = "tokio")]
 pub async fn verify_raw_credential(
+    credential: &RawCredential,
+    context_map: Option<HashMap<String, String>>,
+) -> Result<Verification, VerificationError> {
+    let credential = RawCredential {
+        format: credential.format.clone(),
+        payload: credential.payload.clone(),
+    };
+
+    crate::big_stack::run_async(move || async move {
+        verify_raw_credential_on_runtime(&credential, context_map).await
+    })
+    .await
+    .map_err(|e| {
+        VerificationError::ProofValidation(ssi::claims::ProofValidationError::Other(format!(
+            "verification worker failed: {e}"
+        )))
+    })?
+}
+
+/// [`verify_raw_credential`]'s body. Must run inside a Tokio runtime.
+async fn verify_raw_credential_on_runtime(
     credential: &RawCredential,
     context_map: Option<HashMap<String, String>>,
 ) -> Result<Verification, VerificationError> {
@@ -143,5 +170,62 @@ impl Verification {
 impl From<ssi::claims::Verification> for Verification {
     fn from(value: ssi::claims::Verification) -> Self {
         Self(value)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// An `ldp_vc` whose proof names a `did:web` that can never resolve
+    /// (`.invalid` is reserved by RFC 2606).
+    const UNRESOLVABLE_DID_WEB_VC: &str = r#"{
+        "@context": [
+            "https://www.w3.org/ns/credentials/v2",
+            {
+                "WalletAuthorization": "https://example.invalid/schema/WalletAuthorization",
+                "authorization": {
+                    "@id": "https://example.invalid/schema/authorization",
+                    "@type": "@vocab",
+                    "@container": "@set"
+                },
+                "SSA": "https://example.invalid/schema/SSA"
+            }
+        ],
+        "type": ["VerifiableCredential", "WalletAuthorization"],
+        "name": "Wallet Authorization",
+        "issuer": { "id": "did:web:example.invalid", "name": "Issuer" },
+        "credentialSubject": { "authorization": ["SSA"] },
+        "validFrom": "2026-08-27T14:38:06.174156Z",
+        "validUntil": "2027-08-27T14:38:06.174156Z",
+        "proof": {
+            "type": "DataIntegrityProof",
+            "cryptosuite": "ecdsa-rdfc-2019",
+            "created": "2026-08-27T14:38:46.561Z",
+            "proofPurpose": "assertionMethod",
+            "verificationMethod": "did:web:example.invalid#key-1",
+            "proofValue": "z5JSPDAnrtZN7pzDjz8DXZrNBWwAz6QJHh9zRrUv1SaopCoUTAKzsDhYFsScmwXRFRhwv7J8JeRFqkgkfEtsXFAWK"
+        }
+    }"#;
+
+    /// Mobile apps poll exported futures on their own executors, with no Tokio
+    /// runtime. Resolving a `did:web` goes through async `reqwest`, which
+    /// panics outside one ("there is no reactor running"). Verification of
+    /// this credential has to fail, but as an error, not a panic.
+    #[test]
+    fn verify_raw_credential_runs_without_a_caller_runtime() {
+        let credential = RawCredential {
+            format: CredentialFormat::LdpVc,
+            payload: UNRESOLVABLE_DID_WEB_VC.as_bytes().to_vec(),
+        };
+
+        // `futures`' executor provides no Tokio runtime, like the Swift and
+        // Kotlin executors that poll this function in the apps.
+        let result = futures::executor::block_on(verify_raw_credential(&credential, None));
+
+        assert!(
+            result.as_ref().map(|v| !v.is_verified()).unwrap_or(true),
+            "an unresolvable issuer must not verify"
+        );
     }
 }

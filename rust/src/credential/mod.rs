@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{borrow::Cow, sync::Arc};
 
 use crate::{
     crypto::KeyAlias,
@@ -15,9 +15,10 @@ use json_vc::{JsonVc, JsonVcEncodingError, JsonVcInitError};
 use jwt_vc::{JwtVc, JwtVcInitError};
 use mdoc::{Mdoc, MdocEncodingError, MdocInitError};
 use openid4vp::core::{
-    dcql_query::{DcqlCredentialQuery, DcqlQuery},
+    dcql_query::{DcqlCredentialClaimsQuery, DcqlCredentialQuery, DcqlQuery},
     response::parameters::VpTokenItem,
 };
+use openid4vp::utils::NonEmptyVec;
 use optical_barcode_credential::{OpticalBarcodeCred, OpticalBarcodeCredError};
 use serde::{Deserialize, Serialize};
 use status::BitStringStatusListResolver;
@@ -89,6 +90,31 @@ pub(crate) enum ParsedCredentialInner {
     OpticalBarcodeCredential(Arc<OpticalBarcodeCred>),
 }
 
+/// The per-credential signing key alias carried by a parsed credential, if any.
+/// mdoc is always device-bound so it always has one; issuer-signed non-mdoc
+/// formats may be keyless (`None`), in which case presentation falls back to
+/// the holder's shared key.
+pub(crate) fn key_alias_of(inner: &ParsedCredentialInner) -> Option<KeyAlias> {
+    match inner {
+        ParsedCredentialInner::MsoMdoc(arc) => Some(arc.key_alias()),
+        ParsedCredentialInner::JwtVcJson(arc) => arc.key_alias(),
+        ParsedCredentialInner::JwtVcJsonLd(arc) => arc.key_alias(),
+        ParsedCredentialInner::LdpVc(arc) => arc.key_alias(),
+        ParsedCredentialInner::VCDM2SdJwt(arc) => arc.key_alias(),
+        ParsedCredentialInner::DcSdJwt(arc) => arc.key_alias(),
+        ParsedCredentialInner::Cwt(arc) => arc.key_alias(),
+        ParsedCredentialInner::OpticalBarcodeCredential(arc) => arc.key_alias(),
+    }
+}
+
+/// Resolve the signing key id from an optional per-credential alias, falling
+/// back to the holder's shared key for legacy credentials stored without one.
+pub(crate) fn resolve_key_id(alias: Option<KeyAlias>, fallback: &str) -> String {
+    alias
+        .map(|alias| alias.0)
+        .unwrap_or_else(|| fallback.to_string())
+}
+
 #[uniffi::export]
 impl PresentableCredential {
     /// Converts to the primitive ParsedCredential type
@@ -98,8 +124,10 @@ impl PresentableCredential {
         })
     }
 
-    /// Return if the credential supports selective disclosure
-    /// SD-JWT formats support selective disclosure
+    /// Return if the credential supports selective disclosure.
+    ///
+    /// SD-JWT formats always do; `ldp_vc` does when the credential carries an
+    /// `ecdsa-sd-2023` base proof to derive presentations from.
     pub fn selective_disclosable(&self) -> bool {
         match &self.inner {
             ParsedCredentialInner::MsoMdoc(_) => false,
@@ -107,7 +135,7 @@ impl PresentableCredential {
             ParsedCredentialInner::JwtVcJsonLd(_) => false,
             ParsedCredentialInner::VCDM2SdJwt(_) => true,
             ParsedCredentialInner::DcSdJwt(_) => true,
-            ParsedCredentialInner::LdpVc(_) => false,
+            ParsedCredentialInner::LdpVc(vc) => vc.selective_disclosable(),
             ParsedCredentialInner::Cwt(_) => false,
             ParsedCredentialInner::OpticalBarcodeCredential(_) => false,
         }
@@ -116,6 +144,19 @@ impl PresentableCredential {
     /// Return true if the credential is an mdoc (mso_mdoc format).
     pub fn is_mdoc(&self) -> bool {
         matches!(&self.inner, ParsedCredentialInner::MsoMdoc(_))
+    }
+}
+
+impl PresentableCredential {
+    /// The per-credential signing key alias, if this credential was stored with one.
+    pub(crate) fn key_alias(&self) -> Option<KeyAlias> {
+        key_alias_of(&self.inner)
+    }
+
+    /// Resolve this credential's signing key id, falling back to the holder's
+    /// shared key when it has no per-credential alias.
+    pub(crate) fn resolve_key_id(&self, fallback: &str) -> String {
+        resolve_key_id(self.key_alias(), fallback)
     }
 }
 
@@ -397,16 +438,7 @@ impl ParsedCredential {
 
     /// Get the key alias for this credential.
     pub fn key_alias(&self) -> Option<KeyAlias> {
-        match &self.inner {
-            ParsedCredentialInner::MsoMdoc(arc) => Some(arc.key_alias()),
-            ParsedCredentialInner::JwtVcJson(arc) => arc.key_alias(),
-            ParsedCredentialInner::JwtVcJsonLd(arc) => arc.key_alias(),
-            ParsedCredentialInner::LdpVc(arc) => arc.key_alias(),
-            ParsedCredentialInner::VCDM2SdJwt(arc) => arc.key_alias(),
-            ParsedCredentialInner::DcSdJwt(arc) => arc.key_alias(),
-            ParsedCredentialInner::Cwt(arc) => arc.key_alias(),
-            ParsedCredentialInner::OpticalBarcodeCredential(arc) => arc.key_alias(),
-        }
+        key_alias_of(&self.inner)
     }
 
     /// Return the CredentialType from the parsed credential.
@@ -503,7 +535,10 @@ impl PresentableCredential {
             ParsedCredentialInner::JwtVcJson(vc) | ParsedCredentialInner::JwtVcJsonLd(vc) => {
                 vc.as_vp_token_item(options, None).await
             }
-            ParsedCredentialInner::LdpVc(vc) => vc.as_vp_token_item(options, None).await,
+            ParsedCredentialInner::LdpVc(vc) => {
+                vc.as_vp_token_item(options, self.selected_fields.clone())
+                    .await
+            }
             ParsedCredentialInner::MsoMdoc(mdoc) => {
                 mdoc.as_vp_token_item(options, self.selected_fields.clone())
                     .await
@@ -528,7 +563,7 @@ impl PresentableCredential {
 impl ParsedCredential {
     /// Check if the credential satisfies a DCQL credential query.
     pub fn satisfies_dcql_query(&self, credential_query: &DcqlCredentialQuery) -> bool {
-        match &self.inner {
+        let format_and_meta = match &self.inner {
             ParsedCredentialInner::JwtVcJson(vc) => vc.satisfies_dcql_query(credential_query),
             ParsedCredentialInner::JwtVcJsonLd(vc) => vc.satisfies_dcql_query(credential_query),
             ParsedCredentialInner::LdpVc(vc) => vc.satisfies_dcql_query(credential_query),
@@ -539,6 +574,87 @@ impl ParsedCredential {
             ParsedCredentialInner::MsoMdoc(mdoc) => mdoc.satisfies_dcql_query(credential_query),
             ParsedCredentialInner::Cwt(_cwt) => false,
             ParsedCredentialInner::OpticalBarcodeCredential(_) => false,
+        };
+
+        format_and_meta && self.satisfies_claims_query(credential_query)
+    }
+
+    fn satisfies_claims_query(&self, credential_query: &DcqlCredentialQuery) -> bool {
+        self.select_claims_query(credential_query).is_some()
+    }
+
+    fn select_claims_query<'q>(
+        &self,
+        credential_query: &'q DcqlCredentialQuery,
+    ) -> Option<Vec<&'q DcqlCredentialClaimsQuery>> {
+        let id = self.id();
+
+        if let ParsedCredentialInner::MsoMdoc(mdoc) = &self.inner {
+            return credential_query.select_claims(|claim| {
+                let has = claim
+                    .mdoc_path()
+                    .map(|(namespace, element)| mdoc.has_element(namespace, element));
+                if !matches!(has, Ok(true)) {
+                    log::debug!("credential {id} lacks claim {:?}: {has:?}", claim.path());
+                }
+                matches!(has, Ok(true))
+            });
+        }
+
+        let credential = self.claims_json()?;
+
+        credential_query.select_claims(|claim| {
+            claim
+                .is_satisfied_by_json(&credential)
+                .inspect_err(|e| {
+                    log::debug!(
+                        "credential {id} does not satisfy claim {:?}: {e}",
+                        claim.path()
+                    )
+                })
+                .is_ok()
+        })
+    }
+
+    fn narrow_to_claim_set(
+        &self,
+        credential_query: &DcqlCredentialQuery,
+    ) -> Option<DcqlCredentialQuery> {
+        credential_query.claim_sets()?;
+        let selected = self.select_claims_query(credential_query)?;
+        let mut narrowed = credential_query.clone();
+        narrowed.set_claims(NonEmptyVec::maybe_new(
+            selected.into_iter().cloned().collect(),
+        ));
+        narrowed.set_claim_sets(None);
+        Some(narrowed)
+    }
+
+    /// The JSON claims path pointers apply to (OID4VP 1.0 §7.1):
+    /// [`Self::w3c_vc_json`], or the disclosed SD-JWT VC claims.
+    fn claims_json(&self) -> Option<Cow<'_, serde_json::Value>> {
+        match &self.inner {
+            ParsedCredentialInner::DcSdJwt(sd_jwt) => Some(Cow::Borrowed(&sd_jwt.claims)),
+            _ => self.w3c_vc_json(),
+        }
+    }
+
+    /// The W3C VCDM credential (for a JWT VC, its `vc` claim), which
+    /// `type_values` and claims path pointers apply to (OID4VP 1.0 Appendix
+    /// B.1.1, B.1.2).
+    pub(crate) fn w3c_vc_json(&self) -> Option<Cow<'_, serde_json::Value>> {
+        match &self.inner {
+            ParsedCredentialInner::LdpVc(vc) => Some(Cow::Borrowed(&vc.raw)),
+            ParsedCredentialInner::JwtVcJson(vc) | ParsedCredentialInner::JwtVcJsonLd(vc) => {
+                vc.vc_claim().map(Cow::Borrowed)
+            }
+            ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => {
+                sd_jwt.revealed_claims_as_json().ok().map(Cow::Owned)
+            }
+            ParsedCredentialInner::DcSdJwt(_)
+            | ParsedCredentialInner::MsoMdoc(_)
+            | ParsedCredentialInner::Cwt(_)
+            | ParsedCredentialInner::OpticalBarcodeCredential(_) => None,
         }
     }
 
@@ -557,6 +673,9 @@ impl ParsedCredential {
         let Some(credential_query) = credential_query else {
             return vec![];
         };
+
+        let narrowed = self.narrow_to_claim_set(credential_query);
+        let credential_query = narrowed.as_ref().unwrap_or(credential_query);
 
         match &self.inner {
             ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => {

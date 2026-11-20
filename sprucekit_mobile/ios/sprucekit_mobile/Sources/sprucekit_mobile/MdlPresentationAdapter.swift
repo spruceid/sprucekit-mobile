@@ -1,0 +1,225 @@
+import Flutter
+import Foundation
+import SpruceIDMobileSdk
+import SpruceIDMobileSdkRs
+
+/// Adapter implementing the MdlPresentation Pigeon protocol
+class MdlPresentationAdapter: NSObject, MdlPresentation {
+    private let credentialPackAdapter: CredentialPackAdapter
+    private var presentationManager: MdocProximityPresentationManager?
+    /// The delegate of `presentationManager`. Callbacks from the delegates of replaced managers are ignored.
+    private var presentationDelegate: PresentationDelegate?
+    private var flutterCallback: MdlPresentationCallback?
+    private var currentState: MdlPresentationStateUpdate = MdlPresentationStateUpdate(state: .uninitialized)
+    private var currentRequest: MdocProximityPresentationManager.Request?
+
+    init(credentialPackAdapter: CredentialPackAdapter) {
+        self.credentialPackAdapter = credentialPackAdapter
+        super.init()
+    }
+
+    func setCallback(_ callback: MdlPresentationCallback) {
+        self.flutterCallback = callback
+    }
+
+    func initializeQrPresentation(
+        packId: String,
+        credentialId: String,
+        completion: @escaping (Result<MdlPresentationResult, Error>) -> Void
+    ) {
+        // Cancel any existing session
+        presentationManager?.disconnect()
+        presentationManager = nil
+        presentationDelegate = nil
+        currentRequest = nil
+
+        // Get the credential pack
+        guard let pack = credentialPackAdapter.getNativePack(packId: packId) else {
+            completion(.success(MdlPresentationError(message: "Credential pack not found: \(packId)")))
+            return
+        }
+
+        // Get the credential and extract the mDoc
+        guard let credential = pack.get(credentialId: credentialId),
+              let mdoc = credential.asMsoMdoc() else {
+            completion(.success(MdlPresentationError(message: "mDL credential not found: \(credentialId)")))
+            return
+        }
+
+        // Create the delegate
+        let delegate = PresentationDelegate(adapter: self)
+        presentationDelegate = delegate
+
+        // Create the presentation manager
+        presentationManager = MdocProximityPresentationManager(
+            mdoc: mdoc,
+            delegate: delegate,
+            engagement: .QRCode,
+            transmissionModes: [
+                .bleMdocCentralMode(.disableL2CAP),
+                .bleMdocPeripheralMode(.disableL2CAP)
+            ]
+        )
+
+        updateState(MdlPresentationStateUpdate(state: .initializing))
+        completion(.success(MdlPresentationSuccess(message: "Presentation initialized")))
+    }
+
+    /// The plugin does not implement NFC engagement on iOS. The Dart side
+    /// starts in QR when this is false.
+    func isNfcPresentationAvailable() throws -> Bool {
+        return false
+    }
+
+    func getNfcAvailability() throws -> MdlNfcAvailability {
+        return .unsupportedPlatform
+    }
+
+    func initializeNfcPresentation(
+        packId: String,
+        credentialId: String,
+        completion: @escaping (Result<MdlPresentationResult, Error>) -> Void
+    ) {
+        completion(.success(MdlPresentationError(message: "NFC presentation is not supported on iOS")))
+    }
+
+    func getQrCodeUri() throws -> String? {
+        return currentState.qrCodeUri
+    }
+
+    func getCurrentState() throws -> MdlPresentationStateUpdate {
+        return currentState
+    }
+
+    func submitNamespaces(
+        selectedNamespaces: [String: [String: [String]]],
+        completion: @escaping (Result<MdlPresentationResult, Error>) -> Void
+    ) {
+        guard let request = currentRequest else {
+            completion(.success(MdlPresentationError(message: "No pending request to respond to")))
+            return
+        }
+
+        // Check if any fields are selected
+        let hasSelectedFields = selectedNamespaces.values.contains { docTypeNamespaces in
+            docTypeNamespaces.values.contains { fields in !fields.isEmpty }
+        }
+
+        if !hasSelectedFields {
+            completion(.success(MdlPresentationError(message: "Select at least one attribute to share")))
+            return
+        }
+
+        // Submit the response
+        updateState(MdlPresentationStateUpdate(state: .sendingResponse))
+        request.approve(items: selectedNamespaces)
+        currentRequest = nil
+
+        completion(.success(MdlPresentationSuccess(message: "Response submitted")))
+    }
+
+    func cancel() throws {
+        presentationManager?.disconnect()
+        presentationManager = nil
+        presentationDelegate = nil
+        currentRequest = nil
+        updateState(MdlPresentationStateUpdate(state: .uninitialized))
+    }
+
+    // MARK: - Internal methods
+
+    fileprivate func isCurrent(_ delegate: PresentationDelegate) -> Bool {
+        presentationDelegate === delegate
+    }
+
+    fileprivate func updateState(_ state: MdlPresentationStateUpdate) {
+        currentState = state
+        flutterCallback?.onStateChange(update: state) { _ in }
+    }
+
+    fileprivate func handleRequest(_ request: MdocProximityPresentationManager.Request) {
+        currentRequest = request
+
+        // Convert ItemsRequest to MdlItemsRequest
+        let mdlItemsRequests = request.items.map { itemsRequest -> MdlItemsRequest in
+            let namespaceRequests = itemsRequest.namespaces.map { (namespace, fields) -> MdlNamespaceRequest in
+                let items = fields.map { (fieldName, intentToRetain) -> MdlNamespaceItem in
+                    MdlNamespaceItem(name: fieldName, intentToRetain: intentToRetain)
+                }
+                return MdlNamespaceRequest(namespace: namespace, items: items)
+            }
+            return MdlItemsRequest(docType: itemsRequest.docType, namespaces: namespaceRequests)
+        }
+
+        updateState(MdlPresentationStateUpdate(
+            state: .selectingNamespaces,
+            itemsRequests: mdlItemsRequests
+        ))
+    }
+}
+
+/// Delegate for receiving presentation state updates
+private class PresentationDelegate: MdocProximityPresentationManager.Delegate {
+    private weak var adapter: MdlPresentationAdapter?
+
+    init(adapter: MdlPresentationAdapter) {
+        self.adapter = adapter
+    }
+
+    func connectionState(changedTo state: MdocProximityPresentationManager.State) {
+        guard let current = adapter, current.isCurrent(self) else { return }
+        switch state {
+        case .initializing:
+            adapter?.updateState(MdlPresentationStateUpdate(state: .initializing))
+
+        case let .action(required: action):
+            // Handle required actions (e.g., enable Bluetooth)
+            switch action {
+            case .turnOnBluetooth:
+                adapter?.updateState(MdlPresentationStateUpdate(state: .bluetoothRequired))
+            case .authorizeBluetoothForApp:
+                adapter?.updateState(MdlPresentationStateUpdate(state: .bluetoothAuthorizationRequired))
+            }
+
+        case let .connecting(qrPayload: data):
+            if let qrString = String(data: data, encoding: .ascii) {
+                adapter?.updateState(MdlPresentationStateUpdate(
+                    state: .engagingQrCode,
+                    qrCodeUri: qrString
+                ))
+            }
+
+        case .connectingViaNfc:
+            // Not emitted by this adapter. Kept for exhaustiveness.
+            adapter?.updateState(MdlPresentationStateUpdate(state: .initializing))
+
+        case .connected:
+            adapter?.updateState(MdlPresentationStateUpdate(state: .connected))
+
+        case .receivingRequest:
+            // Still waiting for full request
+            break
+
+        case let .receivedRequest(request: request):
+            adapter?.handleRequest(request)
+
+        case .sendingResponse:
+            adapter?.updateState(MdlPresentationStateUpdate(state: .sendingResponse))
+
+        case .sentResponse:
+            adapter?.updateState(MdlPresentationStateUpdate(state: .success))
+
+        case .requestDismissed:
+            adapter?.updateState(MdlPresentationStateUpdate(state: .uninitialized))
+
+        case .readerDisconnected:
+            adapter?.updateState(MdlPresentationStateUpdate(state: .readerDisconnected))
+
+        case .error:
+            adapter?.updateState(MdlPresentationStateUpdate(
+                state: .error,
+                error: "An error occurred during presentation"
+            ))
+        }
+    }
+}

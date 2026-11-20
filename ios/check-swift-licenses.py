@@ -93,9 +93,9 @@ def check_podspec_deps() -> bool:
     print()
     print("=== Checking CocoaPods podspec dependencies ===")
 
-    # Collect podspec files from repo root and flutter/ios/
+    # Collect podspec files from repo root and sprucekit_mobile/ios/
     podspec_files = list(REPO_ROOT.glob("*.podspec"))
-    flutter_ios = REPO_ROOT / "flutter" / "ios"
+    flutter_ios = REPO_ROOT / "sprucekit_mobile" / "ios"
     if flutter_ios.exists():
         podspec_files.extend(flutter_ios.glob("*.podspec"))
 

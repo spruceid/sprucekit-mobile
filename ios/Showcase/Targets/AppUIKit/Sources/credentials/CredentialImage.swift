@@ -5,7 +5,7 @@ struct CredentialImage: View {
     var image: String
 
     var body: some View {
-        if image.contains("https://") {
+        if image.isRemoteImageUrl {
             return AnyView(
                 AsyncImage(url: URL(string: image)) { image in
                     image

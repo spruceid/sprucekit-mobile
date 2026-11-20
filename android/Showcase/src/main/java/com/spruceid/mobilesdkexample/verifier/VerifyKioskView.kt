@@ -100,13 +100,15 @@ import com.spruceid.mobilesdkexample.utils.checkAndRequestBluetoothPermissions
 import com.spruceid.mobilesdkexample.viewmodels.TrustedCertificatesViewModel
 import kotlinx.coroutines.launch
 
-val kioskElements: Map<String, Map<String, Boolean>> = mapOf(
-    "org.iso.18013.5.1" to mapOf(
-        "family_name" to false,
-        "given_name" to false,
-        "birth_date" to false,
-        "issue_date" to false,
-        "expiry_date" to false,
+val kioskElements: Map<String, Map<String, Map<String, Boolean>>> = mapOf(
+    MDL_DOC_TYPE to mapOf(
+        "org.iso.18013.5.1" to mapOf(
+            "family_name" to false,
+            "given_name" to false,
+            "birth_date" to false,
+            "issue_date" to false,
+            "expiry_date" to false,
+        )
     )
 )
 
@@ -180,7 +182,7 @@ fun VerifyKioskView(navController: NavController) {
                     kioskElements,
                     trustedCertificatesViewModel.trustedCertificates.value.map { it.content },
                     bluetooth!!,
-                    context.applicationContext
+                    context.applicationContext,
                 )
             } catch (e: Exception) {
                 e.localizedMessage?.let { Toast.showError(it) }
@@ -227,7 +229,7 @@ fun VerifyKioskView(navController: NavController) {
                     kioskElements,
                     trustedCertificatesViewModel.trustedCertificates.value.map { it.content },
                     bluetooth,
-                    context.applicationContext
+                    context.applicationContext,
                 )
             } catch (e: Exception) {
                 e.localizedMessage?.let { Toast.showError(it) }

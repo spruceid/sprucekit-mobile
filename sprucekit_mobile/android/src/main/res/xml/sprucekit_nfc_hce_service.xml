@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ISO 18013-5 mdoc application. The reader selects this AID to start the
+     NFC device engagement. requireDeviceUnlock keeps a locked phone silent. -->
+<host-apdu-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/sprucekit_nfc_hce_service_desc"
+    android:requireDeviceUnlock="true">
+    <aid-group
+        android:description="@string/sprucekit_nfc_hce_group_desc"
+        android:category="other">
+        <aid-filter android:name="A0000002480400" />
+    </aid-group>
+</host-apdu-service>

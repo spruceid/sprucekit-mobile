@@ -76,6 +76,19 @@ impl Draft18PresentableCredential {
     }
 }
 
+impl Draft18PresentableCredential {
+    /// The per-credential signing key alias, if this credential was stored with one.
+    pub(crate) fn key_alias(&self) -> Option<crate::crypto::KeyAlias> {
+        crate::credential::key_alias_of(&self.inner)
+    }
+
+    /// Resolve this credential's signing key id, falling back to the holder's
+    /// shared key when it has no per-credential alias.
+    pub(crate) fn resolve_key_id(&self, fallback: &str) -> String {
+        crate::credential::resolve_key_id(self.key_alias(), fallback)
+    }
+}
+
 // -- Helpers for getting credential format designations using openidvp_draft18 types --
 
 fn credential_format_designation(inner: &ParsedCredentialInner) -> ClaimFormatDesignation {
@@ -375,7 +388,7 @@ impl Draft18PresentableCredential {
         options: &'a Draft18PresentationOptions<'a>,
     ) -> Result<VpTokenItem, Draft18OID4VPError> {
         let vm = options.verification_method_id().await?.to_string();
-        let holder_id = options.signer.did();
+        let holder_id = options.subject();
 
         let subject = vc
             .credential()
@@ -447,7 +460,10 @@ impl Draft18PresentableCredential {
 
         let signature = options
             .signer
-            .sign(unsigned_vp_token_jwt.as_bytes().to_vec())
+            .sign(
+                options.key_id.clone(),
+                unsigned_vp_token_jwt.as_bytes().to_vec(),
+            )
             .await
             .map_err(|e| CredentialEncodingError::VpToken(format!("{e:?}")))?;
 
@@ -523,7 +539,7 @@ impl Draft18PresentableCredential {
 
         let unsigned_presentation = match parsed {
             AnyJsonCredential::V1(cred_v1) => {
-                let holder_id: UriBuf = options.signer.did().parse().map_err(|e| {
+                let holder_id: UriBuf = options.subject().parse().map_err(|e| {
                     CredentialEncodingError::VpToken(format!("Error parsing DID: {e:?}"))
                 })?;
 
@@ -570,7 +586,7 @@ impl Draft18PresentableCredential {
                         .collect::<Vec<_>>();
                 }
 
-                let holder_id = IdOr::Id(options.signer.did().parse().map_err(|e| {
+                let holder_id = IdOr::Id(options.subject().parse().map_err(|e| {
                     CredentialEncodingError::VpToken(format!("Error parsing DID: {e:?}"))
                 })?);
 

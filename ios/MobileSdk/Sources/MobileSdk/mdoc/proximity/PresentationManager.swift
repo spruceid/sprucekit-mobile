@@ -29,7 +29,8 @@ public class MdocProximityPresentationManager {
 
     /// Restart the transaction from scratch using the original parameters.
     public func reset() {
-        self.handle = nil
+        handle?.terminate(notify: false)
+        handle = nil
         if transmissionModes.isEmpty {
             print("at least one transmission mode must be provided")
             delegate.connectionState(changedTo: .error)
@@ -38,23 +39,41 @@ public class MdocProximityPresentationManager {
 
         var central: CentralManager?
         var peripheral: PeripheralManager?
-        let handle = DelegateWrapper(delegate: delegate, mdoc: mdoc)
+        let handle = DelegateWrapper(delegate: delegate, mdoc: mdoc, engagement: engagement)
 
-        for mode in transmissionModes {
-            switch mode {
-            case let .bleMdocCentralMode(l2capUsage):
-                if central != nil {
-                    print("multiple .bleMdocCentralMode instances provided, ignoring all but the first")
-                    break
+        switch engagement {
+        case .QRCode:
+            for mode in transmissionModes {
+                switch mode {
+                case let .bleMdocCentralMode(l2capUsage):
+                    if central != nil {
+                        print("multiple .bleMdocCentralMode instances provided, ignoring all but the first")
+                        break
+                    }
+                    central = CentralManager(mdoc: handle, l2capUsage)
+                case let .bleMdocPeripheralMode(l2capUsage):
+                    if peripheral != nil {
+                        print("multiple .bleMdocPeripheralMode instances provided, ignoring all but the first")
+                        break
+                    }
+                    peripheral = PeripheralManager(mdoc: handle, l2capUsage)
                 }
-                central = CentralManager(mdoc: handle, l2capUsage)
-            case let .bleMdocPeripheralMode(l2capUsage):
-                if peripheral != nil {
-                    print("multiple .bleMdocPeripheralMode instances provided, ignoring all but the first")
-                    break
-                }
-                peripheral = PeripheralManager(mdoc: handle, l2capUsage)
             }
+        case let .NFC(carrier):
+            // NFC static handover is BLE central-client-mode only, on the UUID fixed by the handover.
+            var l2capUsage: L2CAPUsage = .disableL2CAP
+            var hasCentralMode = false
+            for mode in transmissionModes {
+                if case let .bleMdocCentralMode(usage) = mode {
+                    l2capUsage = usage
+                    hasCentralMode = true
+                    break
+                }
+            }
+            if !hasCentralMode {
+                print("NFC engagement forces BLE mdoc central client mode; ignoring the provided transmission modes")
+            }
+            central = CentralManager(mdoc: handle, serviceUuid: carrier.getUuid(), l2capUsage)
         }
 
         handle.set(bleCentral: central)
@@ -64,8 +83,10 @@ public class MdocProximityPresentationManager {
         self.handle = handle
     }
 
-    /// Begin a graceful disconnection from the reader, delegate will be notified when the connection has been shutdown.
+    /// Begin a graceful disconnection from the reader. The transport signals the end of the session to the reader, and
+    /// the delegate is notified with `.requestDismissed`.
     public func disconnect() {
+        handle?.terminate(notify: true)
         handle = nil
     }
 
@@ -80,6 +101,7 @@ public class MdocProximityPresentationManager {
     class DelegateWrapper: NSObject & TransportCallback {
         private let inner: Delegate
         private let mdoc: Mdoc
+        private let engagement: DeviceEngagement
 
         private let backgroundQueue = DispatchQueue(
             label: "com.spruceid.mobilesdk.mdoc.proximity.presentationmanager",
@@ -87,6 +109,8 @@ public class MdocProximityPresentationManager {
         )
 
         private var lastExternalState: State = .initializing
+        /// Set when the session is replaced, so that its late state changes do not reach the delegate.
+        private var silenced = false
         private var state: InternalState = .initializing(Initializing()) {
             didSet {
                 let state: State
@@ -94,19 +118,24 @@ public class MdocProximityPresentationManager {
                 case .initializing:
                     state = .initializing
                 case let .connecting(connecting):
-                    do {
-                        guard let data = try connecting.session.getQrHandover().data(using: .ascii) else {
-                            print("failed to parse QR code")
+                    switch engagement {
+                    case .QRCode:
+                        do {
+                            guard let data = try connecting.session.getQrHandover().data(using: .ascii) else {
+                                print("failed to parse QR code")
+                                self.state = .error
+                                return
+                            }
+                            state = .connecting(qrPayload: data)
+                        } catch {
+                            // Should be unreachable - get_qr_handover() only returns Err if the session mutex
+                            // is poisoned, which should never be able to happen.
+                            print("failed to obtain QR code")
                             self.state = .error
                             return
                         }
-                        state = .connecting(qrPayload: data)
-                    } catch {
-                        // Should be unreachable - get_qr_handover() only returns Err if the session mutex
-                        // is poisoned, which should never be able to happen.
-                        print("failed to obtain QR code")
-                        self.state = .error
-                        return
+                    case .NFC:
+                        state = .connectingViaNfc
                     }
                 case .connected:
                     state = .connected
@@ -119,24 +148,26 @@ public class MdocProximityPresentationManager {
                 case .error:
                     state = .error
                 }
+                if silenced { return }
                 inner.connectionState(changedTo: state)
             }
         }
 
-        init(delegate: Delegate, mdoc: Mdoc) {
+        init(delegate: Delegate, mdoc: Mdoc, engagement: DeviceEngagement) {
             inner = delegate
             self.mdoc = mdoc
+            self.engagement = engagement
             backgroundQueue.suspend()
         }
 
-        func set(bleCentral: CentralManager?) {
+        func set(bleCentral: Transport?) {
             guard case let .initializing(initializing) = state else {
                 return
             }
             initializing.bleCentral = bleCentral
         }
 
-        func set(blePeripheral: PeripheralManager?) {
+        func set(blePeripheral: Transport?) {
             guard case let .initializing(initializing) = state else {
                 return
             }
@@ -240,17 +271,29 @@ public class MdocProximityPresentationManager {
         }
 
         func required(action: RequiredAction) {
+            if silenced { return }
             inner.connectionState(changedTo: .action(required: action))
         }
 
         private func setupSession(_ initializing: Initializing) {
+            let engagementData: DeviceEngagementData
+            let peripheralServerMode: PeripheralServerDetails?
+            switch engagement {
+            case .QRCode:
+                engagementData = .qr
+                peripheralServerMode = initializing.peripheralDetails
+            case let .NFC(carrier):
+                engagementData = .nfc(carrier)
+                peripheralServerMode = nil
+            }
+
             let session: MdlPresentationSession
             do {
                 session = try initializeMdlPresentationFromBytes(
                     mdoc: mdoc,
                     centralClientMode: initializing.centralDetails,
-                    peripheralServerMode: initializing.peripheralDetails,
-                    engagement: .qr,
+                    peripheralServerMode: peripheralServerMode,
+                    engagement: engagementData,
                 )
             } catch {
                 print("unexpected error preparing the session: \(error.localizedDescription)")
@@ -335,9 +378,27 @@ public class MdocProximityPresentationManager {
         }
 
         fileprivate func dismissRequest() {
+            terminate(notify: true)
+        }
+
+        /// End the session. This releases the transports, which signal the end of the session to the reader.
+        func terminate(notify: Bool) {
+            // Set before the dispatch, so that callbacks which do not run on the background queue are also silenced.
+            if !notify { silenced = true }
             backgroundQueue.async {
-                guard case .connected = self.state else { return }
-                self.state = .requestDismissed
+                switch self.state {
+                case .initializing, .connecting:
+                    self.state = .requestDismissed
+                case let .connected(connected):
+                    connected.transport.signalEnd()
+                    self.state = .requestDismissed
+                    // Short pause to keep the transport from being deinitialized while the reader receives the end.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(1)) {
+                        print("Closing connection (\(type(of: connected.transport))) after session termination")
+                    }
+                case .sentResponse, .requestDismissed, .readerDisconnected, .error:
+                    break
+                }
             }
         }
 
@@ -367,6 +428,8 @@ public class MdocProximityPresentationManager {
         case action(required: RequiredAction)
         /// Attempting to establish a connection with the reader.
         case connecting(qrPayload: Data)
+        /// Awaiting the reader; engagement was delivered over NFC, so there's no QR payload.
+        case connectingViaNfc
         /// The reader has connected.
         case connected
         /// Receiving a request from the reader.
@@ -443,9 +506,9 @@ public class MdocProximityPresentationManager {
     }
 
     private class Initializing {
-        var bleCentral: CentralManager?
+        var bleCentral: Transport?
         var centralDetails: CentralClientDetails?
-        var blePeripheral: PeripheralManager?
+        var blePeripheral: Transport?
         var peripheralDetails: PeripheralServerDetails?
 
         func all() -> [Transport] {
@@ -469,10 +532,10 @@ public class MdocProximityPresentationManager {
 
     private class Connecting {
         let session: MdlPresentationSession
-        var bleCentral: CentralManager?
-        var blePeripheral: PeripheralManager?
+        var bleCentral: Transport?
+        var blePeripheral: Transport?
 
-        init(session: MdlPresentationSession, bleCentral: CentralManager?, blePeripheral: PeripheralManager?) {
+        init(session: MdlPresentationSession, bleCentral: Transport?, blePeripheral: Transport?) {
             self.session = session
             self.bleCentral = bleCentral
             self.blePeripheral = blePeripheral
@@ -496,5 +559,8 @@ public class MdocProximityPresentationManager {
     public enum DeviceEngagement {
         /// Engage using a QR code.
         case QRCode
+        /// Engage using NFC static handover (ISO 18013-5). The carrier (BLE UUID + ephemeral keys) comes
+        /// from an `ApduHandoverDriver` driven by the platform NFC/SE layer; BLE is central-client-mode only.
+        case NFC(NegotiatedCarrierInfo)
     }
 }

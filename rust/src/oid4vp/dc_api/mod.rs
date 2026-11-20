@@ -12,7 +12,7 @@ use build_response::Responder;
 use openid4vp::{
     core::{
         authorization_request::{
-            parameters::ExpectedOrigins,
+            parameters::{ExpectedOrigins, ResponseMode},
             verification::{verifier::P256Verifier, x509_hash, x509_san, RequestVerifier},
             AuthorizationRequest, AuthorizationRequestObject,
         },
@@ -20,7 +20,6 @@ use openid4vp::{
         iso_18013_7::DcApiHandover,
         metadata::WalletMetadata,
         object::ParsingErrorContext,
-        util::ReqwestClient,
     },
     wallet::Wallet,
 };
@@ -28,10 +27,11 @@ use prepare_response::vp_token;
 use requested_values::find_match;
 use serde_json::json;
 
+use crate::http_client::HttpClient;
 use crate::{credential::mdoc::Mdoc, crypto::KeyStore};
 
 use super::iso_18013_7::{
-    prepare_response::prepare_response,
+    prepare_response::{prepare_response, DeviceSignedValues},
     requested_values::{FieldId180137, RequestMatch180137},
 };
 
@@ -46,13 +46,13 @@ pub struct InProgressRequestDcApi {
 }
 
 struct WalletActivity {
-    http_client: ReqwestClient,
+    http_client: HttpClient,
     origin: String,
     wallet_metadata: WalletMetadata,
 }
 
 impl Wallet for WalletActivity {
-    type HttpClient = ReqwestClient;
+    type HttpClient = HttpClient;
 
     fn http_client(&self) -> &Self::HttpClient {
         &self.http_client
@@ -101,6 +101,22 @@ impl RequestVerifier for WalletActivity {
         // Note: trusted_roots is None for now, meaning we don't verify the certificate chain
         x509_hash::validate::<P256Verifier>(self.metadata(), decoded_request, request_jwt, None)
     }
+
+    async fn preregistered(
+        &self,
+        decoded_request: &AuthorizationRequestObject,
+        _request_jwt: Option<String>,
+    ) -> Result<()> {
+        // Unsigned DC API request: no request signature and no client_id to verify.
+        // Trust in the Verifier comes from the platform-supplied browser origin, which
+        // is bound into the response transcript via the DC API handover (see `respond`).
+        // Restrict to DC API response modes so a pre-registered client cannot bypass
+        // signature verification over a non-DC-API transport.
+        match decoded_request.response_mode() {
+            ResponseMode::DcApi | ResponseMode::DcApiJwt => Ok(()),
+            mode => bail!("unsigned requests are only accepted over the DC API, not {mode:?}"),
+        }
+    }
 }
 
 /// Handle a DC API request.
@@ -114,7 +130,7 @@ pub async fn handle_dc_api_request(
     request_json: String,
 ) -> Result<InProgressRequestDcApi, DcApiError> {
     let wallet_activity = WalletActivity {
-        http_client: ReqwestClient::new().map_err(DcApiError::internal_error)?,
+        http_client: HttpClient::shared(),
         origin: origin.clone(),
         wallet_metadata: default_metadata(),
     };
@@ -174,11 +190,24 @@ impl InProgressRequestDcApi {
     /// Generate a response for the request.
     ///
     /// The response is either a JWE or a serialized JSON Object.
+    ///
+    /// `device_signed` is a CBOR map of namespace to element identifier to value.
+    /// Requested elements the credential does not hold are returned from it in
+    /// DeviceSigned.
+    #[uniffi::method(default(device_signed = None))]
     pub async fn respond(
         &self,
         keystore: Arc<dyn KeyStore>,
         approved_fields: Vec<FieldId180137>,
+        device_signed: Option<Vec<u8>>,
     ) -> Result<String, DcApiError> {
+        let device_signed: DeviceSignedValues = device_signed
+            .map(|bytes| isomdl::cbor::from_slice(&bytes))
+            .transpose()
+            .context("failed to decode the device-signed values")
+            .map_err(DcApiError::internal_error)?
+            .unwrap_or_default();
+
         // Per OID4VP v1.0 §B.2.6.2, the DC API Handover uses [origin, nonce, jwkThumbprint].
         // jwkThumbprint is the SHA-256 thumbprint of the verifier's encryption key,
         // or null if the response is not encrypted.
@@ -196,6 +225,7 @@ impl InProgressRequestDcApi {
             &self.mdoc,
             approved_fields,
             &self.request_match.missing_fields,
+            &device_signed,
             self.request_match.field_map.clone(),
             handover,
         )

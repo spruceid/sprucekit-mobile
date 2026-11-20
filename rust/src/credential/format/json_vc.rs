@@ -13,58 +13,42 @@ use crate::{
     CredentialType,
 };
 
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
+use base64::{engine::general_purpose::URL_SAFE, Engine as _};
 use openid4vp::core::{
     credential_format::ClaimFormatDesignation, response::parameters::VpTokenItem,
 };
 use serde_json::Value as Json;
 use ssi::status::bitstring_status_list::BitstringStatusListEntry;
 use ssi::{
-    claims::vc::{
-        syntax::{IdOr, NonEmptyObject, NonEmptyVec},
-        v1::{Credential as _, JsonPresentation as JsonPresentationV1},
-        v2::{
-            syntax::JsonPresentation as JsonPresentationV2, Credential as _,
-            JsonCredential as JsonCredentialV2,
+    claims::{
+        data_integrity::{AnyDataIntegrity, AnySelectionOptions},
+        vc::{
+            syntax::{IdOr, NonEmptyObject, NonEmptyVec},
+            v1::{Credential as _, JsonPresentation as JsonPresentationV1},
+            v2::{
+                syntax::JsonPresentation as JsonPresentationV2, Credential as _,
+                JsonCredential as JsonCredentialV2,
+            },
         },
+        VerificationParameters,
     },
-    json_ld::iref::UriBuf,
+    dids::{AnyDidMethod, VerificationMethodDIDResolver},
+    json_ld::{iref::UriBuf, ContextLoader},
     prelude::{AnyJsonCredential, AnyJsonPresentation},
+    JsonPointerBuf,
 };
 use uuid::Uuid;
 
 const ACCEPTED_CRYPTOSUITES: &[&str] = &["ecdsa-rdfc-2019"];
 
-/// Selective-disclosure cryptosuites this SDK can DERIVE from a base proof.
-/// The single source of truth for the derive seam
-/// ([`JsonVc::derive_sd_vp_credential`]) and the holder's SD gate.
-pub(crate) const DERIVABLE_SD_CRYPTOSUITES: &[&str] = &["ecdsa-sd-2023"];
+/// Cryptosuite whose base proof selective presentations are derived from.
+const SD_CRYPTOSUITE: &str = "ecdsa-sd-2023";
 
-/// Selective-disclosure BASE-proof cryptosuites that must never ride along on a
-/// presented credential (spec B.1: base proofs can carry holder-secret
-/// material). Superset of [`DERIVABLE_SD_CRYPTOSUITES`]: `bbs-2023` base proofs
-/// are recognized (never presented) but not yet derivable.
-pub(crate) const SD_BASE_PROOF_CRYPTOSUITES: &[&str] = &["ecdsa-sd-2023", "bbs-2023"];
-
-/// Backwards-compatible alias used by the derive seam below.
-const SD_CRYPTOSUITES: &[&str] = DERIVABLE_SD_CRYPTOSUITES;
-
-/// True iff `raw["proof"]` (object or array) carries a base proof whose
-/// `cryptosuite` is in [`SD_CRYPTOSUITES`].
-fn is_sd_base_proof(raw: &Json) -> bool {
-    let proofs = match raw.get("proof") {
-        Some(Json::Array(a)) => a.clone(),
-        Some(obj @ Json::Object(_)) => vec![obj.clone()],
-        _ => return false,
-    };
-    proofs.iter().any(|p| {
-        p.get("cryptosuite")
-            .and_then(|c| c.as_str())
-            .map(|s| SD_CRYPTOSUITES.contains(&s))
-            .unwrap_or(false)
-    })
-}
+/// Multibase prefix of an `ecdsa-sd-2023` base proof value (CBOR tag 0xd95d00).
+/// Derived proofs carry 0xd95d01 (`u2V0B`) and cannot be derived from again.
+const SD_BASE_PROOF_PREFIX: &str = "u2V0A";
 
 #[derive(Debug, uniffi::Error, thiserror::Error)]
 pub enum JsonVcInitError {
@@ -83,23 +67,6 @@ pub enum JsonVcEncodingError {
     #[error("failed to encode JSON as bytes")]
     JsonBytesEncoding,
 }
-
-/// Errors from the isolated `ecdsa-sd-2023` selective-disclosure derive seam
-/// ([`JsonVc::derive_sd_vp_credential`]).
-#[derive(Debug, thiserror::Error)]
-pub enum JsonVcDeriveError {
-    #[error("credential does not carry an ecdsa-sd-2023 base proof")]
-    NotSdBaseProof,
-    #[error("failed to decode base-proof credential JSON for selective disclosure")]
-    Decode,
-    #[error("invalid JSON-LD context map for selective disclosure: {0}")]
-    Context(String),
-    #[error("selective-disclosure derivation failed: {0}")]
-    Select(String),
-    #[error("failed to encode the derived selective-disclosure credential")]
-    Encode,
-}
-
 #[derive(uniffi::Object, Debug, Clone)]
 /// A verifiable credential secured as JSON.
 pub struct JsonVc {
@@ -227,63 +194,175 @@ impl JsonVc {
         CredentialFormat::LdpVc
     }
 
-    /// Derive an `ecdsa-sd-2023` selective-disclosure credential from this
-    /// credential's base proof, revealing only `selective_pointers` plus the
-    /// issuer-mandated `mandatoryPointers`. `context_map` supplies the SDK's
-    /// bundled JSON-LD contexts so canonicalization resolves custom `@context`
-    /// URLs OFFLINE — the same loader the verify path uses
-    /// (`verify_raw_credential`); without it, derive fails for every credential
-    /// whose context is not built into `ssi`.
-    pub(crate) async fn derive_sd_vp_credential(
-        &self,
-        selective_pointers: Vec<ssi::JsonPointerBuf>,
-        context_map: Option<std::collections::HashMap<String, String>>,
-    ) -> Result<Json, JsonVcDeriveError> {
-        match &self.parsed {
-            AnyJsonCredential::V1(_) => self.select_sd_proof(selective_pointers, context_map).await,
-            AnyJsonCredential::V2(_) => self.select_sd_proof(selective_pointers, context_map).await,
-        }
+    /// Whether presentations of this credential can selectively disclose claims.
+    ///
+    /// Requires an `ecdsa-sd-2023` base proof to derive from. Restricted to
+    /// VCDM 2.0 credentials, matching the presentation path that implements
+    /// derivation.
+    pub(crate) fn selective_disclosable(&self) -> bool {
+        self.vcdm_version() == VcdmVersion::V2 && self.has_sd_base_proof()
     }
 
-    /// Shared SD derive core for both VCDM arms: deserialize the
-    /// single-base-proof VC into `AnyDataIntegrity` and call `select`.
-    async fn select_sd_proof(
-        &self,
-        selective_pointers: Vec<ssi::JsonPointerBuf>,
-        context_map: Option<std::collections::HashMap<String, String>>,
-    ) -> Result<Json, JsonVcDeriveError> {
-        use ssi::claims::data_integrity::{AnyDataIntegrity, AnySelectionOptions};
-        use ssi::claims::VerificationParameters;
-        use ssi::dids::{AnyDidMethod, DIDResolver};
-        use ssi::json_ld::ContextLoader;
-
-        if !is_sd_base_proof(&self.raw) {
-            return Err(JsonVcDeriveError::NotSdBaseProof);
+    /// Whether deriving an `ecdsa-sd-2023` presentation is both possible for
+    /// this credential and acceptable to the verifier behind `options`.
+    ///
+    /// OID4VP 1.0 §6.4 says a wallet MUST NOT send selectively disclosable
+    /// claims that were not selected, which favors deriving whenever the
+    /// verifier named claims. But Appendix B.1.3.2.3 also requires the
+    /// presented credential's cryptosuite to match the verifier's
+    /// `vp_formats_supported` when it lists one. A verifier that only
+    /// announced `ecdsa-rdfc-2019` therefore gets the full credential under
+    /// that proof, exactly what it received before derivation existed here.
+    ///
+    /// - <https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#section-6.4>
+    /// - <https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#appendix-B.1.3.2.3>
+    fn should_derive(&self, options: &PresentationOptions<'_>) -> Result<bool, OID4VPError> {
+        if !self.selective_disclosable() {
+            return Ok(false);
         }
 
-        let input: AnyDataIntegrity =
-            serde_json::from_value(self.raw.clone()).map_err(|_| JsonVcDeriveError::Decode)?;
-
-        let mut params =
-            VerificationParameters::from_resolver(AnyDidMethod::default().into_vm_resolver());
-        if let Some(map) = context_map {
-            params = params.with_json_ld_loader(
-                ContextLoader::empty()
-                    .with_static_loader()
-                    .with_context_map_from(map)
-                    .map_err(|e| JsonVcDeriveError::Context(format!("{e:?}")))?,
+        let accepted = options
+            .verifier_accepts_credential_suite(&ClaimFormatDesignation::LdpVc, SD_CRYPTOSUITE)?;
+        if !accepted {
+            log::info!(
+                "verifier's vp_formats_supported does not list `{SD_CRYPTOSUITE}` for ldp_vc; \
+                 presenting the full credential instead of deriving"
             );
         }
 
-        let mut options = AnySelectionOptions::default();
-        options.selective_pointers = selective_pointers;
+        Ok(accepted)
+    }
 
-        let derived = input
-            .select(params, options)
-            .await
-            .map_err(|e| JsonVcDeriveError::Select(format!("{e:?}")))?;
+    /// Whether the credential's proof set carries an `ecdsa-sd-2023` base proof.
+    fn has_sd_base_proof(&self) -> bool {
+        let proofs = match self.raw.get("proof") {
+            Some(Json::Array(proofs)) => proofs.as_slice(),
+            Some(proof) => std::slice::from_ref(proof),
+            None => return false,
+        };
 
-        serde_json::to_value(&derived).map_err(|_| JsonVcDeriveError::Encode)
+        proofs.iter().any(|proof| {
+            proof.get("cryptosuite").and_then(Json::as_str) == Some(SD_CRYPTOSUITE)
+                && proof
+                    .get("proofValue")
+                    .and_then(Json::as_str)
+                    .is_some_and(|value| value.starts_with(SD_BASE_PROOF_PREFIX))
+        })
+    }
+
+    /// Whether a proof secures the full credential: an
+    /// `ACCEPTED_CRYPTOSUITES` suite, or a proof type without a cryptosuite.
+    fn has_full_disclosure_proof(&self) -> bool {
+        let proofs = match self.raw.get("proof") {
+            Some(Json::Array(proofs)) => proofs.as_slice(),
+            Some(proof) => std::slice::from_ref(proof),
+            None => return false,
+        };
+
+        proofs.iter().any(
+            |proof| match proof.get("cryptosuite").and_then(Json::as_str) {
+                Some(suite) => ACCEPTED_CRYPTOSUITES.contains(&suite),
+                None => true,
+            },
+        )
+    }
+
+    /// Derive a selectively disclosed credential from the `ecdsa-sd-2023` base
+    /// proof, revealing exactly the selected fields plus whatever the base
+    /// proof itself marks mandatory. The wallet volunteers nothing else:
+    /// metadata such as `issuer` and the validity window reach the verifier
+    /// through the issuer's mandatory pointers, or because the verifier
+    /// requested them.
+    ///
+    /// `selected_fields` uses the [`RequestedField`] path encoding: base64url
+    /// DCQL path segments joined by commas.
+    ///
+    /// [`RequestedField`]: crate::oid4vp::RequestedField
+    async fn derive_selective(
+        &self,
+        context_map: Option<&HashMap<String, String>>,
+        selected_fields: &[String],
+    ) -> Result<Json, OID4VPError> {
+        let mut pointers = selected_fields
+            .iter()
+            .map(|field| self.selective_pointer(field))
+            .collect::<Result<Vec<_>, _>>()?;
+        pointers.sort();
+        pointers.dedup();
+
+        let stored = self.raw.clone();
+        let context_map = context_map.cloned();
+
+        // ssi's derivation expands and canonicalizes the document, recursing
+        // deep enough to overflow the foreign thread's stack that UniFFI polls
+        // this future on (~512 KB on iOS). Hop onto the dedicated 8 MB worker
+        // (see `crate::big_stack`).
+        let derived = crate::big_stack::run_async(move || async move {
+            let stored: AnyDataIntegrity = serde_json::from_value(stored).map_err(|e| {
+                OID4VPError::VpTokenCreate(format!("stored credential is not derivable: {e}"))
+            })?;
+
+            let loader = context_map
+                .map(|map| ContextLoader::default().with_context_map_from(map))
+                .transpose()
+                .map_err(|e| OID4VPError::VpTokenCreate(format!("invalid context map: {e}")))?
+                .unwrap_or_default();
+
+            // Derivation is offline: the base proof carries the derivation
+            // material, so the resolver only satisfies the parameter type.
+            let params = VerificationParameters::from_resolver(VerificationMethodDIDResolver::new(
+                AnyDidMethod::default(),
+            ))
+            .with_json_ld_loader(loader);
+
+            let mut options = AnySelectionOptions::default();
+            options.selective_pointers = pointers;
+
+            let derived = stored.select(params, options).await.map_err(|e| {
+                OID4VPError::VpTokenCreate(format!("selective disclosure derivation failed: {e}"))
+            })?;
+
+            serde_json::to_value(&derived).map_err(|e| {
+                OID4VPError::VpTokenCreate(format!("derived credential encoding failed: {e}"))
+            })
+        })
+        .await
+        .map_err(|e| OID4VPError::VpTokenCreate(format!("big-stack derivation thread: {e}")))?;
+
+        derived
+    }
+
+    /// Resolve one requested-field path against the credential and return it
+    /// as a JSON pointer, per RFC 6901.
+    fn selective_pointer(&self, field: &str) -> Result<JsonPointerBuf, OID4VPError> {
+        let mut node = &self.raw;
+        let mut pointer = String::new();
+
+        for encoded in field.split(',') {
+            let segment = URL_SAFE
+                .decode(encoded)
+                .map_err(|e| OID4VPError::JsonPathParse(e.to_string()))
+                .and_then(|bytes| {
+                    String::from_utf8(bytes).map_err(|e| OID4VPError::JsonPathParse(e.to_string()))
+                })?;
+
+            node = match node {
+                Json::Object(object) => object.get(&segment),
+                Json::Array(items) => segment
+                    .parse::<usize>()
+                    .ok()
+                    .and_then(|index| items.get(index)),
+                _ => None,
+            }
+            .ok_or_else(|| {
+                OID4VPError::JsonPathResolve(format!("no credential member at {pointer}/{segment}"))
+            })?;
+
+            pointer.push('/');
+            pointer.push_str(&segment.replace('~', "~0").replace('/', "~1"));
+        }
+
+        JsonPointerBuf::new(pointer).map_err(|e| OID4VPError::JsonPathToPointer(e.to_string()))
     }
 }
 
@@ -308,22 +387,31 @@ impl CredentialPresentation for JsonVc {
     }
 
     /// Return the credential as a VpToken
+    ///
+    /// When fields are selected, the credential carries an `ecdsa-sd-2023`
+    /// base proof, and the verifier accepts that cryptosuite (see
+    /// `should_derive`), the presentation embeds a derived credential
+    /// disclosing only those fields. Otherwise the full credential is
+    /// embedded, keeping the proofs verifiers accept.
     async fn as_vp_token_item<'a>(
         &self,
         options: &'a PresentationOptions<'a>,
-        _selected_fields: Option<Vec<String>>,
+        selected_fields: Option<Vec<String>>,
     ) -> Result<VpTokenItem, OID4VPError> {
         let id = UriBuf::new(format!("urn:uuid:{}", Uuid::new_v4()).as_bytes().to_vec())
             .map_err(|e| CredentialEncodingError::VpToken(format!("Error parsing ID: {e:?}")))?;
 
-        // Check the signer supports the requested vp format crypto suite.
-        options.supports_security_method(ClaimFormatDesignation::LdpVc)?;
+        let holder = if options.require_holder_binding {
+            Some(presentation_holder(options)?)
+        } else {
+            None
+        };
 
         let unsigned_presentation = match self.parsed.clone() {
             AnyJsonCredential::V1(cred_v1) => {
-                let holder_id: UriBuf = options.signer.did().parse().map_err(|e| {
-                    CredentialEncodingError::VpToken(format!("Error parsing DID: {e:?}"))
-                })?;
+                let Some(holder_id) = holder else {
+                    return credential_item(&cred_v1);
+                };
 
                 let unsigned_presentation_v1 =
                     JsonPresentationV1::new(Some(id.clone()), Some(holder_id), vec![cred_v1]);
@@ -331,12 +419,68 @@ impl CredentialPresentation for JsonVc {
                 AnyJsonPresentation::V1(unsigned_presentation_v1)
             }
             AnyJsonCredential::V2(cred_v2) => {
+                // A dual-proof credential has two conformant `ldp_vc`
+                // presentations, and the wallet picks the proof. When the
+                // verifier lists claims and accepts `ecdsa-sd-2023`, we
+                // present under the SD proof and disclose only what was
+                // selected, as OID4VP 1.0 §6.4 requires. When the verifier
+                // lists no claims, we present under the `ecdsa-rdfc-2019`
+                // proof instead: secured that way the credential is not
+                // selectively disclosable, every claim is mandatory to
+                // present, and §6.4.1 reads an absent `claims` as a request
+                // for the full credential. Presenting the SD proof here would
+                // shrink the disclosure to the issuer's mandatory pointers,
+                // which is not what a verifier asking for the credential wants.
+                // Secured only by the SD base proof, a credential asked for
+                // no claims derives the mandatory pointers alone.
+                // https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#section-6.4.1
+                let selected = match selected_fields {
+                    Some(fields)
+                        if (!fields.is_empty() || !self.has_full_disclosure_proof())
+                            && self.should_derive(options)? =>
+                    {
+                        Some(fields)
+                    }
+                    _ => None,
+                };
+
+                if let Some(fields) = selected {
+                    // The derived credential discloses only the selected
+                    // fields, so it may lack members the typed credential
+                    // model requires: embed it untyped.
+                    let derived = self
+                        .derive_selective(options.context_map.as_ref(), &fields)
+                        .await?;
+
+                    let Some(holder_id) = holder else {
+                        return credential_item(&derived);
+                    };
+
+                    let presentation =
+                        JsonPresentationV2::new(Some(id), vec![IdOr::Id(holder_id)], vec![derived]);
+                    let signed = options.sign_derived_presentation(presentation).await?;
+
+                    let signed = serde_json::to_value(&signed).map_err(|e| {
+                        CredentialEncodingError::VpToken(format!(
+                            "Error encoding presentation: {e:?}"
+                        ))
+                    })?;
+                    let Json::Object(object) = signed else {
+                        return Err(CredentialEncodingError::VpToken(
+                            "signed presentation is not a JSON object".to_string(),
+                        )
+                        .into());
+                    };
+                    return Ok(VpTokenItem::JsonObject(object));
+                }
+
                 // Convert inner type of `Object` -> `NonEmptyObject`.
                 let mut cred_v2 = try_map_subjects(cred_v2, NonEmptyObject::try_from_object)
                     .map_err(|e| OID4VPError::EmptyCredentialSubject(format!("{e:?}")))?;
 
-                // TODO: Handle transformation of the selective disclosure.
-                // SKIP: Remove SD proof from the credential before adding it to the presentation.
+                // Full disclosure keeps only the proofs verifiers accept:
+                // an `ecdsa-sd-2023` base proof is derivation material,
+                // never presented.
                 if let Some(p) = cred_v2
                     .extra_properties
                     .get_mut("proof")
@@ -348,9 +492,6 @@ impl CredentialPresentation for JsonVc {
                         .filter(|obj| {
                             while let Some(cryptosuite) = obj.get("cryptosuite").next() {
                                 if let Some(suite) = cryptosuite.as_string() {
-                                    // Check if the cryptosuite is supported.
-                                    // NOTE: we're filtering proofs for only supported
-                                    // cryptosuites, e.g., `ecdsa-rdfc-2019`
                                     return ACCEPTED_CRYPTOSUITES.contains(&suite);
                                 }
                             }
@@ -360,12 +501,12 @@ impl CredentialPresentation for JsonVc {
                         .collect::<Vec<_>>();
                 }
 
-                let holder_id = IdOr::Id(options.signer.did().parse().map_err(|e| {
-                    CredentialEncodingError::VpToken(format!("Error parsing DID: {e:?}"))
-                })?);
+                let Some(holder_id) = holder else {
+                    return credential_item(&cred_v2);
+                };
 
                 let unsigned_presentation_v2 =
-                    JsonPresentationV2::new(Some(id), vec![holder_id], vec![cred_v2]);
+                    JsonPresentationV2::new(Some(id), vec![IdOr::Id(holder_id)], vec![cred_v2]);
 
                 AnyJsonPresentation::V2(unsigned_presentation_v2)
             }
@@ -374,6 +515,30 @@ impl CredentialPresentation for JsonVc {
         let signed_presentation = options.sign_presentation(unsigned_presentation).await?;
 
         Ok(VpTokenItem::from(signed_presentation))
+    }
+}
+
+fn presentation_holder(options: &PresentationOptions<'_>) -> Result<UriBuf, OID4VPError> {
+    options.supports_security_method(ClaimFormatDesignation::LdpVc)?;
+    options
+        .subject()
+        .parse()
+        .map_err(|e| CredentialEncodingError::VpToken(format!("Error parsing DID: {e:?}")).into())
+}
+
+/// The credential itself as a `vp_token` item, for a query that does not
+/// require Holder Binding (OID4VP 1.0 Appendix B.1).
+fn credential_item(credential: &impl serde::Serialize) -> Result<VpTokenItem, OID4VPError> {
+    match serde_json::to_value(credential) {
+        Ok(Json::Object(object)) => Ok(VpTokenItem::JsonObject(object)),
+        Ok(_) => Err(CredentialEncodingError::VpToken(
+            "credential is not a JSON object".to_string(),
+        )
+        .into()),
+        Err(e) => Err(CredentialEncodingError::VpToken(format!(
+            "Error encoding credential: {e:?}"
+        ))
+        .into()),
     }
 }
 
@@ -412,7 +577,7 @@ impl TryFrom<Credential> for Arc<JsonVc> {
     }
 }
 
-// NOTE: This is an temporary solution to convert an inner type of a credential,
+// NOTE: This is a temporary solution to convert an inner type of a credential,
 // i.e. `Object` -> `NonEmptyObject`.
 //
 // This should be removed once fixed in ssi crate.
@@ -449,266 +614,94 @@ fn try_map_subjects<T, U, E: std::fmt::Debug>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::context::default_ld_json_context;
 
-    use serde_json::json;
-    use ssi::claims::data_integrity::{
-        AnyDataIntegrity, AnySignatureOptions, AnySuite, DataIntegrityDocument, ProofConfiguration,
-    };
-    use ssi::claims::{SignatureEnvironment, VerificationParameters};
-    use ssi::dids::{AnyDidMethod, DIDKey, DIDResolver};
-    use ssi::prelude::CryptographicSuite;
-    use ssi::verification_methods::SingleSecretSigner;
-    use ssi::JWK;
-
-    async fn issue_sd_base_proof(unsecured: Json, mandatory_pointers: &[&str]) -> Json {
-        issue_sd_base_proof_with_loader(unsecured, mandatory_pointers, false).await
+    fn dual_proof_badge() -> Arc<JsonVc> {
+        JsonVc::new_from_json(
+            include_str!("../../../tests/examples/open_badge_dual_proof_vc.json").to_string(),
+        )
+        .unwrap()
     }
 
-    /// Issue an `ecdsa-sd-2023` base proof; `bundled_contexts` arms a JSON-LD
-    /// loader carrying the SDK's bundled context map so signing can resolve
-    /// custom `@context` URLs offline (mirrors what a real issuer does).
-    async fn issue_sd_base_proof_with_loader(
-        unsecured: Json,
-        mandatory_pointers: &[&str],
-        bundled_contexts: bool,
-    ) -> Json {
-        let issuer_jwk = JWK::generate_p256();
-        let vm = DIDKey::generate_url(&issuer_jwk).expect("did:key Multikey VM");
-        let vm_str = vm.to_string();
-
-        let configuration: ProofConfiguration<AnySuite> = serde_json::from_value(json!({
-            "type": "DataIntegrityProof",
-            "cryptosuite": "ecdsa-sd-2023",
-            "created": "2024-01-01T00:00:00Z",
-            "verificationMethod": vm_str,
-            "proofPurpose": "assertionMethod"
-        }))
-        .expect("valid ecdsa-sd-2023 proof configuration");
-
-        let (suite, options) = configuration.into_suite_and_options();
-
-        let input: DataIntegrityDocument =
-            serde_json::from_value(unsecured).expect("unsecured DI document");
-
-        let mut sig_options = AnySignatureOptions::default();
-        sig_options.mandatory_pointers = mandatory_pointers
+    fn encode_path(segments: &[&str]) -> String {
+        segments
             .iter()
-            .map(|p| p.parse().expect("valid mandatory JSON pointer"))
-            .collect();
-
-        let json_ld_loader = if bundled_contexts {
-            ssi::json_ld::ContextLoader::empty()
-                .with_static_loader()
-                .with_context_map_from(crate::context::default_ld_json_context())
-                .expect("bundled context map loads")
-        } else {
-            ssi::json_ld::ContextLoader::default()
-        };
-        let env = SignatureEnvironment {
-            json_ld_loader,
-            eip712_loader: (),
-        };
-
-        let signed: AnyDataIntegrity = suite
-            .sign_with(
-                env,
-                input,
-                AnyDidMethod::default().into_vm_resolver(),
-                SingleSecretSigner::new(issuer_jwk).into_local(),
-                options.cast(),
-                sig_options,
-            )
-            .await
-            .expect("ecdsa-sd-2023 base-proof issuance must succeed");
-
-        serde_json::to_value(&signed).expect("serialize signed base-proof VC")
+            .map(|segment| URL_SAFE.encode(segment))
+            .collect::<Vec<_>>()
+            .join(",")
     }
 
-    async fn verify_di(value: &Json) -> bool {
-        let parsed: AnyDataIntegrity =
-            serde_json::from_value(value.clone()).expect("derived VC parses as AnyDataIntegrity");
-        let params =
-            VerificationParameters::from_resolver(AnyDidMethod::default().into_vm_resolver());
-        parsed.verify(params).await.expect("verify ran").is_ok()
+    #[test]
+    fn detects_selective_disclosure_support() {
+        assert!(dual_proof_badge().selective_disclosable());
+
+        // A lone full-document proof leaves nothing to derive from.
+        let rdfc_only = JsonVc::new_from_json(
+            include_str!("../../../tests/examples/open_badge_rdfc_only_vc.json").to_string(),
+        )
+        .unwrap();
+        assert!(!rdfc_only.selective_disclosable());
+
+        // Carries a base proof, but is VCDM 1.1: derivation is only
+        // implemented for 2.0 presentations.
+        let vcdm_v1 = JsonVc::new_from_json(
+            include_str!("../../../tests/examples/alumni_vc.json").to_string(),
+        )
+        .unwrap();
+        assert!(!vcdm_v1.selective_disclosable());
     }
 
-    fn ptrs(raw: &[&str]) -> Vec<ssi::JsonPointerBuf> {
-        raw.iter()
-            .map(|p| p.parse().expect("valid selective JSON pointer"))
-            .collect()
+    #[test]
+    fn resolves_requested_field_paths_to_pointers() {
+        let badge = dual_proof_badge();
+
+        let pointer = badge
+            .selective_pointer(&encode_path(&["credentialSubject", "achievement", "name"]))
+            .unwrap();
+        assert_eq!(pointer.as_str(), "/credentialSubject/achievement/name");
+
+        badge
+            .selective_pointer(&encode_path(&["credentialSubject", "missing"]))
+            .expect_err("a path absent from the credential must not resolve");
     }
 
     #[tokio::test]
-    async fn sd_derive_v1() {
-        let unsecured = json!({
-            "@context": [
-                "https://www.w3.org/2018/credentials/v1",
-                "https://w3id.org/security/data-integrity/v2",
-                { "@vocab": "https://example.org/vocab#" }
-            ],
-            "type": ["VerifiableCredential"],
-            "issuer": "https://issuer.example/",
-            "issuanceDate": "2024-01-01T00:00:00Z",
-            "credentialSubject": {
-                "givenName": "Jane",
-                "familyName": "Doe"
-            }
-        });
+    async fn derives_a_selective_credential() {
+        let badge = dual_proof_badge();
+        let fields = vec![encode_path(&["credentialSubject", "achievement", "name"])];
 
-        let base_proof = issue_sd_base_proof(unsecured, &["/issuer"]).await;
-        let vc = JsonVc::from_json(Uuid::new_v4(), base_proof, None).expect("v1 base-proof JsonVc");
-        assert_eq!(
-            vc.vcdm_version(),
-            VcdmVersion::V1,
-            "fixture must be VCDM v1"
-        );
-
-        let derived = vc
-            .derive_sd_vp_credential(ptrs(&["/credentialSubject/givenName"]), None)
+        let value = badge
+            .derive_selective(Some(&default_ld_json_context()), &fields)
             .await
-            .expect("v1 SD derive must succeed (Open Question 2 retired)");
+            .unwrap();
 
-        let subject = &derived["credentialSubject"];
+        // This fixture's base proof was issued with the mandatory pointers
+        // /issuer, /validFrom and /credentialSubject/id: those members
+        // survive because the proof mandates them, not because the wallet
+        // volunteers them. (The subject id would survive regardless, since
+        // ancestors of a selected path keep their `id` and `type`.)
+        assert_eq!(value["issuer"]["id"], badge.raw["issuer"]["id"]);
+        assert!(value["validFrom"].is_string());
         assert_eq!(
-            subject["givenName"],
-            json!("Jane"),
-            "requested field revealed"
+            value["credentialSubject"]["id"],
+            badge.raw["credentialSubject"]["id"]
         );
-        assert!(
-            subject.get("familyName").is_none(),
-            "familyName must NOT be disclosed (D-04 non-oversharing), got: {subject:?}"
-        );
+
+        // The selected field is revealed, undisclosed members are not.
         assert_eq!(
-            derived["issuer"],
-            json!("https://issuer.example/"),
-            "mandatory /issuer survives"
+            value["credentialSubject"]["achievement"]["name"],
+            badge.raw["credentialSubject"]["achievement"]["name"]
         );
+        assert!(value["credentialSubject"]["achievement"]
+            .get("description")
+            .is_none());
+        assert!(value["credentialSubject"].get("name").is_none());
 
-        assert!(
-            verify_di(&derived).await,
-            "derived v1 VC must verify against the issuer base proof"
-        );
-    }
-
-    #[tokio::test]
-    async fn sd_derive_resolves_bundled_contexts_offline() {
-        // H4 regression: a VC whose @context names a context only the SDK
-        // bundles (here the render-method v2rc2 context this repo ships) can
-        // only be derived when the SDK's context map is threaded into the
-        // derive — exactly the credentials this SDK targets. Without the map
-        // the loader cannot resolve the context and the derive must fail
-        // (it must NOT silently succeed with an unresolved context).
-        let unsecured = json!({
-            "@context": [
-                "https://www.w3.org/ns/credentials/v2",
-                // The trigger: a context document only the SDK's bundled map can
-                // resolve offline. (Subject terms are defined inline so the test
-                // isolates CONTEXT RESOLUTION, not term coverage.)
-                "https://w3id.org/vc/render-method/v2rc2",
-                { "@vocab": "https://example.org/vocab#" }
-            ],
-            "type": ["VerifiableCredential"],
-            "issuer": "https://issuer.example/",
-            "credentialSubject": {
-                "givenName": "Jane",
-                "familyName": "Doe"
-            }
-        });
-
-        let base_proof = issue_sd_base_proof_with_loader(unsecured, &["/issuer"], true).await;
-        let vc =
-            JsonVc::from_json(Uuid::new_v4(), base_proof, None).expect("base-proof JsonVc parses");
-
-        // WITHOUT the SDK context map: the bundled-only context is unresolvable.
-        let err = vc
-            .derive_sd_vp_credential(ptrs(&["/credentialSubject/givenName"]), None)
-            .await
-            .expect_err("derive without the SDK context map cannot resolve the context");
-        assert!(matches!(err, JsonVcDeriveError::Select(_)));
-
-        // WITH the SDK context map: derive succeeds offline.
-        let derived = vc
-            .derive_sd_vp_credential(
-                ptrs(&["/credentialSubject/givenName"]),
-                Some(crate::context::default_ld_json_context()),
-            )
-            .await
-            .expect("derive with the SDK context map succeeds offline");
-        assert_eq!(derived["credentialSubject"]["givenName"], json!("Jane"));
-        assert!(
-            derived["credentialSubject"].get("familyName").is_none(),
-            "non-requested field stays undisclosed"
-        );
-    }
-
-    #[tokio::test]
-    async fn sd_derive_v2() {
-        let unsecured = json!({
-            "@context": [
-                "https://www.w3.org/ns/credentials/v2",
-                { "@vocab": "https://example.org/vocab#" }
-            ],
-            "type": ["VerifiableCredential"],
-            "issuer": "https://issuer.example/",
-            "credentialSubject": {
-                "givenName": "Jane",
-                "familyName": "Doe",
-                "favoriteColor": "blue",
-                "boards": ["alpha", "beta"]
-            }
-        });
-
-        let base_proof = issue_sd_base_proof(unsecured, &["/issuer"]).await;
-        let vc = JsonVc::from_json(Uuid::new_v4(), base_proof, None).expect("v2 base-proof JsonVc");
-        assert_eq!(
-            vc.vcdm_version(),
-            VcdmVersion::V2,
-            "fixture must be VCDM v2"
-        );
-
-        let derived = vc
-            .derive_sd_vp_credential(
-                ptrs(&["/credentialSubject/givenName", "/credentialSubject/boards"]),
-                None,
-            )
-            .await
-            .expect("v2 SD derive must succeed");
-
-        let subject = &derived["credentialSubject"];
-        assert_eq!(
-            subject["givenName"],
-            json!("Jane"),
-            "requested givenName revealed"
-        );
-        assert_eq!(
-            subject["boards"],
-            json!(["alpha", "beta"]),
-            "array field revealed via parent pointer (A4)"
-        );
-        assert!(
-            subject.get("familyName").is_none(),
-            "familyName must NOT be disclosed (D-04), got: {subject:?}"
-        );
-        assert!(
-            subject.get("favoriteColor").is_none(),
-            "favoriteColor must NOT be disclosed (D-04), got: {subject:?}"
-        );
-        assert_eq!(
-            derived["issuer"],
-            json!("https://issuer.example/"),
-            "mandatory /issuer survives"
-        );
-
-        assert!(
-            verify_di(&derived).await,
-            "derived v2 VC must verify against the issuer base proof"
-        );
-
-        let mut tampered = derived.clone();
-        tampered["credentialSubject"]["givenName"] = json!("Mallory");
-        assert!(
-            !verify_di(&tampered).await,
-            "tampering a revealed field must fail verification (criterion #3a)"
-        );
+        // A single derived proof replaces the stored proof set.
+        assert_eq!(value["proof"]["cryptosuite"], "ecdsa-sd-2023");
+        assert!(value["proof"]["proofValue"]
+            .as_str()
+            .unwrap()
+            .starts_with("u2V0B"));
     }
 }

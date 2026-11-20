@@ -97,6 +97,15 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
         onContinue(match.requestedFields().map { it.id })
     }
 
+    /**
+     * Elements to return in DeviceSigned, as a CBOR map of namespace to element identifier to
+     * value. Only requested elements the credential does not hold are used.
+     *
+     * Called after consent. Returns null by default.
+     */
+    open suspend fun deviceSignedElements(match: RequestMatch180137, origin: String): ByteArray? =
+        null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -272,8 +281,11 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
 
         when (consentOutcome) {
             is ConsentOutcome.Cancelled -> throw Exception("user cancelled on the consent screen")
-            is ConsentOutcome.Approved -> openid4vpResponse =
-                responder.respond(KeyManager(), consentOutcome.approvedFields)
+            is ConsentOutcome.Approved -> openid4vpResponse = responder.respond(
+                KeyManager(),
+                consentOutcome.approvedFields,
+                deviceSignedElements(responder.getMatch(), origin)
+            )
         }
 
         activityState.value = ActivityState.Authenticating()

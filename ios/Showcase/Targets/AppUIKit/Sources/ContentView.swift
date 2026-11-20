@@ -11,6 +11,8 @@ public struct ContentView: View {
     let credentialPackObservable: CredentialPackObservable
 
     public init() {
+        // Route Rust HTTP requests through the native client, so proxy settings apply.
+        RustHttpClient.configure()
         let bundle = Bundle.main
         // Getting some entitlements values from the plist
         let appGroupId = bundle.object(forInfoDictionaryKey: "storageAppGroup") as? String
@@ -103,7 +105,7 @@ public struct ContentView: View {
                         verifyMDocParams in
                         VerifyMDocView(
                             path: $path,
-                            checkAgeOver18: verifyMDocParams.checkAgeOver18
+                            profile: verifyMDocParams.profile
                         )
                     }
                     .navigationDestination(for: VerifyCwt.self) { _ in
@@ -149,7 +151,7 @@ public struct ContentView: View {
                         addToWalletParams in
                         AddToWalletView(
                             path: $path,
-                            rawCredential: addToWalletParams.rawCredential
+                            rawCredentials: [addToWalletParams.rawCredential]
                         )
                     }
                     .navigationDestination(for: HandleOID4VCI.self) {
@@ -158,6 +160,21 @@ public struct ContentView: View {
                             path: $path,
                             url: handleOID4VCIParams.url,
                             onSuccess: handleOID4VCIParams.onSuccess
+                        )
+                    }
+                    .navigationDestination(for: HandleInteraction.self) {
+                        handleInteractionParams in
+                        HandleInteractionView(
+                            path: $path,
+                            url: handleInteractionParams.url,
+                            credentialPackId: handleInteractionParams.credentialPackId,
+                        )
+                    }
+                    .navigationDestination(for: HandleVCALM.self) {
+                        handleVCALMParams in
+                        HandleVCALMView(
+                            path: $path,
+                            url: handleVCALMParams.url,
                         )
                     }
                     .navigationDestination(for: DispatchQR.self) { _ in

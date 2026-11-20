@@ -54,9 +54,8 @@ import com.spruceid.mobile.sdk.IsoMdlReader
 import com.spruceid.mobile.sdk.getBluetoothManager
 import com.spruceid.mobile.sdk.getPermissions
 import com.spruceid.mobile.sdk.nfc.rememberNfcReaderEngagement
-import com.spruceid.mobile.sdk.rs.AuthenticationStatus
-import com.spruceid.mobile.sdk.rs.MDocItem
 import com.spruceid.mobile.sdk.rs.ReaderHandover
+import com.spruceid.mobile.sdk.rs.VerifiedDocument
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.ScanningComponent
@@ -149,6 +148,91 @@ val ageOver18Elements: Map<String, Map<String, Boolean>> =
         )
     )
 
+/** ISO 18013-5 mobile driver's license doctype. */
+const val MDL_DOC_TYPE = "org.iso.18013.5.1.mDL"
+
+/** ISO/IEC TS 23220-4 Annex C Photo ID doctype (spelled with a lowercase `id` in the spec). */
+const val PHOTO_ID_DOC_TYPE = "org.iso.23220.photoid.1"
+
+/**
+ * Photo-ID-specific namespace (Annex C table 2). Identical in spelling to [PHOTO_ID_DOC_TYPE],
+ * which the spec reuses -- named separately so the doctype and namespace layers of a request stay
+ * distinguishable at a glance.
+ */
+const val PHOTO_ID_NAMESPACE = "org.iso.23220.photoid.1"
+
+/**
+ * Photo ID data elements, split between the ISO/IEC 23220-2 common namespace (Annex C table 1)
+ * and the Photo ID specific namespace (Annex C table 2).
+ */
+val photoIdElements: Map<String, Map<String, Boolean>> =
+    mapOf(
+        "org.iso.23220.1" to mapOf(
+            // Mandatory
+            "family_name_unicode" to false,
+            "given_name_unicode" to false,
+            "birth_date" to false,
+            "portrait" to false,
+            "issue_date" to false,
+            "expiry_date" to false,
+            "issuing_authority_unicode" to false,
+            "issuing_country" to false,
+            "age_over_18" to false,
+            // Recommended
+            "age_in_years" to false,
+            "age_birth_year" to false,
+            // Optional
+            "portrait_capture_date" to false,
+            "birthplace" to false,
+            "name_at_birth" to false,
+            "resident_address_unicode" to false,
+            "resident_city_unicode" to false,
+            "resident_postal_code" to false,
+            "resident_country" to false,
+            "resident_city_latin1" to false,
+            "sex" to false,
+            "nationality" to false,
+            "document_number" to false,
+            "issuing_subdivision" to false,
+            "family_name_latin1" to false,
+            "given_name_latin1" to false,
+        ),
+        PHOTO_ID_NAMESPACE to mapOf(
+            "person_id" to false,
+            "birth_country" to false,
+            "birth_state" to false,
+            "birth_city" to false,
+            "administrative_number" to false,
+            "resident_street" to false,
+            "resident_house_number" to false,
+            "travel_document_number" to false,
+            "resident_state" to false,
+        )
+    )
+
+/** What the mdoc reader asks for: which document type, and which data elements. */
+enum class MDocVerificationProfile {
+    /** ISO 18013-5 mobile driver's license. */
+    MDL,
+
+    /** ISO 18013-5 mobile driver's license, requesting only `age_over_18`. */
+    MDL_AGE_OVER_18,
+
+    /** ISO/IEC TS 23220-4 Annex C Photo ID. */
+    PHOTO_ID;
+
+    /**
+     * Requested data elements, keyed by document type, then namespace, then element identifier.
+     * The value is the reader's intent to retain the element.
+     */
+    val requestedItems: Map<String, Map<String, Map<String, Boolean>>>
+        get() = when (this) {
+            MDL -> mapOf(MDL_DOC_TYPE to defaultElements)
+            MDL_AGE_OVER_18 -> mapOf(MDL_DOC_TYPE to ageOver18Elements)
+            PHOTO_ID -> mapOf(PHOTO_ID_DOC_TYPE to photoIdElements)
+        }
+}
+
 enum class State {
     ENABLE_BLUETOOTH,
     SCANNING,
@@ -163,7 +247,7 @@ enum class State {
 @Composable
 fun VerifyMDocView(
     navController: NavController,
-    checkAgeOver18: Boolean = false
+    profile: MDocVerificationProfile = MDocVerificationProfile.MDL
 ) {
     val verificationActivityLogsViewModel: VerificationActivityLogsViewModel =
         activityHiltViewModel()
@@ -176,10 +260,8 @@ fun VerifyMDocView(
         mutableStateOf(State.ENABLE_BLUETOOTH)
     }
 
-    var result by remember { mutableStateOf<Map<String, Map<String, MDocItem>>?>(null) }
-    var docTypes by remember { mutableStateOf<List<String>>(emptyList()) }
-    var issuerAuthenticationStatus by remember { mutableStateOf<AuthenticationStatus?>(null) }
-    var deviceAuthenticationStatus by remember { mutableStateOf<AuthenticationStatus?>(null) }
+    var documents by remember { mutableStateOf<List<VerifiedDocument>>(emptyList()) }
+    var failedDocTypes by remember { mutableStateOf<List<String>>(emptyList()) }
     var responseProcessingErrors by remember { mutableStateOf<String?>(null) }
 
     var isBluetoothEnabled by remember {
@@ -232,10 +314,8 @@ fun VerifyMDocView(
             if (state.containsKey("mdl")) {
                 val response = reader?.handleMdlReaderResponseData(state["mdl"] as ByteArray)
                 if (response != null) {
-                    result = response.verifiedResponse
-                    docTypes = response.docTypes
-                    issuerAuthenticationStatus = response.issuerAuthentication
-                    deviceAuthenticationStatus = response.deviceAuthentication
+                    documents = response.documents
+                    failedDocTypes = response.failedDocTypes
                     responseProcessingErrors = response.errors
                 }
                 scanProcessState = State.DONE
@@ -268,16 +348,12 @@ fun VerifyMDocView(
                 reader = IsoMdlReader(
                     bleCallback,
                     handover,
-                    if (checkAgeOver18) {
-                        ageOver18Elements
-                    } else {
-                        defaultElements
-                    },
+                    profile.requestedItems,
                     trustedCertificatesViewModel.trustedCertificates.value.map {
                         it.content
                     },
                     bluetooth!!,
-                    context.applicationContext
+                    context.applicationContext,
                 )
             } catch (e: Exception) {
                 e.localizedMessage?.let { Toast.showError(it) }
@@ -372,10 +448,8 @@ fun VerifyMDocView(
 
         State.TRANSMITTING -> LoadingView("Verifying...", "Cancel", ::back)
         State.DONE -> VerifierMDocResultView(
-            result = result!!,
-            docTypes = docTypes,
-            issuerAuthenticationStatus = issuerAuthenticationStatus ?: AuthenticationStatus.UNCHECKED,
-            deviceAuthenticationStatus = deviceAuthenticationStatus ?: AuthenticationStatus.UNCHECKED,
+            documents = documents,
+            failedDocTypes = failedDocTypes,
             responseProcessingErrors = responseProcessingErrors,
             onClose = ::back,
             logVerification = { title, issuer, status ->

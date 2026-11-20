@@ -57,13 +57,7 @@ class PeripheralManager: NSObject & Transport {
 
     deinit {
         print("Shutting down PeripheralManager")
-        if self.characteristics.state.value != connectionStateEnd {
-            self.peripheralManager.updateValue(
-                connectionStateEnd,
-                for: self.characteristics.state,
-                onSubscribedCentrals: nil
-            )
-        }
+        signalEnd()
 
         if let l2capPsm {
             self.peripheralManager.unpublishL2CAPChannel(l2capPsm)
@@ -103,6 +97,12 @@ class PeripheralManager: NSObject & Transport {
         case disconnected
         /// An unrecoverable error occurred.
         case error
+    }
+
+    func signalEnd() {
+        guard characteristics.state.value != connectionStateEnd else { return }
+        characteristics.state.value = connectionStateEnd
+        peripheralManager.updateValue(connectionStateEnd, for: characteristics.state, onSubscribedCentrals: nil)
     }
 
     func send(message: Data) -> Bool {

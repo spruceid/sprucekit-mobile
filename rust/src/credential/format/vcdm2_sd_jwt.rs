@@ -1,3 +1,4 @@
+use crate::http_client::HttpClient;
 use crate::{
     credential::{
         status::StatusListError,
@@ -20,13 +21,13 @@ use std::sync::Arc;
 
 use base64::{engine::general_purpose::URL_SAFE, Engine as _};
 use futures::stream::{self, StreamExt};
+use http::StatusCode;
 use num_bigint::BigUint;
 use num_traits::Num;
 use openid4vp::{
     core::{credential_format::ClaimFormatDesignation, response::parameters::VpTokenItem},
     JsonPath,
 };
-use reqwest::StatusCode;
 use ssi::{
     claims::{
         jwt::AnyClaims,
@@ -275,7 +276,8 @@ impl BitStringStatusListResolver for VCDM2SdJwt {
                     .parse::<Url>()
                     .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?;
 
-                let response = reqwest::get(url)
+                let response = HttpClient::shared()
+                    .get(url.as_str())
                     .await
                     .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?;
 
@@ -287,9 +289,7 @@ impl BitStringStatusListResolver for VCDM2SdJwt {
                 }
 
                 let sd_jwt_buf = SdJwtBuf::new(
-                    response
-                        .text()
-                        .await
+                    String::from_utf8(response.into_body())
                         .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?,
                 )
                 .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?;

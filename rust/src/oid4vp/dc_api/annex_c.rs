@@ -157,6 +157,7 @@ pub async fn build_annex_c_response(
         mdoc.unwrap(),
         approved_response.approved_fields,
         &selected_match.missing_fields,
+        &Default::default(),
         selected_match.field_map.clone(),
         handover,
     )

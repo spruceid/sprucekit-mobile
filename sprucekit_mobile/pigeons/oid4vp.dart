@@ -1,0 +1,296 @@
+import 'package:pigeon/pigeon.dart';
+
+@ConfigurePigeon(
+  PigeonOptions(
+    dartOut: 'lib/pigeon/oid4vp.g.dart',
+    dartOptions: DartOptions(),
+    kotlinOut:
+        'android/src/main/kotlin/com/spruceid/sprucekit_mobile/Oid4vp.g.kt',
+    kotlinOptions: KotlinOptions(
+      errorClassName: 'Oid4vpFlutterError',
+      package: 'com.spruceid.sprucekit_mobile',
+    ),
+    swiftOut: 'ios/sprucekit_mobile/Sources/sprucekit_mobile/Oid4vp.g.swift',
+    swiftOptions: SwiftOptions(errorClassName: 'Oid4vpPigeonError'),
+    dartPackageName: 'sprucekit_mobile',
+  ),
+)
+/// An OID4VP protocol version the holder is willing to negotiate.
+///
+/// - [v1] OID4VP 1.0 (final).
+/// - [draft18] OID4VP Draft 18.
+/// - [draft13] OID4VP Draft 13 (served by translating onto the Draft 18 engine).
+///
+/// Draft 13 and Draft 18 may not both be supported: a bare `request_uri` is
+/// indistinguishable between them until its single-use fetch, so the holder
+/// rejects that combination instead of risking a wrong-version fetch.
+enum Oid4vpVersion { v1, draft18, draft13 }
+
+/// Options for creating the permission response
+class ResponseOptions {
+  bool forceArraySerialization;
+
+  ResponseOptions({required this.forceArraySerialization});
+}
+
+/// A field requested by the verifier
+class RequestedFieldData {
+  String id;
+  String? name;
+  String path;
+  bool required;
+  bool retained;
+  String? purpose;
+  String credentialQueryId;
+  List<String> rawFields;
+
+  RequestedFieldData({
+    required this.id,
+    this.name,
+    required this.path,
+    required this.required,
+    required this.retained,
+    this.purpose,
+    required this.credentialQueryId,
+    required this.rawFields,
+  });
+}
+
+/// Stable identifier for a presentable credential within a single
+/// `handleAuthorizationRequest` session.
+///
+/// A credential is uniquely identified by the pair
+/// `(credentialId, credentialQueryId)`: the same credential may appear
+/// once per DCQL credential query that it satisfies. Use this key
+/// (not list position) when calling `getRequestedFields` and `submitResponse`.
+class PresentableCredentialKey {
+  String credentialId;
+  String credentialQueryId;
+
+  PresentableCredentialKey({
+    required this.credentialId,
+    required this.credentialQueryId,
+  });
+}
+
+/// A credential that can be presented.
+///
+/// `credentialId` and `credentialQueryId` together form the stable key
+/// used to refer back to this credential in subsequent calls
+/// (`getRequestedFields`, `submitResponse`). See `PresentableCredentialKey`.
+class PresentableCredentialData {
+  String credentialId;
+  String credentialQueryId;
+  bool selectiveDisclosable;
+
+  PresentableCredentialData({
+    required this.credentialId,
+    required this.credentialQueryId,
+    required this.selectiveDisclosable,
+  });
+}
+
+/// Information about the permission request
+class PermissionRequestInfo {
+  String? clientId;
+  String? domain;
+  String? purpose;
+  bool isMultiCredentialSelection;
+  bool isMultiCredentialMatching;
+
+  PermissionRequestInfo({
+    this.clientId,
+    this.domain,
+    this.purpose,
+    required this.isMultiCredentialSelection,
+    required this.isMultiCredentialMatching,
+  });
+}
+
+/// Result of OID4VP operations
+sealed class Oid4vpResult {}
+
+/// Operation succeeded
+class Oid4vpSuccess implements Oid4vpResult {
+  String? message;
+
+  /// Redirect URI returned by the verifier in the direct_post response
+  /// (OID4VP §8.2), when it wants the user sent back to the browser after a
+  /// successful submission. Only ever set by `submitResponse`.
+  String? redirectUrl;
+
+  Oid4vpSuccess({this.message, this.redirectUrl});
+}
+
+/// Operation failed with error
+class Oid4vpError implements Oid4vpResult {
+  String message;
+
+  Oid4vpError({required this.message});
+}
+
+/// Result of handling an authorization request
+sealed class HandleAuthRequestResult {}
+
+/// Authorization request handled successfully
+class HandleAuthRequestSuccess implements HandleAuthRequestResult {
+  List<PresentableCredentialData> credentials;
+  PermissionRequestInfo info;
+
+  HandleAuthRequestSuccess({required this.credentials, required this.info});
+}
+
+/// Authorization request failed
+class HandleAuthRequestError implements HandleAuthRequestResult {
+  String message;
+
+  HandleAuthRequestError({required this.message});
+}
+
+/// A group of credentials matching a credential query
+class CredentialQueryGroupData {
+  String credentialQueryId;
+  List<PresentableCredentialData> credentials;
+
+  CredentialQueryGroupData({
+    required this.credentialQueryId,
+    required this.credentials,
+  });
+}
+
+/// A credential requirement from the verifier
+class CredentialRequirementData {
+  String displayName;
+  bool required;
+  List<String> credentialQueryIds;
+  List<PresentableCredentialData> credentials;
+
+  CredentialRequirementData({
+    required this.displayName,
+    required this.required,
+    required this.credentialQueryIds,
+    required this.credentials,
+  });
+}
+
+/// A dynamic credential offer surfaced by a registered native
+/// `DynamicCredentialProvider`.
+///
+/// Offers are issued only if the user selects them: pass the `offerId` to
+/// `submitResponseWithOffers`. Only OID4VP-v1 sessions surface offers.
+class DynamicOfferData {
+  /// Provider-scoped identifier, echoed back via `submitResponseWithOffers`.
+  String offerId;
+
+  /// The DCQL credential-query id this offer satisfies.
+  String credentialQueryId;
+
+  /// Human-readable label for the consent UI.
+  String title;
+
+  DynamicOfferData({
+    required this.offerId,
+    required this.credentialQueryId,
+    required this.title,
+  });
+}
+
+/// OID4VP credential presentation API
+///
+/// Handles the OpenID for Verifiable Presentation flow
+@HostApi()
+abstract class Oid4vp {
+  /// Create a holder with credentials for presentation
+  ///
+  /// @param credentialPackIds List of credential pack IDs to use
+  /// @param trustedDids List of trusted DIDs for verification
+  /// @param keyId The key identifier for signing (will create if doesn't exist)
+  /// @param contextMap Optional JSON-LD context map
+  @async
+  Oid4vpResult createHolder(
+    List<String> credentialPackIds,
+    List<String> trustedDids,
+    String keyId,
+    Map<String, String>? contextMap,
+  );
+
+  /// Handle an authorization request URL
+  ///
+  /// @param url The authorization request URL (e.g., "openid4vp://...")
+  /// @param supportedVersions The OID4VP versions to negotiate against. An empty
+  ///   list detects the version from the request (any version). A non-empty list
+  ///   restricts detection to those versions, so an unsupported version is never
+  ///   selected — and never consumes a single-use `request_uri` on a wrong-version
+  ///   fetch. Supplying both [Oid4vpVersion.draft13] and [Oid4vpVersion.draft18]
+  ///   is rejected.
+  /// @return HandleAuthRequestResult with matching credentials on success
+  @async
+  HandleAuthRequestResult handleAuthorizationRequest(
+    String url,
+    List<Oid4vpVersion> supportedVersions,
+  );
+
+  /// Get requested fields for a credential
+  ///
+  /// @param key Stable key identifying the credential. Take the
+  ///   `credentialId` and `credentialQueryId` from a `PresentableCredentialData`
+  ///   returned by `handleAuthorizationRequest`, `getCredentialRequirements`,
+  ///   or `getCredentialsGroupedByQuery`.
+  /// @return List of requested fields for the credential
+  List<RequestedFieldData> getRequestedFields(PresentableCredentialKey key);
+
+  /// Submit the presentation response
+  ///
+  /// @param selectedCredentials Stable keys of the credentials the user selected
+  /// @param selectedFieldPaths List of selected field paths per credential, in
+  ///   the same order as `selectedCredentials`
+  /// @param options Response configuration options
+  @async
+  Oid4vpResult submitResponse(
+    List<PresentableCredentialKey> selectedCredentials,
+    List<List<String>> selectedFieldPaths,
+    ResponseOptions options,
+  );
+
+  /// Submit the response, additionally issuing the dynamic credential offers
+  /// selected by `offerId` from `getDynamicOffers`.
+  ///
+  /// `selectedCredentials` may be empty if at least one offer is selected.
+  /// Unknown offer ids fail the whole submission.
+  @async
+  Oid4vpResult submitResponseWithOffers(
+    List<PresentableCredentialKey> selectedCredentials,
+    List<List<String>> selectedFieldPaths,
+    List<String> selectedOfferIds,
+    ResponseOptions options,
+  );
+
+  /// Get credential requirements from the permission request
+  ///
+  /// @return List of credential requirements
+  List<CredentialRequirementData> getCredentialRequirements();
+
+  /// Get credentials grouped by credential query
+  ///
+  /// @return List of credential query groups
+  List<CredentialQueryGroupData> getCredentialsGroupedByQuery();
+
+  /// Get credential query IDs from the permission request
+  ///
+  /// @return List of credential query ID strings
+  List<String> getCredentialQueryIds();
+
+  /// Get the dynamic credential offers for the current session.
+  ///
+  /// Empty when no providers are registered, none match the request, or the
+  /// negotiated version is not v1. Call after `handleAuthorizationRequest`.
+  List<DynamicOfferData> getDynamicOffers();
+
+  /// Notify the verifier that the user denied the current direct-post OID4VP
+  /// request, then clean up the session.
+  @async
+  Oid4vpResult denyPermission();
+
+  /// Cancel and cleanup the current session without notifying the verifier.
+  void cancel();
+}

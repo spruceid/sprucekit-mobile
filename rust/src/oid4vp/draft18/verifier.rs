@@ -1,3 +1,4 @@
+use crate::http_client::HttpClient;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use url::Url;
@@ -14,7 +15,7 @@ pub enum Draft18Oid4vpVerifierError {
 pub struct Draft18DelegatedVerifier {
     base_url: Url,
     /// HTTP Request Client
-    pub(crate) client: openidvp_draft18::core::util::ReqwestClient,
+    pub(crate) client: HttpClient,
 }
 
 #[derive(Debug, Serialize, Deserialize, uniffi::Enum, PartialEq)]
@@ -55,8 +56,7 @@ pub struct Draft18DelegateInitializationResponse {
 impl Draft18DelegatedVerifier {
     #[uniffi::constructor]
     pub async fn new_client(base_url: Url) -> Result<Arc<Self>, Draft18Oid4vpVerifierError> {
-        let client = openidvp_draft18::core::util::ReqwestClient::new()
-            .map_err(|e| Draft18Oid4vpVerifierError::HttpClient(format!("{e:?}")))?;
+        let client = HttpClient::shared();
 
         Ok(Arc::new(Self { base_url, client }))
     }
@@ -78,14 +78,12 @@ impl Draft18DelegatedVerifier {
             .join(url)
             .map_err(|e| Draft18Oid4vpVerifierError::Url(format!("{e:?}")))?;
 
-        self.client
-            .as_ref()
-            .get(uri)
-            .send()
+        let response = self
+            .client
+            .get(uri.as_str())
             .await
-            .map_err(|e| Draft18Oid4vpVerifierError::HttpClient(format!("{e:?}")))?
-            .json()
-            .await
+            .map_err(|e| Draft18Oid4vpVerifierError::HttpClient(format!("{e:?}")))?;
+        serde_json::from_slice(response.body())
             .map_err(|e| Draft18Oid4vpVerifierError::HttpClient(format!("{e:?}")))
     }
 
@@ -98,14 +96,12 @@ impl Draft18DelegatedVerifier {
             .join(url)
             .map_err(|e| Draft18Oid4vpVerifierError::Url(format!("{e:?}")))?;
 
-        self.client
-            .as_ref()
-            .get(uri)
-            .send()
+        let response = self
+            .client
+            .get(uri.as_str())
             .await
-            .map_err(|e| Draft18Oid4vpVerifierError::HttpClient(format!("{e:?}")))?
-            .json()
-            .await
+            .map_err(|e| Draft18Oid4vpVerifierError::HttpClient(format!("{e:?}")))?;
+        serde_json::from_slice(response.body())
             .map_err(|e| Draft18Oid4vpVerifierError::HttpClient(format!("{e:?}")))
     }
 }

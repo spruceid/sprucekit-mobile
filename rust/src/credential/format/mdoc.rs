@@ -7,6 +7,7 @@ use base64::prelude::*;
 use isomdl::{
     cbor,
     definitions::{
+        device_signed::DeviceNamespaces,
         helpers::{NonEmptyMap, NonEmptyVec, Tag24},
         issuer_signed_dehydrated::{IssuerSignedDehydrated, NameSpacedData},
         IssuerSigned, IssuerSignedItem, Mso,
@@ -48,6 +49,18 @@ pub struct Element {
     pub identifier: String,
     /// JSON representation of the data element, missing if the value cannot be represented as JSON.
     pub value: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+/// The validity of an mdoc relative to the current time, derived from the MSO
+/// `validityInfo` (`validFrom`/`validUntil`).
+pub enum MdocValidityStatus {
+    /// The current time is within `[validFrom, validUntil]`.
+    Valid,
+    /// `validUntil` is in the past.
+    Expired,
+    /// `validFrom` is in the future.
+    NotYetValid,
 }
 
 #[derive(uniffi::Object, Debug, Clone)]
@@ -192,6 +205,19 @@ impl Mdoc {
             .map_err(|e| MdocDateError::Formatting(format!("{e:?}")))
     }
 
+    /// The validity of this mdoc relative to the current time, derived from `validityInfo`.
+    pub fn validity_status(&self) -> MdocValidityStatus {
+        let now = time::OffsetDateTime::now_utc();
+        let validity_info = &self.inner.mso.validity_info;
+        if now < validity_info.valid_from {
+            MdocValidityStatus::NotYetValid
+        } else if now > validity_info.valid_until {
+            MdocValidityStatus::Expired
+        } else {
+            MdocValidityStatus::Valid
+        }
+    }
+
     pub async fn activity_log(
         &self,
         storage: Arc<dyn StorageManagerInterface>,
@@ -208,6 +234,14 @@ impl Mdoc {
 
     pub(crate) fn new_from_parts(inner: Document, key_alias: KeyAlias) -> Self {
         Self { inner, key_alias }
+    }
+
+    /// Whether the mdoc holds the data element `element` in `namespace`.
+    pub(crate) fn has_element(&self, namespace: &str, element: &str) -> bool {
+        self.document()
+            .namespaces
+            .get(namespace)
+            .is_some_and(|elements| elements.contains_key(element))
     }
 
     /// Check if the mdoc satisfies a DCQL credential query.
@@ -346,12 +380,13 @@ impl Mdoc {
             }
         }
 
-        let revealed_namespaces: NonEmptyMap<String, NonEmptyVec<Tag24<IssuerSignedItem>>> =
-            NonEmptyMap::maybe_new(revealed_namespaces).ok_or_else(|| {
-                OID4VPError::CredentialEncoding(CredentialEncodingError::VpToken(
-                    "No fields selected for mdoc presentation".into(),
-                ))
-            })?;
+        let revealed_namespaces: Option<NonEmptyMap<String, NonEmptyVec<Tag24<IssuerSignedItem>>>> =
+            NonEmptyMap::maybe_new(revealed_namespaces);
+        if revealed_namespaces.is_none() && options.query_has_claims {
+            return Err(OID4VPError::CredentialEncoding(
+                CredentialEncodingError::VpToken("No fields selected for mdoc presentation".into()),
+            ));
+        }
 
         // Create Handover per OID4VP 1.0 §B.2.6.1 (Invocation via Redirects)
         let jwk_thumbprint = get_encryption_jwk_thumbprint(options.request);
@@ -361,14 +396,17 @@ impl Mdoc {
             })?;
 
         // Build and sign the DeviceResponse
-        let device_response =
-            build_device_response(keystore, self, revealed_namespaces, None, handover).map_err(
-                |e| {
-                    CredentialEncodingError::VpToken(format!(
-                        "Failed to build device response: {e}"
-                    ))
-                },
-            )?;
+        let device_response = build_device_response(
+            keystore,
+            self,
+            revealed_namespaces,
+            None,
+            DeviceNamespaces::new(),
+            handover,
+        )
+        .map_err(|e| {
+            CredentialEncodingError::VpToken(format!("Failed to build device response: {e}"))
+        })?;
 
         // Encode as base64url
         let device_response_bytes = cbor::to_vec(&device_response).map_err(|e| {

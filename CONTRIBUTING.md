@@ -14,7 +14,7 @@
 - `ios/`
     * `MobileSdk/`: Swift SDK built on top of `MobileSdkRS` (under `rust/`)
     * `Showcase/`: Showcase app, our reference app for this SDK
-- `flutter/`
+- `sprucekit_mobile/`
     * Flutter plugin providing cross-platform access to the SDK
     * `example/`: Example Flutter app demonstrating the plugin
 
@@ -27,7 +27,6 @@
 rustup target install \
     armv7-linux-androideabi \
     aarch64-linux-android \
-    i686-linux-android \
     x86_64-linux-android \
     aarch64-apple-ios-sim \
     aarch64-apple-ios \
@@ -35,8 +34,6 @@ rustup target install \
 ```
 - `cargo-ndk`
   - `cargo install cargo-ndk` (or use `cargo binstall` for a faster install)
-- `cargo-swift` 0.11
-  - `cargo install cargo-swift@0.11.0`
 
 ### Android
 
@@ -95,10 +92,21 @@ CLASSPATH="/path/to/jna-5.14.0.jar:/path/to/kotlinx-coroutines-core-jvm-1.6.4.ja
 
 #### Rust layer
 
+The workspace contains two UniFFI crates (`mobile-sdk-rs` and `mobile-toolkit`), each with its
+own C module (`MobileSdkRsFFI` / `mobile_toolkitFFI`). `rust/build-ios.sh` generates the per-crate
+Swift bindings in uniffi library mode and assembles the xcframework with each module in its own
+`Headers/<module>/` directory, so it can sit next to other static xcframeworks in an app.
+
 In `./rust/`
 ```bash
-cargo swift package -p ios -n MobileSdkRs
+./build-ios.sh                     # release, device + simulator (what CD ships)
+./build-ios.sh --debug             # faster local iteration
+./build-ios.sh --simulator-only --debug   # what CI runs
 ```
+
+The script cross-compiles the workspace, regenerates the Swift bindings into
+`MobileSdkRs/Sources/MobileSdkRs/`, and assembles `MobileSdkRs/MobileSdkRsFFI.xcframework`.
+Commit any changes to the generated `*.swift` files — CI fails if the committed bindings are stale.
 
 #### SDK
 
@@ -120,13 +128,16 @@ To develop the Flutter plugin against local SDK changes:
 
 2. Run the example app:
    ```bash
-   cd flutter/example
+   cd sprucekit_mobile/example
    flutter pub get
-   cd ios && pod install && cd ..
-   flutter run
+   SPRUCEKIT_SDK_FROM_SOURCE=1 flutter run
    ```
 
-After making changes to Rust code, rebuild and run `pod install` again.
+`SPRUCEKIT_SDK_FROM_SOURCE=1` makes the iOS build use the SDK in this
+repository. For a launch from an IDE, set the variable in the launch
+configuration. See `sprucekit_mobile/CLAUDE.md`.
+
+After a change to the Rust code, build the Rust layer again and run the app again.
 
 #### Regenerating Pigeon bindings
 
@@ -146,15 +157,16 @@ Run these locally before opening a PR to catch the same failures CI will catch.
 
 **Rust** — see commands in `rust/CLAUDE.md`. Make sure to set `RUSTFLAGS="-Dwarnings"` for build and clippy, as CI treats warnings as errors.
 
-**iOS Swift bindings** — after any Rust change, regenerate (see `rust/CLAUDE.md`) and commit any changes to `rust/MobileSdkRs/`. CI fails if the committed bindings are out of date.
+**iOS Swift bindings** — after any Rust change, regenerate (see [iOS → Rust layer](#rust-layer) above) and commit any changes to `rust/MobileSdkRs/`. CI fails if the committed bindings are out of date.
 
-**Flutter** — use `fvm` to match the pinned Flutter version (see `flutter/.fvmrc`):
+**Flutter** — use `fvm` to match the pinned Flutter version (see `sprucekit_mobile/.fvmrc`):
 
 ```bash
 cd flutter
 fvm flutter pub get
 fvm flutter analyze
 fvm dart format --set-exit-if-changed lib/sprucekit_mobile.dart pigeons/ example/
+fvm flutter pub publish --dry-run  # pub.dev validation; warns about uncommitted files
 ```
 
 **Android** — the CI job requires cross-compilation toolchains that are heavy to run locally. Running the Rust and Flutter checks above is usually sufficient. If you've changed Kotlin code in the Showcase or SDK, you can run lint with:
@@ -165,10 +177,41 @@ touch local.properties  # if missing
 ./gradlew :showcase:lint -Prust-target=arm64
 ```
 
+**US English** — copy shown to a person is US English, enforced by the `spelling` CI job over the Showcase apps and the Flutter example. Exemptions live in `_typos.toml`:
+
+```bash
+typos android/Showcase/src ios/Showcase sprucekit_mobile/example/lib
+```
+
+Install it with `brew install typos-cli` or `cargo install typos-cli`. When a flagged word is a name we do not own — an ISO mDL claim key, a third-party API — add it to `_typos.toml` rather than renaming it.
+
+**Native library size** — the `rust` CI job fails if OpenSSL or `native-tls` is in the Android or iOS dependency graph, and warns if `reqwest`, `hyper`, `h2`, `http` or `rustls` is there in two versions. After a dependency change, run `rust/scripts/check-deps.sh` (a few seconds, no build). The `size-report` job compares the release library sizes (Android arm64 `.so`, iOS device `.a`) with `main` in its job summary: it warns above +1% or +100 KB (100,000 B). It doesn't fail the build unless `SIZE_FAIL_PCT` is set. The thresholds are in `.github/workflows/ci.yml`.
+
 ## Releases
 
 ### SDKs
-Use the [`cd` Github Action](https://github.com/spruceid/sprucekit-mobile/actions/workflows/cd.yml) which is a manually triggered action, and provide the version is the `x.y.z` format.
+Use the [`cd` Github Action](https://github.com/spruceid/sprucekit-mobile/actions/workflows/cd.yml) which is a manually triggered action, and provide the version in the `x.y.z` format.
+
+The Android SDK is published to Maven Central. The iOS pods are published to the private [`spruceid/cocoapods-specs`](https://github.com/spruceid/cocoapods-specs) Specs repo.
+
+### Flutter plugin
+The `cd` workflow sets the plugin version, adds an entry to `sprucekit_mobile/CHANGELOG.md`, and pushes the release tag. The tag push starts the [`publish-flutter` workflow](.github/workflows/publish-flutter.yml), which publishes `sprucekit_mobile` to pub.dev. The workflow authenticates with the GitHub OIDC token, so the repository holds no pub.dev secret.
+
+The pub.dev package admin page must have these settings:
+
+- Automated publishing from GitHub Actions is on, for the repository `spruceid/sprucekit-mobile`.
+- The tag pattern is `{{version}}`.
+- "Require GitHub Actions environment" is on, with the environment `pub.dev`.
+
+pub.dev accepts automated publishing only for a package that exists. Publish the first version from a computer with `flutter pub publish`, then set the options above.
+
+### Consuming the iOS SDK via CocoaPods
+The pods source their code from the release git tag, so add the private Specs repo alongside the CDN at the top of your `Podfile`:
+
+```ruby
+source 'https://github.com/spruceid/cocoapods-specs.git'
+source 'https://cdn.cocoapods.org'
+```
 
 ### Showcase Apps
 This is currently done manually and locally.

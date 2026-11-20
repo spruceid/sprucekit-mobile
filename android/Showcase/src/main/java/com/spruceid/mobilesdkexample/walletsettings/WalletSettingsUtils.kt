@@ -1,28 +1,57 @@
 package com.spruceid.mobilesdkexample.walletsettings
 
-import androidx.compose.runtime.Composable
 import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobile.sdk.KeyManager
+import com.spruceid.mobile.sdk.rs.KeyStore
+import com.spruceid.mobile.sdk.rs.Mdoc
 import com.spruceid.mobile.sdk.rs.generateTestMdl
+import com.spruceid.mobile.sdk.rs.generateTestPhotoId
 import com.spruceid.mobilesdkexample.db.WalletActivityLogs
 import com.spruceid.mobilesdkexample.utils.Toast
-import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
 import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 
-suspend fun generateMockMdl(credentialPacksViewModel:CredentialPacksViewModel, walletActivityLogsViewModel: WalletActivityLogsViewModel) {
+/** Signing key used as the DeviceKey of every locally generated test mdoc. */
+const val TEST_MDOC_KEY_ALIAS = "testMdl"
+
+suspend fun generateMockMdl(
+    credentialPacksViewModel: CredentialPacksViewModel,
+    walletActivityLogsViewModel: WalletActivityLogsViewModel
+) = generateMockMdoc(
+    displayName = "mDL",
+    makeMdoc = ::generateTestMdl,
+    credentialPacksViewModel = credentialPacksViewModel,
+    walletActivityLogsViewModel = walletActivityLogsViewModel
+)
+
+suspend fun generateMockPhotoId(
+    credentialPacksViewModel: CredentialPacksViewModel,
+    walletActivityLogsViewModel: WalletActivityLogsViewModel
+) = generateMockMdoc(
+    displayName = "Photo ID",
+    makeMdoc = ::generateTestPhotoId,
+    credentialPacksViewModel = credentialPacksViewModel,
+    walletActivityLogsViewModel = walletActivityLogsViewModel
+)
+
+/** Issue a test mdoc against the shared test signing key, store it, and log the activity. */
+private suspend fun generateMockMdoc(
+    displayName: String,
+    makeMdoc: (KeyStore, String) -> Mdoc,
+    credentialPacksViewModel: CredentialPacksViewModel,
+    walletActivityLogsViewModel: WalletActivityLogsViewModel
+) {
     try {
         val keyManager = KeyManager()
-        val keyAlias = "testMdl"
-        if (!keyManager.keyExists(keyAlias)) {
-            keyManager.generateSigningKey(keyAlias)
+        if (!keyManager.keyExists(TEST_MDOC_KEY_ALIAS)) {
+            keyManager.generateSigningKey(TEST_MDOC_KEY_ALIAS)
         }
-        val mdl = generateTestMdl(KeyManager(), keyAlias)
+        val mdoc = makeMdoc(keyManager, TEST_MDOC_KEY_ALIAS)
         val mdocPack = CredentialPack()
 
-        var credentials = mdocPack.addMdoc(mdl);
+        val credentials = mdocPack.addMdoc(mdoc)
         credentialPacksViewModel.saveCredentialPack(mdocPack)
 
         val credentialInfo = getCredentialIdTitleAndIssuer(mdocPack, credentials[0])
@@ -38,9 +67,8 @@ suspend fun generateMockMdl(credentialPacksViewModel:CredentialPacksViewModel, w
             )
         )
 
-
-        Toast.showSuccess("Test mDL added to your wallet")
+        Toast.showSuccess("Test $displayName added to your wallet")
     } catch (_: Exception) {
-        Toast.showError("Error generating mDL")
+        Toast.showError("Error generating $displayName")
     }
 }

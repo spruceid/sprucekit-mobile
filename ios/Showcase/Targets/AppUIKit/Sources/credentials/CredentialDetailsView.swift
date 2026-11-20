@@ -95,6 +95,7 @@ struct CredentialDetailsView: View {
                                 path: $path,
                                 credentialPackId: credentialPackId,
                                 supportedTypes: [
+                                    SupportedQRTypes.interaction,
                                     SupportedQRTypes.oid4vp,
                                     SupportedQRTypes.http,
                                 ],
@@ -105,7 +106,10 @@ struct CredentialDetailsView: View {
                         } else if index == 2, let mdoc = mdoc() {  // Share
                             ShareMdocView(mdoc: mdoc)
                                 .tag(index)
-                        } else if index == 3 {  // Share PDF
+                        } else if index == 3, let mdoc = mdoc() {  // Share NFC
+                            NfcHolderSelfTestView(mdoc: mdoc)
+                                .tag(index)
+                        } else if index == 4 {  // Share PDF
                             SharePdfView(credentialPack: credentialPack)
                                 .tag(index)
                         }
@@ -159,6 +163,9 @@ struct CredentialDetailsView: View {
             if credentialPackHasMdoc(credentialPack: credentialPack!) {
                 credentialDetailsViewTabs.append(
                     CredentialDetailsViewTab(image: "QRCode")
+                )
+                credentialDetailsViewTabs.append(
+                    CredentialDetailsViewTab(image: "Wallet")
                 )
                 credentialDetailsViewTabs.append(
                     CredentialDetailsViewTab(image: "Export")

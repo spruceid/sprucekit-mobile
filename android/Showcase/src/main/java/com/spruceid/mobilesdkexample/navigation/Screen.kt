@@ -8,6 +8,7 @@ const val VERIFY_SD_JWT_PATH = "verify_sd_jwt"
 const val VERIFY_CWT_PATH = "verify_CWT"
 const val VERIFY_MDOC_PATH = "verify_mdoc"
 const val VERIFY_MDL_OVER_18_PATH = "verify_mdl_over_18"
+const val VERIFY_PHOTO_ID_PATH = "verify_photo_id"
 const val VERIFY_KIOSK_PATH = "verify_kiosk"
 const val VERIFY_DELEGATED_OID4VP_PATH = "verify_delegated_oid4vp/{id}"
 const val VERIFIER_SETTINGS_HOME_PATH = "verifier_settings_home"
@@ -18,6 +19,9 @@ const val WALLET_SETTINGS_HOME_PATH = "wallet_settings_home"
 const val WALLET_SETTINGS_ACTIVITY_LOG = "wallet_settings_activity_log"
 const val ADD_TO_WALLET_PATH = "add_to_wallet/{rawCredential}"
 const val SCAN_QR_PATH = "scan_qr"
+const val HANDLE_INTERACTION_PATH = "interaction/{url}"
+const val HANDLE_INTERACTION_WITH_CREDENTIAL_PACK_PATH = "interaction/{url}/{credential_pack_id}"
+const val HANDLE_VCALM_PATH = "vcalm/{url}"
 const val HANDLE_OID4VCI_PATH = "oid4vci/{url}"
 const val HANDLE_OID4VP_PATH = "oid4vp/{url}"
 const val HANDLE_OID4VP_WITH_CREDENTIAL_PACK_PATH = "oid4vp/{url}/{credential_pack_id}"
@@ -34,6 +38,7 @@ sealed class Screen(val route: String) {
     object VerifyCWTScreen : Screen(VERIFY_CWT_PATH)
     object VerifyMDocScreen : Screen(VERIFY_MDOC_PATH)
     object VerifyMDlOver18Screen : Screen(VERIFY_MDL_OVER_18_PATH)
+    object VerifyPhotoIdScreen : Screen(VERIFY_PHOTO_ID_PATH)
     object VerifyKioskScreen : Screen(VERIFY_KIOSK_PATH)
     object VerifyDelegatedOid4vpScreen : Screen(VERIFY_DELEGATED_OID4VP_PATH)
     object VerifierSettingsHomeScreen : Screen(VERIFIER_SETTINGS_HOME_PATH)
@@ -46,6 +51,11 @@ sealed class Screen(val route: String) {
 
     object AddToWalletScreen : Screen(ADD_TO_WALLET_PATH)
     object ScanQRScreen : Screen(SCAN_QR_PATH)
+    object HandleInteraction : Screen(HANDLE_INTERACTION_PATH)
+    object HandleInteractionWithCredentialPack :
+        Screen(HANDLE_INTERACTION_WITH_CREDENTIAL_PACK_PATH)
+
+    object HandleVCALM : Screen(HANDLE_VCALM_PATH)
     object HandleOID4VCI : Screen(HANDLE_OID4VCI_PATH)
     object HandleOID4VP : Screen(HANDLE_OID4VP_PATH)
     object HandleOID4VPWithCredentialPack : Screen(HANDLE_OID4VP_WITH_CREDENTIAL_PACK_PATH)

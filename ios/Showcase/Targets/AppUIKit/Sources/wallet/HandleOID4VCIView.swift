@@ -18,7 +18,10 @@ struct HandleOID4VCI: Hashable {
 struct HandleOID4VCIView: View {
     @State var loading: Bool = false
     @State var err: String?
-    @State var credential: String?
+    @State var credentials: [String] = []
+    /// Key for this issuance session, shared by the whole offer because one key
+    /// backs the client id that every proof is signed against.
+    @State var credentialKeyAlias: String?
     @State var credentialPack: CredentialPack?
 
     @State var showPinAlert: Bool = false
@@ -31,38 +34,49 @@ struct HandleOID4VCIView: View {
     @State var hoistedClientId: String?
     @State var hoistedCredentialIssuer: String?
     @State var hoistedSigner: JwsSigner?
+    @State var hoistedConfigIds: [String]?
 
     @Binding var path: NavigationPath
     let url: String
     let onSuccess: (() -> Void)?
 
+    // Exchanges every credential in the offer against the token, one request
+    // per credential_configuration_id (each requires its own fresh nonce/proof).
+    // Deferred credentials are skipped rather than aborting the whole batch,
+    // so other credentials in the same offer still get issued.
     func completeIssuance(
         token: CredentialToken,
         httpClient: Oid4vciAsyncHttpClient,
         oid4vciClient: Oid4vciClient,
         clientId: String,
         credentialIssuer: String,
-        signer: JwsSigner
-    ) async throws -> String? {
-        let credentialId = try token.defaultCredentialId()
+        signer: JwsSigner,
+        configIds: [String]
+    ) async throws -> [String] {
+        var results: [String] = []
 
-        let nonce = try await token.getNonce(httpClient: httpClient)
-        let jwt = try await createJwtProof(issuer: clientId, audience: credentialIssuer, expireInSecs: nil, nonce: nonce, signer: signer)
-        let proofs = Proofs.jwt([jwt])
+        for configId in configIds {
+            let nonce = try await token.getNonce(httpClient: httpClient)
+            let jwt = try await createJwtProof(issuer: clientId, audience: credentialIssuer, expireInSecs: nil, nonce: nonce, signer: signer)
+            let proofs = Proofs.jwt([jwt])
 
-        let response = try await oid4vciClient.exchangeCredential(httpClient: httpClient, token: token, credential: credentialId, proofs: proofs)
+            let credentialId = CredentialOrConfigurationId.configuration(configId)
+            let response = try await oid4vciClient.exchangeCredential(httpClient: httpClient, token: token, credential: credentialId, proofs: proofs)
 
-        switch response {
-        case .deferred(_):
-            return nil
-        case .immediate(let immediate):
-            guard let rawCredential = immediate.credentials.first else {
-                throw NSError(domain: "OID4VCI", code: 0, userInfo: [
-                    "CredentialIssuer": credentialIssuer
-                ])
+            switch response {
+            case .deferred(_):
+                continue
+            case .immediate(let immediate):
+                guard let rawCredential = immediate.credentials.first else {
+                    throw NSError(domain: "OID4VCI", code: 0, userInfo: [
+                        "CredentialIssuer": credentialIssuer
+                    ])
+                }
+                results.append(String(decoding: Data(rawCredential.payload), as: UTF8.self))
             }
-            return String(decoding: Data(rawCredential.payload), as: UTF8.self)
         }
+
+        return results
     }
 
     func getCredential(credentialOffer: String) {
@@ -72,10 +86,13 @@ struct HandleOID4VCIView: View {
         let httpClient = Oid4vciAsyncHttpClient()
 
         // Setup signer.
-        let jwk = KeyManager.getOrInsertJwk(id: DEFAULT_SIGNING_KEY_ID)
+        let keyAlias = "credential/" + UUID().uuidString
+        _ = KeyManager.generateSigningKey(id: keyAlias)
+        credentialKeyAlias = keyAlias
+        let jwk = KeyManager.getJwk(id: keyAlias)!.copy()
         let didUrl = generateDidJwkUrl(jwk: jwk)
         jwk.setKid(kid: didUrl.description)
-        let signer = KeyManagerJwkSigner(id: DEFAULT_SIGNING_KEY_ID, jwk: jwk)
+        let signer = KeyManagerJwkSigner(id: keyAlias, jwk: jwk)
 
         let clientId = didUrl.did().description
         let oid4vciClient = Oid4vciClient(clientId: clientId)
@@ -90,12 +107,14 @@ struct HandleOID4VCIView: View {
 
                 let credentialOffer = try await oid4vciClient.resolveOfferUrl(httpClient: httpClient, credentialOfferUrl: offerUrl)
                 let credentialIssuer = credentialOffer.credentialIssuer()
+                let configIds = credentialOffer.credentialConfigurationIds()
 
                 self.hoistedHttpClient = httpClient
                 self.hoistedOid4vciClient = oid4vciClient
                 self.hoistedClientId = clientId
                 self.hoistedCredentialIssuer = credentialIssuer
                 self.hoistedSigner = signer
+                self.hoistedConfigIds = configIds
 
                 let state = try await oid4vciClient.acceptOffer(httpClient: httpClient, credentialOffer: credentialOffer)
 
@@ -125,15 +144,17 @@ struct HandleOID4VCIView: View {
                             err = "Authorization error: \(errorParam)"
                         } else if let codeParam, !codeParam.isEmpty {
                             let token = try await waiting.proceed(httpClient: httpClient, authorizationCode: codeParam)
-                            if let cred = try await completeIssuance(
+                            let creds = try await completeIssuance(
                                 token: token,
                                 httpClient: httpClient,
                                 oid4vciClient: oid4vciClient,
                                 clientId: clientId,
                                 credentialIssuer: credentialIssuer,
-                                signer: signer
-                            ) {
-                                credential = cred
+                                signer: signer,
+                                configIds: configIds
+                            )
+                            if !creds.isEmpty {
+                                credentials = creds
                                 onSuccess?()
                             } else {
                                 err = "Deferred credentials not supported"
@@ -142,7 +163,7 @@ struct HandleOID4VCIView: View {
                             err = "Missing authorization code in callback"
                         }
                     } else {
-                        err = "Sign-in cancelled"
+                        err = "Sign-in canceled"
                     }
                 case .requiresTxCode(let txState):
                     self.pendingTxState = txState
@@ -150,15 +171,17 @@ struct HandleOID4VCIView: View {
                     loading = false
                     return
                 case .ready(let credentialToken):
-                    if let cred = try await completeIssuance(
+                    let creds = try await completeIssuance(
                         token: credentialToken,
                         httpClient: httpClient,
                         oid4vciClient: oid4vciClient,
                         clientId: clientId,
                         credentialIssuer: credentialIssuer,
-                        signer: signer
-                    ) {
-                        credential = cred
+                        signer: signer,
+                        configIds: configIds
+                    )
+                    if !creds.isEmpty {
+                        credentials = creds
                         onSuccess?()
                     } else {
                         err = "Deferred credentials not supported"
@@ -189,8 +212,8 @@ struct HandleOID4VCIView: View {
                 ) {
                     back()
                 }
-            } else if credential != nil {
-                AddToWalletView(path: _path, rawCredential: credential!)
+            } else if !credentials.isEmpty {
+                AddToWalletView(path: _path, rawCredentials: credentials, keyAlias: credentialKeyAlias)
             }
 
         }
@@ -208,11 +231,12 @@ struct HandleOID4VCIView: View {
                 let clientId = hoistedClientId
                 let credentialIssuer = hoistedCredentialIssuer
                 let signer = hoistedSigner
+                let configIds = hoistedConfigIds
                 pendingTxState = nil
                 pinInput = ""
 
                 guard let txState, let httpClient, let oid4vciClient,
-                      let clientId, let credentialIssuer, let signer
+                      let clientId, let credentialIssuer, let signer, let configIds
                 else {
                     err = "Internal error: missing PIN context"
                     return
@@ -222,15 +246,17 @@ struct HandleOID4VCIView: View {
                 Task {
                     do {
                         let token = try await txState.proceed(httpClient: httpClient, txCode: pin)
-                        if let cred = try await completeIssuance(
+                        let creds = try await completeIssuance(
                             token: token,
                             httpClient: httpClient,
                             oid4vciClient: oid4vciClient,
                             clientId: clientId,
                             credentialIssuer: credentialIssuer,
-                            signer: signer
-                        ) {
-                            credential = cred
+                            signer: signer,
+                            configIds: configIds
+                        )
+                        if !creds.isEmpty {
+                            credentials = creds
                             onSuccess?()
                         } else {
                             err = "Deferred credentials not supported"
@@ -244,7 +270,7 @@ struct HandleOID4VCIView: View {
             Button("Cancel", role: .cancel) {
                 pendingTxState = nil
                 pinInput = ""
-                err = "Transaction code cancelled"
+                err = "Transaction code canceled"
             }
         } message: {
             Text("Please enter the PIN provided with the QR code.")
@@ -281,174 +307,8 @@ class KeyManagerJwkSigner: JwsSigner, @unchecked Sendable {
 
     func signBytes(signingBytes: Data) async throws -> Data {
         return try decodeDerSignature(signatureDer: Data(KeyManager.signPayload(
-            id: DEFAULT_SIGNING_KEY_ID,
+            id: self.id,
             payload: [UInt8](signingBytes)
         )!))
     }
-}
-
-func getVCPlaygroundOID4VCIContext() throws -> [String: String] {
-    var context: [String: String] = [:]
-
-    var path = Bundle.main.path(
-        forResource: "w3id.org_first-responder_v1",
-        ofType: "json"
-    )
-    context["https://w3id.org/first-responder/v1"] = try String(
-        contentsOfFile: path!,
-        encoding: String.Encoding.utf8
-    )
-
-    path = Bundle.main.path(
-        forResource: "w3id.org_vdl_aamva_v1",
-        ofType: "json"
-    )
-    context["https://w3id.org/vdl/aamva/v1"] = try String(
-        contentsOfFile: path!,
-        encoding: String.Encoding.utf8
-    )
-
-    path = Bundle.main.path(
-        forResource: "w3id.org_citizenship_v3",
-        ofType: "json"
-    )
-    context["https://w3id.org/citizenship/v3"] = try String(
-        contentsOfFile: path!,
-        encoding: String.Encoding.utf8
-    )
-
-    path = Bundle.main.path(
-        forResource: "purl.imsglobal.org_spec_ob_v3p0_context-3.0.2",
-        ofType: "json"
-    )
-    context["https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.2.json"] =
-        try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
-
-    path = Bundle.main.path(
-        forResource: "w3id.org_citizenship_v4rc1",
-        ofType: "json"
-    )
-    context["https://w3id.org/citizenship/v4rc1"] = try String(
-        contentsOfFile: path!,
-        encoding: String.Encoding.utf8
-    )
-
-    path = Bundle.main.path(
-        forResource: "w3id.org_vc_render-method_v2rc1",
-        ofType: "json"
-    )
-    context["https://w3id.org/vc/render-method/v2rc1"] = try String(
-        contentsOfFile: path!,
-        encoding: String.Encoding.utf8
-    )
-
-    path = Bundle.main.path(
-        forResource:
-            "examples.vcplayground.org_contexts_alumni_v2",
-        ofType: "json"
-    )
-    context[
-        "https://examples.vcplayground.org/contexts/alumni/v2.json"
-    ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
-
-    path = Bundle.main.path(
-        forResource:
-            "examples.vcplayground.org_contexts_first-responder_v1",
-        ofType: "json"
-    )
-    context[
-        "https://examples.vcplayground.org/contexts/first-responder/v1.json"
-    ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
-
-    path = Bundle.main.path(
-        forResource:
-            "examples.vcplayground.org_contexts_shim-render-method-term_v1",
-        ofType: "json"
-    )
-    context[
-        "https://examples.vcplayground.org/contexts/shim-render-method-term/v1.json"
-    ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
-
-    path = Bundle.main.path(
-        forResource:
-            "examples.vcplayground.org_contexts_shim-VCv1.1-common-example-terms_v1",
-        ofType: "json"
-    )
-    context[
-        "https://examples.vcplayground.org/contexts/shim-VCv1.1-common-example-terms/v1.json"
-    ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
-
-    path = Bundle.main.path(
-        forResource:
-            "examples.vcplayground.org_contexts_utopia-natcert_v1",
-        ofType: "json"
-    )
-    context[
-        "https://examples.vcplayground.org/contexts/utopia-natcert/v1.json"
-    ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
-
-    path = Bundle.main.path(
-        forResource:
-            "w3.org_ns_controller_v1",
-        ofType: "json"
-    )
-    context[
-        "https://www.w3.org/ns/controller/v1"
-    ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
-
-    path = Bundle.main.path(
-        forResource:
-            "examples.vcplayground.org_contexts_movie-ticket_v2",
-        ofType: "json"
-    )
-    context[
-        "https://examples.vcplayground.org/contexts/movie-ticket/v2.json"
-    ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
-
-    path = Bundle.main.path(
-        forResource:
-            "examples.vcplayground.org_contexts_food-safety-certification_v1",
-        ofType: "json"
-    )
-    context[
-        "https://examples.vcplayground.org/contexts/food-safety-certification/v1.json"
-    ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
-
-    path = Bundle.main.path(
-        forResource:
-            "examples.vcplayground.org_contexts_academic-course-credential_v1",
-        ofType: "json"
-    )
-    context[
-        "https://examples.vcplayground.org/contexts/academic-course-credential/v1.json"
-    ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
-
-    path = Bundle.main.path(
-        forResource:
-            "examples.vcplayground.org_contexts_gs1-8110-coupon_v2",
-        ofType: "json"
-    )
-    context[
-        "https://examples.vcplayground.org/contexts/gs1-8110-coupon/v2.json"
-    ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
-
-    path = Bundle.main.path(
-        forResource:
-            "examples.vcplayground.org_contexts_customer-loyalty_v1",
-        ofType: "json"
-    )
-    context[
-        "https://examples.vcplayground.org/contexts/customer-loyalty/v1.json"
-    ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
-
-    path = Bundle.main.path(
-        forResource:
-            "examples.vcplayground.org_contexts_movie-ticket-vcdm-v2_v1",
-        ofType: "json"
-    )
-    context[
-        "https://examples.vcplayground.org/contexts/movie-ticket-vcdm-v2/v1.json"
-    ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
-
-    return context
 }

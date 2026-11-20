@@ -35,6 +35,8 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
         _bluetoothPermissionsGranted.value = granted
     }
 
+    // Seeded with the mDL namespaces; other doctypes are added by [addAllAllowedNamespaces] as
+    // their requests come in.
     private val _allowedNamespaces =
         MutableStateFlow<Map<String, Map<String, List<String>>>>(
             mapOf(
@@ -75,6 +77,10 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
                     _currState.value = PresentmentState.ERROR
                     _error.value = Error(state["error"].toString())
                 }
+
+                state.containsKey("success") -> {
+                    _currState.value = PresentmentState.SUCCESS
+                }
             }
         }
 
@@ -90,8 +96,10 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     fun toggleAllowedNamespace(docType: String, specName: String, fieldName: String) {
-        val allowedForSpec = _allowedNamespaces.value[docType]!![specName]
-        if (!allowedForSpec!!.contains(fieldName)) {
+        // The doctype may not be seeded below -- `addAllAllowedNamespaces` populates it from the
+        // incoming request, so any doctype the holder stores can reach here.
+        val allowedForSpec = _allowedNamespaces.value[docType]?.get(specName).orEmpty()
+        if (!allowedForSpec.contains(fieldName)) {
             _allowedNamespaces.value = _allowedNamespaces.value.toMutableMap().apply {
                 this[docType] = this[docType]?.toMutableMap()?.apply {
                     this[specName] = (this[specName] ?: emptyList()) + fieldName
@@ -165,7 +173,6 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
 
         try {
             presentation?.submitNamespaces(allowedNamespaces)
-            _currState.value = PresentmentState.SUCCESS
         } catch (e: Error) {
             Log.e("CredentialsViewModel.submitNamespaces", e.toString())
             _currState.value = PresentmentState.ERROR

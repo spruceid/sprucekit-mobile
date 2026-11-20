@@ -14,6 +14,7 @@ import com.spruceid.mobilesdkexample.config.EnvironmentConfig
 import com.spruceid.mobilesdkexample.db.HacApplications
 import com.spruceid.mobilesdkexample.db.HacApplicationsRepository
 import com.spruceid.mobilesdkexample.utils.Toast
+import com.spruceid.mobilesdkexample.utils.ensureDefaultSigningKey
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -121,11 +122,8 @@ class HacApplicationsViewModel @Inject constructor(
     }
 
     private fun getSigningJwk(): String? {
-        val keyId = DEFAULT_SIGNING_KEY_ID
-        if (!keyManager.keyExists(keyId)) {
-            keyManager.generateSigningKey(keyId)
-        }
-        return keyManager.getJwk(keyId)?.toString()
+        ensureDefaultSigningKey()
+        return keyManager.getJwk(DEFAULT_SIGNING_KEY_ID)?.toString()
     }
 
     private suspend fun getNonce(): String? {

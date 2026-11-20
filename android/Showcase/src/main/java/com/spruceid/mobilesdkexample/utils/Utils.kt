@@ -2,7 +2,6 @@ package com.spruceid.mobilesdkexample.utils
 
 import android.content.Context
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.compose.foundation.Image
@@ -12,6 +11,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.content.ContextCompat
 import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobile.sdk.CredentialsViewModel
+import com.spruceid.mobile.sdk.KeyManager
 import com.spruceid.mobile.sdk.rs.Cwt
 import com.spruceid.mobile.sdk.rs.IetfSdJwtVc
 import com.spruceid.mobile.sdk.rs.JsonVc
@@ -20,9 +20,13 @@ import com.spruceid.mobile.sdk.rs.Mdoc
 import com.spruceid.mobile.sdk.rs.ParsedCredential
 import com.spruceid.mobile.sdk.rs.Uuid
 import com.spruceid.mobile.sdk.rs.Vcdm2SdJwt
+import com.spruceid.mobilesdkexample.DEFAULT_SIGNING_KEY_ID
 import com.spruceid.mobilesdkexample.credentials.ICredentialView
 import com.spruceid.mobilesdkexample.credentials.genericCredentialItem.GenericCredentialItem
+import com.spruceid.mobilesdkexample.db.WalletActivityLogs
+import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
+import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import org.json.JSONArray
 import org.json.JSONObject
 import java.sql.Date
@@ -69,17 +73,20 @@ fun String.isImage(): Boolean {
             contains("data:image")
 }
 
+/** Whether the value links to a remotely hosted image rather than holding an inline base64 one. */
+fun String.isRemoteImageUrl(): Boolean {
+    return startsWith("http://", ignoreCase = true) ||
+            startsWith("https://", ignoreCase = true)
+}
+
 @Composable
 fun BitmapImage(
     byteArray: ByteArray,
     contentDescription: String,
     modifier: Modifier,
 ) {
-    fun convertImageByteArrayToBitmap(imageData: ByteArray): Bitmap {
-        return BitmapFactory.decodeByteArray(imageData, 0, imageData.size)
-    }
-
-    val bitmap = convertImageByteArrayToBitmap(byteArray)
+    // Null when the bytes aren't a decodable image, so skip rendering rather than crash.
+    val bitmap = BitmapFactory.decodeByteArray(byteArray, 0, byteArray.size) ?: return
 
     Image(
         bitmap = bitmap.asImageBitmap(),
@@ -206,6 +213,53 @@ fun addCredential(credentialPack: CredentialPack, rawCredential: String): Creden
 
     println("Couldn't parse credential $rawCredential")
 
+    return credentialPack
+}
+
+/**
+ * Creates the wallet's shared signing key if it isn't there yet. Safe to call
+ * anywhere: a credential presented with this key was never cnf-bound to a
+ * per-credential one, so a freshly minted key still verifies.
+ */
+fun ensureDefaultSigningKey() {
+    val keyManager = KeyManager()
+    if (!keyManager.keyExists(DEFAULT_SIGNING_KEY_ID)) {
+        keyManager.generateSigningKey(DEFAULT_SIGNING_KEY_ID)
+    }
+}
+
+/**
+ * Shared so other flows (e.g. VCALM offers) that store a credential outside
+ * of `AddToWalletView`'s stay consistent with it
+ *
+ * Binds the credential to [keyAlias], or to the shared key when null.
+ */
+suspend fun acceptRawCredentialIntoWallet(
+    rawCredential: String,
+    credentialPacksViewModel: CredentialPacksViewModel,
+    walletActivityLogsViewModel: WalletActivityLogsViewModel,
+    keyAlias: String? = null,
+): CredentialPack {
+    // A per-credential alias is never bootstrapped; it has to come from issuance.
+    if (keyAlias == null) {
+        ensureDefaultSigningKey()
+    }
+    val credentialPack = CredentialPack()
+    credentialPack.tryAddAnyFormatWithKey(rawCredential, keyAlias ?: DEFAULT_SIGNING_KEY_ID)
+    credentialPacksViewModel.saveCredentialPack(credentialPack)
+
+    val credentialInfo = getCredentialIdTitleAndIssuer(credentialPack)
+    walletActivityLogsViewModel.saveWalletActivityLog(
+        walletActivityLogs = WalletActivityLogs(
+            credentialPackId = credentialPack.id().toString(),
+            credentialId = credentialInfo.first,
+            credentialTitle = credentialInfo.second,
+            issuer = credentialInfo.third,
+            action = "Claimed",
+            dateTime = getCurrentSqlDate(),
+            additionalInformation = ""
+        )
+    )
     return credentialPack
 }
 
@@ -393,6 +447,9 @@ fun credentialPackHasMdoc(credentialPack: CredentialPack): Boolean {
  *  Works for both mdoc doctypes and dc+sd-jwt vct values (shared namespace). */
 private val knownCredentialTypeDisplayNames = mapOf(
     "org.iso.18013.5.1.mDL" to "Mobile Driver's License",
+    // ISO/IEC TS 23220-4 Annex C spells the doctype with a lowercase `id`, but the capitalized
+    // form is also in use, and doctype matching is case-sensitive.
+    "org.iso.23220.photoid.1" to "Photo ID",
     "org.iso.23220.photoID.1" to "Photo ID",
     "org.iso.7367.1.mVRC" to "Mobile Vehicle Registration Certificate",
     "eu.europa.ec.eudi.pid.1" to "EU Personal ID",

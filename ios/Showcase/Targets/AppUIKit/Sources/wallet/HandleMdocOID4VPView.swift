@@ -27,7 +27,7 @@ struct HandleMdocOID4VPView: View {
     @EnvironmentObject private var keyManager: KeyManager
     @Binding var path: NavigationPath
     var credentialPackId: String?
-    
+
     var url: String
 
     @State private var handler: Oid4vp180137?
@@ -63,7 +63,7 @@ struct HandleMdocOID4VPView: View {
                 )
                 handler = handlerRef
                 request = try await handlerRef.processRequest(url: url)
-                
+
                 if credentials.count > 1 {
                     state = .selectCredential
                 } else {
@@ -160,6 +160,7 @@ struct HandleMdocOID4VPView: View {
                     back()
                 }
             )
+            .id(selectedMatch?.credentialId())
         case .loading:
             LoadingView(loadingText: "Loading...")
         case .none:
@@ -179,6 +180,9 @@ struct MdocFieldSelector: View {
     @State private var selectedFields: [String]
     let requiredFields: [String]
 
+    /// Set by the user to share a credential that is expired / not yet valid.
+    @State private var acknowledgedInvalid = false
+
     init(
         match: RequestMatch180137,
         onContinue: @escaping (ApprovedResponse180137) -> Void,
@@ -191,6 +195,28 @@ struct MdocFieldSelector: View {
             .filter { $0.required || $0.selectivelyDisclosable }
             .map { $0.id }
         self.selectedFields = self.requiredFields
+    }
+
+    /// Warning copy shown when the credential is not currently valid; `nil` when valid.
+    private var invalidWarningText: String? {
+        switch match.validityStatus() {
+        case .valid:
+            return nil
+        case .expired:
+            return "This credential has expired. The verifier is likely to reject "
+                + "it, but you can choose to share it anyway."
+        case .notYetValid:
+            return "This credential is not yet valid. The verifier is likely to "
+                + "reject it, but you can choose to share it anyway."
+        @unknown default:
+            return nil
+        }
+    }
+
+    /// Whether the Approve button may proceed: always for valid credentials,
+    /// otherwise only after the user explicitly opts in.
+    private var canApprove: Bool {
+        invalidWarningText == nil || acknowledgedInvalid
     }
 
     func toggleBinding(for field: RequestedField180137) -> Binding<Bool> {
@@ -216,6 +242,27 @@ struct MdocFieldSelector: View {
                     .foregroundColor(Color("ColorStone950"))
             }
             .multilineTextAlignment(.center)
+
+            // NOTE: placeholder styling (system `.orange`, default fonts).
+            if let warning = invalidWarningText {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(warning)
+                        .font(.customFont(font: .inter, style: .medium, size: .h4))
+                        .foregroundStyle(.white)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Toggle(isOn: $acknowledgedInvalid) {
+                        Text("Share anyway")
+                            .font(.customFont(font: .inter, style: .medium, size: .h4))
+                            .foregroundStyle(.white)
+                    }
+                    .toggleStyle(iOSCheckboxToggleStyle())
+                }
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.orange)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .padding(.vertical, 8)
+            }
 
             ScrollView {
                 ForEach(match.requestedFields(), id: \.self) { field in
@@ -260,6 +307,8 @@ struct MdocFieldSelector: View {
                 .padding(.vertical, 13)
                 .background(Color("ColorEmerald900"))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
+                .disabled(!canApprove)
+                .opacity(canApprove ? 1 : 0.6)
             }
             .fixedSize(horizontal: false, vertical: true)
         }
@@ -380,6 +429,19 @@ struct MdocSelector: View {
     }
 }
 
+/// A short badge shown when a matched credential is not currently valid.
+/// Returns `nil` when the credential is valid.
+// NOTE (UI): copy and styling below use system colors (`.red`/`.orange`) as
+// placeholders — adjust to the app's design system / asset-catalog colors.
+func mdocValidityBadgeText(_ status: MdocValidityStatus) -> String? {
+    switch status {
+    case .valid: return nil
+    case .expired: return "Expired"
+    case .notYetValid: return "Not yet valid"
+    @unknown default: return nil
+    }
+}
+
 struct MdocSelectorItem: View {
     let match: RequestMatch180137
     let doctype: String?
@@ -413,6 +475,15 @@ struct MdocSelectorItem: View {
                         .foregroundStyle(Color("ColorStone950"))
                 }
                 .toggleStyle(iOSCheckboxToggleStyle())
+                if let badge = mdocValidityBadgeText(match.validityStatus()) {
+                    Text(badge)
+                        .font(.customFont(font: .inter, style: .medium, size: .h4))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(Color.red)
+                        .clipShape(Capsule())
+                }
                 Spacer()
                 if expanded {
                     Image("Collapse")

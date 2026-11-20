@@ -13,4 +13,4 @@ build/
 *~
 Info.plist
 MobileSdkRs/Package.swift
-MobileSdkRs/RustFramework*
+MobileSdkRs/MobileSdkRsFFI*

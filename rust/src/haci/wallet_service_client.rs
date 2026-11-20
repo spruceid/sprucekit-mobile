@@ -113,14 +113,14 @@ impl WalletEndpoints {
 
         if !response.status().is_success() {
             let status = response.status().as_u16();
-            let error_text = response.text().await.unwrap_or_default();
+            let error_text = response.text().unwrap_or_default();
             return Err(WalletServiceError::ServerError {
                 status,
                 error_message: format!("Wallet endpoints fetching error: {error_text:?}"),
             });
         }
 
-        let endpoints: Self = response.json().await.map_err(|e| {
+        let endpoints: Self = response.json().map_err(|e| {
             WalletServiceError::ResponseError(format!(
                 "Wallet endpoints fetching error: {:?}",
                 e.to_string()
@@ -223,7 +223,7 @@ impl WalletServiceClient {
         // Check if the response was successful
         if !response.status().is_success() {
             let status = response.status().as_u16();
-            let error_text = response.text().await.unwrap_or_default();
+            let error_text = response.text().unwrap_or_default();
             return Err(WalletServiceError::ServerError {
                 status,
                 error_message: error_text,
@@ -233,7 +233,6 @@ impl WalletServiceClient {
         // Get the response body as string
         let nonce = response
             .text()
-            .await
             .map_err(|e| WalletServiceError::ResponseError(e.to_string()))?;
 
         Ok(nonce)
@@ -266,7 +265,7 @@ impl WalletServiceClient {
         // Check if the response was successful
         if !response.status().is_success() {
             let status = response.status().as_u16();
-            let error_text = response.text().await.unwrap_or_default();
+            let error_text = response.text().unwrap_or_default();
             return Err(WalletServiceError::ServerError {
                 status,
                 error_message: error_text,
@@ -276,7 +275,6 @@ impl WalletServiceClient {
         // Get the response body as string
         let token = response
             .text()
-            .await
             .map_err(|e| WalletServiceError::ResponseError(e.to_string()))?;
 
         // Store the token info

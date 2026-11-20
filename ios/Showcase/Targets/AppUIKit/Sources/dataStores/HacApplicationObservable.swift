@@ -52,9 +52,7 @@ class HacApplicationObservable: ObservableObject {
     }
 
     func getSigningJwk() -> String? {
-        if !KeyManager.keyExists(id: DEFAULT_SIGNING_KEY_ID) {
-            _ = KeyManager.generateSigningKey(id: DEFAULT_SIGNING_KEY_ID)
-        }
+        ensureDefaultSigningKey()
         return KeyManager.getJwk(id: DEFAULT_SIGNING_KEY_ID)?.description
     }
 

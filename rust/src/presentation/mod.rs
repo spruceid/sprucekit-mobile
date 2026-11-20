@@ -32,12 +32,14 @@ pub struct JsonLdPresentationBuilder {
     pub(crate) domain: Option<String>,
 
     pub(crate) signer: Arc<Box<dyn PresentationSigner>>,
+    pub(crate) key_id: String,
     pub(crate) context_map: Option<HashMap<String, String>>,
 }
 
 #[uniffi::export]
 impl JsonLdPresentationBuilder {
     #[uniffi::constructor(name = "new")]
+    #[allow(clippy::too_many_arguments)]
     fn new(
         id: String,
         holder: String,
@@ -47,6 +49,7 @@ impl JsonLdPresentationBuilder {
         domain: Option<String>,
 
         signer: Box<dyn PresentationSigner>,
+        key_id: String,
         context_map: Option<HashMap<String, String>>,
     ) -> Arc<Self> {
         let proof_purpose: Result<ProofPurpose, serde::de::value::Error> =
@@ -58,6 +61,7 @@ impl JsonLdPresentationBuilder {
             challenge,
             domain,
             signer: Arc::new(signer),
+            key_id,
             context_map,
         }
         .into()
@@ -67,8 +71,8 @@ impl JsonLdPresentationBuilder {
         &self,
         credentials: Vec<Arc<ParsedCredential>>,
     ) -> Result<String, PresentationBuilderError> {
-        let key = serde_json::from_str(&self.signer.jwk())?;
-        let vm = self.signer.verification_method().await;
+        let key = serde_json::from_str(&self.signer.jwk(self.key_id.clone()))?;
+        let vm = self.signer.verification_method(self.key_id.clone()).await;
 
         let id = UriBuf::from_str(&self.id)?;
         let holder = UriBuf::from_str(&self.holder)?;
@@ -158,7 +162,7 @@ impl MessageSigner<WithProtocol<ssi::crypto::Algorithm, AnyProtocol>>
 
         let signature_bytes = self
             .signer
-            .sign(message.to_vec())
+            .sign(self.key_id.clone(), message.to_vec())
             .await
             .map_err(|e| MessageSignatureError::signature_failed(format!("{e:?}")))?;
 
@@ -196,7 +200,7 @@ where
     ) -> Result<Option<Self::MessageSigner>, ssi::claims::SignatureError> {
         Ok(method
             .controller()
-            .filter(|ctrl| **ctrl == self.signer.did())
+            .filter(|ctrl| **ctrl == self.signer.did(self.key_id.clone()))
             .map(|_| self.clone()))
     }
 }

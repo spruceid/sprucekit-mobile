@@ -26,7 +26,7 @@ class CredentialPacksViewModel @Inject constructor(
     application: Application,
     private val dcApiRegistry: Registry
 ) : AndroidViewModel(application) {
-    private val storageManager = StorageManager(context = (application as Context))
+    val storageManager = StorageManager(context = (application as Context))
     private val _credentialPacks = MutableStateFlow(listOf<CredentialPack>())
     val credentialPacks = _credentialPacks.asStateFlow()
     private val _loading = MutableStateFlow(false)

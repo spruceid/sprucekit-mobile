@@ -9,6 +9,10 @@ import AppUIKit
 @available(iOS 26.0, *)
 @main
 struct DocumentProviderExtension: IdentityDocumentProvider {
+    init() {
+        // The extension runs in its own process, so it registers the client itself.
+        RustHttpClient.configure()
+    }
     
     func performRegistrationUpdates() async {
         print("performRegistrationUpdates")

@@ -33,15 +33,45 @@ fun GenerateMockMdlButton(
     walletActivityLogsViewModel: WalletActivityLogsViewModel
 ) {
     val scope = rememberCoroutineScope()
+    GenerateMockMdocButton(
+        title = "Generate mDL",
+        description = "Generate a fresh test mDL issued by the SpruceID Test CA",
+        onClick = {
+            scope.launch {
+                generateMockMdl(credentialPacksViewModel, walletActivityLogsViewModel)
+            }
+        }
+    )
+}
+
+@Composable
+fun GenerateMockPhotoIdButton(
+    credentialPacksViewModel: CredentialPacksViewModel,
+    walletActivityLogsViewModel: WalletActivityLogsViewModel
+) {
+    val scope = rememberCoroutineScope()
+    GenerateMockMdocButton(
+        title = "Generate Photo ID",
+        description = "Generate a fresh test ISO 23220-4 Photo ID issued by the SpruceID Test CA",
+        onClick = {
+            scope.launch {
+                generateMockPhotoId(credentialPacksViewModel, walletActivityLogsViewModel)
+            }
+        }
+    )
+}
+
+@Composable
+private fun GenerateMockMdocButton(
+    title: String,
+    description: String,
+    onClick: () -> Unit
+) {
     Box(
         Modifier
             .fillMaxWidth()
             .padding(bottom = 20.dp)
-            .clickable {
-                scope.launch {
-                    generateMockMdl(credentialPacksViewModel, walletActivityLogsViewModel)
-                }
-            },
+            .clickable(onClick = onClick),
     ) {
         Column {
             Row(
@@ -58,7 +88,7 @@ fun GenerateMockMdlButton(
                         modifier = Modifier.padding(end = 5.dp),
                     )
                     Text(
-                        text = "Generate mDL",
+                        text = title,
                         fontFamily = Inter,
                         fontWeight = FontWeight.Medium,
                         fontSize = 17.sp,
@@ -75,7 +105,7 @@ fun GenerateMockMdlButton(
             }
 
             Text(
-                text = "Generate a fresh test mDL issued by the SpruceID Test CA",
+                text = description,
                 fontFamily = Inter,
                 fontWeight = FontWeight.Normal,
                 fontSize = 15.sp,

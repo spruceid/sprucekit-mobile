@@ -15,17 +15,17 @@ pub trait JwsSigner: Send + Sync {
 #[async_trait]
 impl JwsSigner for Jwk {
     async fn fetch_info(&self) -> Result<JwsSignerInfo, JwsSignatureError> {
-        ssi::JWK::fetch_info(&*self.0.read().await)
+        // Clone out of the lock: a std guard must not be held across an await.
+        let jwk = self.inner().clone();
+        ssi::JWK::fetch_info(&jwk)
             .await
             .map(Into::into)
             .map_err(Into::into)
     }
 
     async fn sign_bytes(&self, signing_bytes: Vec<u8>) -> Result<Vec<u8>, JwsSignatureError> {
-        self.0
-            .read()
-            .await
-            .sign_bytes(signing_bytes.as_slice())
+        let jwk = self.inner().clone();
+        jwk.sign_bytes(signing_bytes.as_slice())
             .await
             .map_err(Into::into)
     }

@@ -1,0 +1,325 @@
+import Flutter
+import Foundation
+import SpruceIDMobileSdk
+import SpruceIDMobileSdkRs
+
+/// Adapter implementing the SpruceUtils Pigeon protocol
+class SpruceUtilsAdapter: NSObject, SpruceUtils {
+    private let credentialPackAdapter: CredentialPackAdapter
+
+    init(credentialPackAdapter: CredentialPackAdapter) {
+        self.credentialPackAdapter = credentialPackAdapter
+        super.init()
+    }
+
+    func generateCredentialPdf(
+        rawMdoc: String,
+        supplements: [PdfSupplement],
+        completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void
+    ) {
+        Task {
+            do {
+                // rawMdoc is standard Base64-encoded CBOR Document bytes
+                // (from parsedCredential.intoGenericForm().payload)
+                guard let documentBytes = Data(base64Encoded: rawMdoc) else {
+                    completion(.failure(NSError(
+                        domain: "SpruceUtilsAdapter",
+                        code: -1,
+                        userInfo: [NSLocalizedDescriptionKey: "Failed to decode base64 rawMdoc"]
+                    )))
+                    return
+                }
+                let mdoc = try Mdoc.fromCborEncodedDocument(
+                    cborEncodedDocument: documentBytes,
+                    keyAlias: "pdf"
+                )
+                let credential = ParsedCredential.newMsoMdoc(mdoc: mdoc)
+
+                // Convert Pigeon supplements to Rust PdfSupplement
+                let rustSupplements: [SpruceIDMobileSdkRs.PdfSupplement] = try supplements.compactMap { sup -> SpruceIDMobileSdkRs.PdfSupplement? in
+                    switch sup.type {
+                    case .barcode:
+                        guard let pigeonData = sup.data, let barcodeType = sup.barcodeType else {
+                            return nil
+                        }
+                        let data = pigeonData.data  // FlutterStandardTypedData -> Data
+                        let rustBarcodeType: SpruceIDMobileSdkRs.BarcodeType = {
+                            switch barcodeType {
+                            case .qrCode: return .qrCode
+                            case .pdf417: return .pdf417
+                            }
+                        }()
+                        return .barcode(data: data, barcodeType: rustBarcodeType)
+                    case .opticalBarcodeCredential:
+                        guard let jsonld = sup.jsonldVcb else { return nil }
+                        let vcb = try OpticalBarcodeCred(jsonld: jsonld)
+                        let vcbCredential = ParsedCredential.newOpticalBarcodeCredential(cred: vcb)
+                        return .opticalBarcodeCredential(credential: vcbCredential)
+                    }
+                }
+
+                let pdfBytes = try await SpruceIDMobileSdkRs.generateCredentialPdf(
+                    credential: credential,
+                    supplements: rustSupplements
+                )
+                completion(.success(FlutterStandardTypedData(bytes: Data(pdfBytes))))
+            } catch {
+                completion(.failure(error))
+            }
+        }
+    }
+
+    /// Shared helper: parses a compact SD-JWT string and generates a raw VP Token byte array.
+    /// Both `generateCredentialVpToken` and `generateCompressedVpToken` use this logic.
+    private func buildVpTokenBytes(rawSdJwt: String, params: VpTokenParams) async throws -> Data {
+        // Parse the compact SD-JWT into a ParsedCredential.
+        let sdJwt = try SpruceIDMobileSdkRs.Vcdm2SdJwt.newFromCompactSdJwt(input: rawSdJwt)
+        let credential = SpruceIDMobileSdkRs.ParsedCredential.newSdJwt(sdJwtVc: sdJwt)
+
+        // Convert Pigeon DisclosureSelection -> Rust DisclosureSelection
+        let rustDisclosure: SpruceIDMobileSdkRs.DisclosureSelection
+        switch params.disclosure.type {
+        case .hideOnly:
+            rustDisclosure = .hideOnly(fields: params.disclosure.fields)
+        case .selectOnly:
+            rustDisclosure = .selectOnly(fields: params.disclosure.fields)
+        }
+
+        let rustParams = SpruceIDMobileSdkRs.VpTokenParams(
+            disclosure: rustDisclosure,
+            audience: params.audience,
+            nonce: params.nonce
+        )
+
+        return try await SpruceIDMobileSdkRs.generateCredentialVpToken(
+            credential: credential,
+            params: rustParams
+        )
+    }
+
+    func generateCredentialVpToken(
+        rawSdJwt: String,
+        params: VpTokenParams,
+        completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void
+    ) {
+        Task {
+            do {
+                let bytes = try await buildVpTokenBytes(rawSdJwt: rawSdJwt, params: params)
+                completion(.success(FlutterStandardTypedData(bytes: bytes)))
+            } catch {
+                completion(.failure(error))
+            }
+        }
+    }
+
+    func generateCompressedVpToken(
+        rawSdJwt: String,
+        params: VpTokenParams,
+        completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void
+    ) {
+        Task {
+            do {
+                let vpBytes = try await buildVpTokenBytes(rawSdJwt: rawSdJwt, params: params)
+                // deflate + base10 + "9"-prefix compression so the bytes fit a QR numeric-mode payload.
+                let compressed = try SpruceIDMobileSdkRs.compressVpForQr(vpToken: vpBytes)
+                completion(.success(FlutterStandardTypedData(bytes: compressed)))
+            } catch {
+                completion(.failure(error))
+            }
+        }
+    }
+
+    func generateTestMdlSdJwtCompact(
+        completion: @escaping (Result<String, Error>) -> Void
+    ) {
+        Task {
+            let compact = await SpruceIDMobileSdkRs.generateTestMdlSdJwtCompact()
+            completion(.success(compact))
+        }
+    }
+
+    func generateTestOpticalBarcodeCredential(
+        completion: @escaping (Result<String, Error>) -> Void
+    ) {
+        Task {
+            do {
+                let jsonld = try await SpruceIDMobileSdkRs.generateTestOpticalBarcodeCredential()
+                completion(.success(jsonld))
+            } catch {
+                completion(.failure(error))
+            }
+        }
+    }
+
+    func verifySdJwtVp(
+        input: String,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        Task {
+            do {
+                try await SpruceIDMobileSdkRs.verifySdJwtVp(input: input)
+                completion(.success(()))
+            } catch {
+                completion(.failure(error))
+            }
+        }
+    }
+
+    func decompressVpFromQr(
+        qrPayload: FlutterStandardTypedData,
+        completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void
+    ) {
+        do {
+            let bytes = try SpruceIDMobileSdkRs.decompressVpFromQr(qrPayload: qrPayload.data)
+            completion(.success(FlutterStandardTypedData(bytes: bytes)))
+        } catch {
+            completion(.failure(error))
+        }
+    }
+
+    func generateAamvaPdf417Bytes(
+        rawMdoc: String,
+        vcBarcode: FlutterStandardTypedData?,
+        completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void
+    ) {
+        Task {
+            do {
+                guard let documentBytes = Data(base64Encoded: rawMdoc) else {
+                    completion(.failure(NSError(
+                        domain: "SpruceUtilsAdapter",
+                        code: -1,
+                        userInfo: [NSLocalizedDescriptionKey: "Failed to decode base64 rawMdoc"]
+                    )))
+                    return
+                }
+                let mdoc = try Mdoc.fromCborEncodedDocument(
+                    cborEncodedDocument: documentBytes,
+                    keyAlias: "pdf"
+                )
+                let credential = ParsedCredential.newMsoMdoc(mdoc: mdoc)
+                let bytes = try SpruceIDMobileSdkRs.generateAamvaPdf417Bytes(
+                    credential: credential,
+                    vcBarcode: vcBarcode?.data
+                )
+                completion(.success(FlutterStandardTypedData(bytes: Data(bytes))))
+            } catch {
+                completion(.failure(error))
+            }
+        }
+    }
+
+    func generateMockMdl(
+        keyAlias: String?,
+        completion: @escaping (Result<GenerateMockMdlResult, Error>) -> Void
+    ) {
+        let alias = keyAlias ?? "testMdl"
+
+        Task {
+            do {
+                // Generate the test mDL
+                let mdl = try generateTestMdl(keyManager: signingKeyManager(alias: alias), keyAlias: alias)
+                completion(.success(try await storeMockMdl(mdl: mdl, alias: alias)))
+            } catch {
+                completion(.success(GenerateMockMdlError(message: "Failed to generate mock mDL: \(error.localizedDescription)")))
+            }
+        }
+    }
+
+    func generateMockMdlWithData(
+        keyAlias: String?,
+        data: MockMdlData,
+        completion: @escaping (Result<GenerateMockMdlResult, Error>) -> Void
+    ) {
+        let alias = keyAlias ?? "testMdl"
+
+        Task {
+            do {
+                // Generate the test mDL with the caller-supplied data elements
+                let mdl = try generateTestMdlWithData(
+                    keyManager: signingKeyManager(alias: alias),
+                    keyAlias: alias,
+                    data: data.toRust()
+                )
+                completion(.success(try await storeMockMdl(mdl: mdl, alias: alias)))
+            } catch {
+                completion(.success(GenerateMockMdlError(message: "Failed to generate mock mDL: \(error.localizedDescription)")))
+            }
+        }
+    }
+
+    /// Returns a `KeyManager`, generating a signing key for `alias` if one doesn't exist yet.
+    private func signingKeyManager(alias: String) -> KeyManager {
+        // Generate or retrieve the signing key
+        if !KeyManager.keyExists(id: alias) {
+            _ = KeyManager.generateSigningKey(id: alias)
+        }
+        return KeyManager()
+    }
+
+    /// Stores a generated mock mDL in a fresh CredentialPack. Shared by both generateMockMdl paths.
+    private func storeMockMdl(mdl: Mdoc, alias: String) async throws -> GenerateMockMdlResult {
+        // Create a new CredentialPack and add the mDL
+        let packId = try credentialPackAdapter.createPack()
+        guard let pack = credentialPackAdapter.getNativePack(packId: packId) else {
+            return GenerateMockMdlError(message: "Failed to create credential pack")
+        }
+
+        // Get the raw credential bytes for storage
+        let parsedCredential = ParsedCredential.newMsoMdoc(mdoc: mdl)
+        let genericCredential = try parsedCredential.intoGenericForm()
+        let rawCredentialBase64 = genericCredential.payload.base64EncodedString()
+
+        // Add the mDL to the pack (also registers with ID Provider on iOS 26+)
+        let credentials = try await pack.addMDoc(mdoc: mdl)
+        guard let credential = credentials.first else {
+            return GenerateMockMdlError(message: "Failed to add mDL to pack")
+        }
+
+        return GenerateMockMdlSuccess(
+            packId: packId,
+            credentialId: credential.id(),
+            rawCredential: rawCredentialBase64,
+            keyAlias: alias
+        )
+    }
+
+}
+
+extension MockMdlData {
+    /// Maps the Pigeon `MockMdlData` to the Rust uniffi `TestMdlData` field-for-field.
+    func toRust() -> TestMdlData {
+        TestMdlData(
+            familyName: familyName,
+            givenName: givenName,
+            birthDate: birthDate,
+            issueDate: issueDate,
+            expiryDate: expiryDate,
+            issuingCountry: issuingCountry,
+            issuingAuthority: issuingAuthority,
+            documentNumber: documentNumber,
+            portrait: portrait,
+            drivingPrivileges: drivingPrivileges,
+            unDistinguishingSign: unDistinguishingSign,
+            administrativeNumber: administrativeNumber,
+            sex: UInt16(truncatingIfNeeded: sex),
+            height: UInt16(truncatingIfNeeded: height),
+            weight: UInt16(truncatingIfNeeded: weight),
+            eyeColour: eyeColour,
+            hairColour: hairColour,
+            birthPlace: birthPlace,
+            residentAddress: residentAddress,
+            portraitCaptureDate: portraitCaptureDate,
+            ageInYears: UInt16(truncatingIfNeeded: ageInYears),
+            ageBirthYear: UInt16(truncatingIfNeeded: ageBirthYear),
+            ageOver18: ageOver18,
+            ageOver21: ageOver21,
+            ageOver60: ageOver60,
+            nationality: nationality,
+            residentCity: residentCity,
+            residentState: residentState,
+            residentPostalCode: residentPostalCode,
+            residentCountry: residentCountry,
+            issuingJurisdiction: issuingJurisdiction
+        )
+    }
+}

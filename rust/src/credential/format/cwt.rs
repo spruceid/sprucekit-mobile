@@ -1,5 +1,6 @@
 use crate::credential::Credential;
 use crate::crypto::KeyAlias;
+use crate::http_client::HttpClient;
 use crate::verifier::crypto::{CoseP256Verifier, Crypto, DefaultVerifier};
 use crate::verifier::helpers;
 use crate::{trusted_roots, CborKeyMapper};
@@ -185,13 +186,11 @@ impl Cwt {
         };
 
         // Fetch the status list from the URI
-        let response = reqwest::get(&uri).await.map_err(|e| {
+        let response = HttpClient::shared().get(&uri).await.map_err(|e| {
             CwtError::StatusListFetch(format!("Failed to fetch from {}: {}", uri, e))
         })?;
 
-        let response_body = response
-            .text()
-            .await
+        let response_body = String::from_utf8(response.into_body())
             .map_err(|e| CwtError::StatusListFetch(format!("Failed to read response: {}", e)))?;
 
         // Parse the json status list

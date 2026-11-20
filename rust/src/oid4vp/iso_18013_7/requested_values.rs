@@ -1,4 +1,7 @@
-use std::{collections::BTreeMap, sync::Arc};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    sync::Arc,
+};
 
 use anyhow::{bail, Result};
 use ciborium::Value as Cbor;
@@ -10,7 +13,7 @@ use openid4vp::core::dcql_query::{DcqlCredentialClaimsQueryPath, DcqlCredentialQ
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::credential::mdoc::Mdoc;
+use crate::credential::mdoc::{Mdoc, MdocValidityStatus};
 
 #[derive(Debug, Clone, uniffi::Object)]
 /// A viable match for the credential request.
@@ -18,7 +21,9 @@ pub struct RequestMatch180137 {
     pub credential_id: Uuid,
     pub field_map: FieldMap,
     pub requested_fields: Vec<RequestedField180137>,
-    pub missing_fields: BTreeMap<String, String>,
+    /// Requested elements the credential does not hold, keyed by namespace.
+    pub missing_fields: BTreeMap<String, BTreeSet<String>>,
+    pub validity_status: MdocValidityStatus,
 }
 
 uniffi::custom_newtype!(FieldId180137, String);
@@ -47,6 +52,10 @@ impl RequestMatch180137 {
 
     pub fn requested_fields(&self) -> Vec<RequestedField180137> {
         self.requested_fields.clone()
+    }
+
+    pub fn validity_status(&self) -> MdocValidityStatus {
+        self.validity_status
     }
 }
 
@@ -166,7 +175,10 @@ pub fn find_match(
             .get(namespace)
             .and_then(|elements| elements.get(element_identifier))
         else {
-            missing_fields.insert(namespace.clone(), element_identifier.clone());
+            missing_fields
+                .entry(namespace.clone())
+                .or_insert_with(BTreeSet::new)
+                .insert(element_identifier.clone());
             continue 'fields;
         };
         let displayable_value = field_map
@@ -218,6 +230,7 @@ pub fn find_match(
         field_map,
         requested_fields,
         missing_fields,
+        validity_status: credential.validity_status(),
     })
 }
 

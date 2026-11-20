@@ -1,6 +1,5 @@
 package com.spruceid.mobilesdkexample.wallet
 
-import android.content.Context
 import android.net.Uri
 import android.util.Log
 import androidx.browser.customtabs.CustomTabsIntent
@@ -21,6 +20,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.navigation.NavHostController
 import com.spruceid.mobile.sdk.KeyManager
 import com.spruceid.mobile.sdk.Oid4vciAsyncHttpClient
+import com.spruceid.mobile.sdk.rs.CredentialOrConfigurationId
 import com.spruceid.mobile.sdk.rs.CredentialResponse
 import com.spruceid.mobile.sdk.rs.CredentialToken
 import com.spruceid.mobile.sdk.rs.CredentialTokenState
@@ -35,7 +35,6 @@ import com.spruceid.mobile.sdk.rs.createJwtProof
 import com.spruceid.mobile.sdk.rs.decodeDerSignature
 import com.spruceid.mobile.sdk.rs.generateDidJwkUrl
 import com.spruceid.mobile.sdk.rs.verifyRawCredential
-import com.spruceid.mobilesdkexample.DEFAULT_SIGNING_KEY_ID
 import com.spruceid.mobilesdkexample.ErrorView
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R
@@ -43,6 +42,7 @@ import com.spruceid.mobilesdkexample.credentials.AddToWalletView
 import com.spruceid.mobilesdkexample.navigation.Screen
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 @Composable
 fun HandleOID4VCIView(
@@ -51,7 +51,10 @@ fun HandleOID4VCIView(
 ) {
     var loading by remember { mutableStateOf(false) }
     var err by remember { mutableStateOf<String?>(null) }
-    var credential by remember { mutableStateOf<String?>(null) }
+    var credentials by remember { mutableStateOf<List<String>>(emptyList()) }
+    // Key for this issuance session, shared by the whole offer because one key
+    // backs the client id that every proof is signed against.
+    var credentialKeyAlias by remember { mutableStateOf<String?>(null) }
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val callback =
@@ -67,6 +70,7 @@ fun HandleOID4VCIView(
     var hoistedClientId by remember { mutableStateOf<String?>(null) }
     var hoistedCredentialIssuer by remember { mutableStateOf<String?>(null) }
     var hoistedSigner by remember { mutableStateOf<JwsSigner?>(null) }
+    var hoistedConfigIds by remember { mutableStateOf<List<String>?>(null) }
 
     LaunchedEffect(Unit) {
         loading = true
@@ -77,11 +81,12 @@ fun HandleOID4VCIView(
 
         // Setup signer.
         val keyManager = KeyManager()
-        val jwk = keyManager.getOrInsertJwk(DEFAULT_SIGNING_KEY_ID)
+        val keyAlias = "credential/" + UUID.randomUUID().toString()
+        keyManager.generateSigningKey(id = keyAlias)
+        credentialKeyAlias = keyAlias
+        val jwk = keyManager.getJwk(keyAlias)!!.copy()
         val didUrl = generateDidJwkUrl(jwk)
         jwk.setKid(didUrl.toString())
-
-        val jwk2 = keyManager.getJwk(DEFAULT_SIGNING_KEY_ID)!!
 
         Log.i("OID4VCI", "JWK = $jwk")
 
@@ -91,7 +96,7 @@ fun HandleOID4VCIView(
             }
 
             override suspend fun signBytes(signingBytes: ByteArray): ByteArray {
-                return decodeDerSignature(keyManager.signPayload(DEFAULT_SIGNING_KEY_ID, signingBytes)!!)
+                return decodeDerSignature(keyManager.signPayload(keyAlias, signingBytes)!!)
             }
         }
         hoistedSigner = signer
@@ -113,15 +118,19 @@ fun HandleOID4VCIView(
             val credentialOffer = oid4vciClient.resolveOfferUrl(httpClient, offerUrl)
             val credentialIssuer = credentialOffer.credentialIssuer()
             hoistedCredentialIssuer = credentialIssuer
+            hoistedConfigIds = credentialOffer.credentialConfigurationIds()
             Log.i("OID4VCI", "Credential Offer resolver, with issuer: $credentialIssuer")
 
             when (val state = oid4vciClient.acceptOffer(httpClient, credentialOffer)) {
                 is CredentialTokenState.Ready -> {
                     Log.i("OID4VCI", "Credential ready to be exchanged")
                     val credentialToken = state.v1
-                    val result = exchangeCredential(httpClient, oid4vciClient, clientId, credentialIssuer, signer, credentialToken)
-                    if (result != null) {
-                        credential = result
+                    val result = exchangeCredentials(
+                        httpClient, oid4vciClient, clientId, credentialIssuer, signer,
+                        credentialToken, credentialOffer.credentialConfigurationIds()
+                    )
+                    if (result.isNotEmpty()) {
+                        credentials = result
                     } else {
                         err = "Deferred credentials not supported"
                     }
@@ -152,9 +161,12 @@ fun HandleOID4VCIView(
                         codeParam.isNullOrEmpty() -> err = "Missing authorization code in callback"
                         else -> {
                             val token = waiting.proceed(httpClient, codeParam)
-                            val result = exchangeCredential(httpClient, oid4vciClient, clientId, credentialIssuer, signer, token)
-                            if (result != null) {
-                                credential = result
+                            val result = exchangeCredentials(
+                                httpClient, oid4vciClient, clientId, credentialIssuer, signer,
+                                token, credentialOffer.credentialConfigurationIds()
+                            )
+                            if (result.isNotEmpty()) {
+                                credentials = result
                             } else {
                                 err = "Deferred credentials not supported"
                             }
@@ -175,7 +187,7 @@ fun HandleOID4VCIView(
                 promptForPin = false
                 pendingTxCodeState = null
                 pinInput = ""
-                err = "Transaction code cancelled"
+                err = "Transaction code canceled"
             },
             title = { Text("Enter Transaction Code") },
             text = {
@@ -202,11 +214,15 @@ fun HandleOID4VCIView(
                             val clientId = hoistedClientId ?: error("Client ID unavailable")
                             val credentialIssuer = hoistedCredentialIssuer ?: error("Credential issuer unavailable")
                             val signer = hoistedSigner ?: error("Signer unavailable")
+                            val configIds = hoistedConfigIds ?: error("Credential configuration ids unavailable")
 
                             val token = txCodeState.proceed(httpClient, pin)
-                            val result = exchangeCredential(httpClient, oid4vciClient, clientId, credentialIssuer, signer, token)
-                            if (result != null) {
-                                credential = result
+                            val result = exchangeCredentials(
+                                httpClient, oid4vciClient, clientId, credentialIssuer, signer,
+                                token, configIds
+                            )
+                            if (result.isNotEmpty()) {
+                                credentials = result
                             } else {
                                 err = "Deferred credentials not supported"
                             }
@@ -222,7 +238,7 @@ fun HandleOID4VCIView(
                     promptForPin = false
                     pendingTxCodeState = null
                     pinInput = ""
-                    err = "Transaction code cancelled"
+                    err = "Transaction code canceled"
                 }) { Text("Cancel") }
             },
         )
@@ -236,10 +252,11 @@ fun HandleOID4VCIView(
             errorDetails = err!!,
             onClose = { navController.navigate(Screen.HomeScreen.route) { popUpTo(0) } }
         )
-    } else if (credential != null) {
+    } else if (credentials.isNotEmpty()) {
         AddToWalletView(
             navController = navController,
-            rawCredential = credential!!,
+            rawCredentials = credentials,
+            keyAlias = credentialKeyAlias,
             onSuccess = {
                 scope.launch {
                     callback?.invoke()
@@ -250,167 +267,45 @@ fun HandleOID4VCIView(
     }
 }
 
-private suspend fun exchangeCredential(
+// Exchanges every credential in the offer against the token, one request per
+// credential_configuration_id (each requires its own fresh nonce/proof).
+// Deferred credentials are skipped rather than aborting the whole batch, so
+// other credentials in the same offer still get issued.
+private suspend fun exchangeCredentials(
     httpClient: Oid4vciAsyncHttpClient,
     oid4vciClient: Oid4vciClient,
     clientId: String,
     credentialIssuer: String,
     signer: JwsSigner,
     credentialToken: CredentialToken,
-): String? {
-    val credentialId = credentialToken.defaultCredentialId()
-    Log.i("OID4VCI", "Credential id: $credentialId")
+    configIds: List<String>,
+): List<String> {
+    val results = mutableListOf<String>()
 
-    Log.i("OID4VCI", "Generating PoP...")
-    val nonce = credentialToken.getNonce(httpClient)
-    Log.i("OID4VCI", "Nonce: $nonce")
-    Log.i("OID4VCI", "Signing...")
-    val jwt = createJwtProof(clientId, credentialIssuer, null, nonce, signer)
-    Log.i("OID4VCI", "PoP JWT = $jwt")
-    val proofs = Proofs.Jwt(listOf(jwt))
+    for (configId in configIds) {
+        val credentialId = CredentialOrConfigurationId.Configuration(configId)
+        Log.i("OID4VCI", "Credential id: $credentialId")
 
-    Log.i("OID4VCI", "Exchanging Credential...")
-    return when (val response = oid4vciClient.exchangeCredential(httpClient, credentialToken, credentialId, proofs)) {
-        is CredentialResponse.Deferred -> {
-            Log.i("OID4VCI", "Deferred credential received")
-            null
-        }
-        is CredentialResponse.Immediate -> {
-            Log.i("OID4VCI", "Credential exchanged!")
-            val rawCredential = checkNotNull(response.v1.credentials.first()) { "Missing Credential" }
-            rawCredential.payload.toString(Charsets.UTF_8)
+        Log.i("OID4VCI", "Generating PoP...")
+        val nonce = credentialToken.getNonce(httpClient)
+        Log.i("OID4VCI", "Nonce: $nonce")
+        Log.i("OID4VCI", "Signing...")
+        val jwt = createJwtProof(clientId, credentialIssuer, null, nonce, signer)
+        Log.i("OID4VCI", "PoP JWT = $jwt")
+        val proofs = Proofs.Jwt(listOf(jwt))
+
+        Log.i("OID4VCI", "Exchanging Credential...")
+        when (val response = oid4vciClient.exchangeCredential(httpClient, credentialToken, credentialId, proofs)) {
+            is CredentialResponse.Deferred -> {
+                Log.i("OID4VCI", "Deferred credential received, skipping")
+            }
+            is CredentialResponse.Immediate -> {
+                Log.i("OID4VCI", "Credential exchanged!")
+                val rawCredential = checkNotNull(response.v1.credentials.first()) { "Missing Credential" }
+                results.add(rawCredential.payload.toString(Charsets.UTF_8))
+            }
         }
     }
-}
 
-fun getVCPlaygroundOID4VCIContext(ctx: Context): Map<String, String> {
-    val context = mutableMapOf<String, String>()
-
-    context["https://w3id.org/first-responder/v1"] =
-        ctx.resources
-            .openRawResource(R.raw.w3id_org_first_responder_v1)
-            .bufferedReader()
-            .readLines()
-            .joinToString("")
-
-    context["https://w3id.org/vdl/aamva/v1"] =
-        ctx.resources
-            .openRawResource(R.raw.w3id_org_vdl_aamva_v1)
-            .bufferedReader()
-            .readLines()
-            .joinToString("")
-
-    context["https://w3id.org/citizenship/v3"] =
-        ctx.resources
-            .openRawResource(R.raw.w3id_org_citizenship_v3)
-            .bufferedReader()
-            .readLines()
-            .joinToString("")
-
-    context["https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.2.json"] =
-        ctx.resources
-            .openRawResource(R.raw.purl_imsglobal_org_spec_ob_v3p0_context_3_0_2)
-            .bufferedReader()
-            .readLines()
-            .joinToString("")
-
-    context["https://w3id.org/citizenship/v4rc1"] =
-        ctx.resources
-            .openRawResource(R.raw.w3id_org_citizenship_v4rc1)
-            .bufferedReader()
-            .readLines()
-            .joinToString("")
-
-    context["https://w3id.org/vc/render-method/v2rc1"] =
-        ctx.resources
-            .openRawResource(R.raw.w3id_org_vc_render_method_v2rc1)
-            .bufferedReader()
-            .readLines()
-            .joinToString("")
-
-    context["https://examples.vcplayground.org/contexts/alumni/v2.json"] =
-        ctx.resources
-            .openRawResource(R.raw.examples_vcplayground_org_contexts_alumni_v2)
-            .bufferedReader()
-            .readLines()
-            .joinToString("")
-
-    context["https://examples.vcplayground.org/contexts/first-responder/v1.json"] =
-        ctx.resources
-            .openRawResource(R.raw.examples_vcplayground_org_contexts_first_responder_v1)
-            .bufferedReader()
-            .readLines()
-            .joinToString("")
-
-    context["https://examples.vcplayground.org/contexts/shim-render-method-term/v1.json"] =
-        ctx.resources
-            .openRawResource(R.raw.examples_vcplayground_org_contexts_shim_render_method_term_v1)
-            .bufferedReader()
-            .readLines()
-            .joinToString("")
-
-    context["https://examples.vcplayground.org/contexts/shim-VCv1.1-common-example-terms/v1.json"] =
-        ctx.resources
-            .openRawResource(R.raw.examples_vcplayground_org_contexts_shim_vcv1_1_common_example_terms_v1)
-            .bufferedReader()
-            .readLines()
-            .joinToString("")
-
-    context["https://examples.vcplayground.org/contexts/utopia-natcert/v1.json"] =
-        ctx.resources
-            .openRawResource(R.raw.examples_vcplayground_org_contexts_utopia_natcert_v1)
-            .bufferedReader()
-            .readLines()
-            .joinToString("")
-
-    context["https://www.w3.org/ns/controller/v1"] =
-        ctx.resources
-            .openRawResource(R.raw.w3_org_ns_controller_v1)
-            .bufferedReader()
-            .readLines()
-            .joinToString("")
-
-    context["https://examples.vcplayground.org/contexts/movie-ticket/v2.json"] =
-        ctx.resources
-            .openRawResource(R.raw.examples_vcplayground_org_contexts_movie_ticket_v2)
-            .bufferedReader()
-            .readLines()
-            .joinToString("")
-
-    context["https://examples.vcplayground.org/contexts/food-safety-certification/v1.json"] =
-        ctx.resources
-            .openRawResource(R.raw.examples_vcplayground_org_contexts_food_safety_certification_v1)
-            .bufferedReader()
-            .readLines()
-            .joinToString("")
-
-    context["https://examples.vcplayground.org/contexts/academic-course-credential/v1.json"] =
-        ctx.resources
-            .openRawResource(R.raw.examples_vcplayground_org_contexts_academic_course_credential_v1)
-            .bufferedReader()
-            .readLines()
-            .joinToString("")
-
-    context["https://examples.vcplayground.org/contexts/gs1-8110-coupon/v2.json"] =
-        ctx.resources
-            .openRawResource(R.raw.examples_vcplayground_org_contexts_gs1_8110_coupon_v2)
-            .bufferedReader()
-            .readLines()
-            .joinToString("")
-
-    context["https://examples.vcplayground.org/contexts/customer-loyalty/v1.json"] =
-        ctx.resources
-            .openRawResource(R.raw.examples_vcplayground_org_contexts_customer_loyalty_v1)
-            .bufferedReader()
-            .readLines()
-            .joinToString("")
-
-    context["https://examples.vcplayground.org/contexts/movie-ticket-vcdm-v2/v1.json"] =
-        ctx.resources
-            .openRawResource(R.raw.examples_vcplayground_org_contexts_movie_ticket_vcdm_v2_v1)
-            .bufferedReader()
-            .readLines()
-            .joinToString("")
-
-    return context
+    return results
 }

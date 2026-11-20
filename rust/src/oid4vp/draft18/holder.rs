@@ -5,6 +5,7 @@ use super::error::Draft18OID4VPError;
 use super::permission_request::*;
 use super::presentation::Draft18PresentationSigner;
 use crate::credential::ParsedCredential;
+use crate::http_client::HttpClient;
 use crate::vdc_collection::VdcCollection;
 
 use std::collections::HashMap;
@@ -33,6 +34,13 @@ use ssi::dids::DIDWeb;
 use ssi::dids::VerificationMethodDIDResolver;
 use ssi::prelude::AnyJwkMethod;
 use url::Url;
+
+#[derive(serde::Serialize)]
+struct AccessDeniedResponse {
+    error: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    state: Option<String>,
+}
 
 pub enum Draft18AuthRequest {
     /// Parse the incoming string as a URL.
@@ -78,7 +86,7 @@ pub struct Draft18Holder {
     pub(crate) metadata: WalletMetadata,
 
     /// HTTP Request Client
-    pub(crate) client: openidvp_draft18::core::util::ReqwestClient,
+    pub(crate) client: HttpClient,
 
     /// A list of trusted DIDs.
     pub(crate) trusted_dids: Vec<String>,
@@ -88,6 +96,9 @@ pub struct Draft18Holder {
 
     /// Foreign Interface for the [Draft18PresentationSigner]
     pub(crate) signer: Arc<Box<dyn Draft18PresentationSigner>>,
+
+    /// Signing key id used for credentials with no `key_alias`.
+    pub(crate) key_id: String,
 
     /// Optional context map for resolving specific contexts
     pub(crate) context_map: Option<HashMap<String, String>>,
@@ -115,10 +126,10 @@ impl Draft18Holder {
         vdc_collection: Arc<VdcCollection>,
         trusted_dids: Vec<String>,
         signer: Box<dyn Draft18PresentationSigner>,
+        key_id: String,
         context_map: Option<HashMap<String, String>>,
     ) -> Result<Arc<Self>, Draft18OID4VPError> {
-        let client = openidvp_draft18::core::util::ReqwestClient::new()
-            .map_err(|e| Draft18OID4VPError::HttpClientInitialization(format!("{e:?}")))?;
+        let client = HttpClient::shared();
 
         Ok(Arc::new(Self {
             client,
@@ -127,6 +138,7 @@ impl Draft18Holder {
             trusted_dids,
             provided_credentials: None,
             signer: Arc::new(signer),
+            key_id,
             context_map: with_default_contexts(context_map),
         }))
     }
@@ -141,10 +153,10 @@ impl Draft18Holder {
         provided_credentials: Vec<Arc<ParsedCredential>>,
         trusted_dids: Vec<String>,
         signer: Box<dyn Draft18PresentationSigner>,
+        key_id: String,
         context_map: Option<HashMap<String, String>>,
     ) -> Result<Arc<Self>, Draft18OID4VPError> {
-        let client = openidvp_draft18::core::util::ReqwestClient::new()
-            .map_err(|e| Draft18OID4VPError::HttpClientInitialization(format!("{e:?}")))?;
+        let client = HttpClient::shared();
 
         Ok(Arc::new(Self {
             client,
@@ -153,6 +165,7 @@ impl Draft18Holder {
             trusted_dids,
             provided_credentials: Some(provided_credentials),
             signer: Arc::new(signer),
+            key_id,
             context_map: with_default_contexts(context_map),
         }))
     }
@@ -204,6 +217,69 @@ impl Draft18Holder {
 
 // Internal methods for the Holder.
 impl Draft18Holder {
+    /// Notify the verifier that the end-user declined the authorization request.
+    ///
+    /// Draft 18 uses the same form-encoded authorization-error shape as its
+    /// direct-post success response. The `state`, when present, lets the
+    /// verifier associate the denial with its pending transaction.
+    pub(crate) async fn submit_permission_denial(
+        &self,
+        request: &AuthorizationRequestObject,
+    ) -> Result<Option<Url>, Draft18OID4VPError> {
+        match request.response_mode() {
+            ResponseMode::DirectPost | ResponseMode::DirectPostJwt => {}
+            mode => {
+                return Err(Draft18OID4VPError::UnsupportedResponseMode(
+                    mode.to_string(),
+                ))
+            }
+        }
+
+        let state = request
+            .state()
+            .transpose()
+            .map_err(|e| Draft18OID4VPError::ResponseSubmission(format!("{e:?}")))?
+            .map(|state| state.0);
+
+        let body = serde_urlencoded::to_string(AccessDeniedResponse {
+            error: "access_denied",
+            state,
+        })
+        .map_err(|e| Draft18OID4VPError::ResponseSubmission(format!("{e:?}")))?;
+        let http_request = http::Request::post(request.return_uri().as_str())
+            .header("Prefer", "OID4VP-0.0.20")
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .body(body.into_bytes())
+            .map_err(|e| Draft18OID4VPError::ResponseSubmission(format!("{e:?}")))?;
+        let response = self
+            .client
+            .send(http_request)
+            .await
+            .map_err(|e| Draft18OID4VPError::ResponseSubmission(format!("{e:?}")))?;
+
+        let status = response.status();
+        let body = String::from_utf8(response.into_body())
+            .map_err(|e| Draft18OID4VPError::ResponseSubmission(format!("{e:?}")))?;
+
+        if !status.is_success() {
+            return Err(Draft18OID4VPError::ResponseSubmission(format!(
+                "verifier rejected authorization error (status: {status}): {body}"
+            )));
+        }
+
+        if body.trim().is_empty() {
+            return Ok(None);
+        }
+
+        serde_json::from_str::<serde_json::Value>(&body)
+            .map_err(|e| Draft18OID4VPError::ResponseSubmission(format!("{e:?}")))?
+            .get("redirect_uri")
+            .and_then(|value| value.as_str())
+            .map(Url::parse)
+            .transpose()
+            .map_err(|e| Draft18OID4VPError::ResponseSubmission(format!("{e:?}")))
+    }
+
     /// Return the static metadata for the holder.
     ///
     /// This method is used to initialize the metadata for the holder.
@@ -372,6 +448,7 @@ impl Draft18Holder {
             credentials.clone(),
             request,
             self.signer.clone(),
+            self.key_id.clone(),
             self.context_map.clone(),
         ))
     }
@@ -442,7 +519,7 @@ impl RequestVerifier for Draft18Holder {
 }
 
 impl OID4VPWallet for Draft18Holder {
-    type HttpClient = openidvp_draft18::core::util::ReqwestClient;
+    type HttpClient = HttpClient;
 
     fn http_client(&self) -> &Self::HttpClient {
         &self.client

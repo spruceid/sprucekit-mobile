@@ -4,19 +4,36 @@ import SpruceIDMobileSdkRs
 
 @MainActor
 public func generateMockMdl() async {
-    do {
-        if !KeyManager.keyExists(id: DEFAULT_SIGNING_KEY_ID) {
-            _ = KeyManager.generateSigningKey(
-                id: DEFAULT_SIGNING_KEY_ID
-            )
+    await generateMockMdoc(
+        displayName: "mDL",
+        makeMdoc: { keyManager, keyAlias in
+            try generateTestMdl(keyManager: keyManager, keyAlias: keyAlias)
         }
-        let mdl = try generateTestMdl(
-            keyManager: KeyManager(),
-            keyAlias: DEFAULT_SIGNING_KEY_ID
-        )
+    )
+}
+
+@MainActor
+public func generateMockPhotoId() async {
+    await generateMockMdoc(
+        displayName: "Photo ID",
+        makeMdoc: { keyManager, keyAlias in
+            try generateTestPhotoId(keyManager: keyManager, keyAlias: keyAlias)
+        }
+    )
+}
+
+/// Issue a test mdoc against the default signing key, add it to the wallet, and log the activity.
+@MainActor
+private func generateMockMdoc(
+    displayName: String,
+    makeMdoc: (KeyManager, String) throws -> Mdoc
+) async {
+    do {
+        ensureDefaultSigningKey()
+        let mdoc = try makeMdoc(KeyManager(), DEFAULT_SIGNING_KEY_ID)
         let mdocPack = CredentialPack()
 
-        let credentials = try await mdocPack.addMDoc(mdoc: mdl)
+        let credentials = try await mdocPack.addMDoc(mdoc: mdoc)
 
         let bundle = Bundle.main
         let storageManager = StorageManager(
@@ -37,15 +54,15 @@ public func generateMockMdl() async {
             dateTime: Date(),
             additionalInformation: ""
         )
-        
+
         ToastManager.shared.showSuccess(
-            message: "Test mDL added to your wallet"
+            message: "Test \(displayName) added to your wallet"
         )
 
     } catch {
         print(error.localizedDescription)
         ToastManager.shared.showError(
-            message: "Error generating mDL"
+            message: "Error generating \(displayName)"
         )
     }
 }

@@ -92,7 +92,7 @@ struct ScanningComponent: View {
     }
 
     /// Checking camera permission
-    func checkCameraPermisssion() {
+    func checkCameraPermission() {
         Task {
             switch AVCaptureDevice.authorizationStatus(for: .video) {
             case .authorized:
@@ -216,7 +216,7 @@ struct ScanningComponent: View {
 
             }
         }
-        .onAppear(perform: checkCameraPermisssion)
+        .onAppear(perform: checkCameraPermission)
         .alert(isPresented: $showError) {
             Alert(
                 title: Text(errorMessage),

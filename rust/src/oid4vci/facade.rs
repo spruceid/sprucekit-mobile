@@ -13,16 +13,6 @@ use super::{
     note = "Compatibility facade for legacy OID4VCI integrations only. Prefer Oid4vciClient for new integrations; this facade may be removed in a future release."
 )]
 #[derive(uniffi::Enum, Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Oid4vciCompatibilityMode {
-    Auto,
-    ForceV1,
-    ForceLegacy,
-}
-
-#[deprecated(
-    note = "Compatibility facade for legacy OID4VCI integrations only. Prefer Oid4vciClient for new integrations; this facade may be removed in a future release."
-)]
-#[derive(uniffi::Enum, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Oid4vciVersion {
     V1,
     Legacy,
@@ -34,7 +24,7 @@ pub enum Oid4vciVersion {
 #[derive(uniffi::Object)]
 pub struct Oid4vciFacadeClient {
     client_id: String,
-    compatibility_mode: Oid4vciCompatibilityMode,
+    supported_versions: Vec<Oid4vciVersion>,
     v1_client: Oid4vciClient,
 }
 
@@ -117,16 +107,16 @@ pub enum Oid4vciFacadeCredentialTokenState {
 #[uniffi::export]
 impl Oid4vciFacadeClient {
     #[uniffi::constructor]
-    pub fn new(client_id: String, compatibility_mode: Oid4vciCompatibilityMode) -> Self {
+    pub fn new(client_id: String, supported_versions: Vec<Oid4vciVersion>) -> Self {
         Self {
             v1_client: Oid4vciClient::new(client_id.clone()),
             client_id,
-            compatibility_mode,
+            supported_versions,
         }
     }
 
-    pub fn compatibility_mode(&self) -> Oid4vciCompatibilityMode {
-        self.compatibility_mode
+    pub fn supported_versions(&self) -> Vec<Oid4vciVersion> {
+        self.supported_versions.clone()
     }
 
     pub async fn resolve_offer_url(
@@ -134,51 +124,52 @@ impl Oid4vciFacadeClient {
         http_client: Arc<dyn AsyncHttpClient>,
         credential_offer_url: &str,
     ) -> Result<Oid4vciFacadeResolvedOffer, Oid4vciError> {
-        match self.compatibility_mode {
-            Oid4vciCompatibilityMode::ForceV1 => self
+        let allow_v1 = self.supported_versions.is_empty()
+            || self.supported_versions.contains(&Oid4vciVersion::V1);
+        let allow_legacy = self.supported_versions.is_empty()
+            || self.supported_versions.contains(&Oid4vciVersion::Legacy);
+
+        if allow_v1 && allow_legacy {
+            let current = self
                 .v1_client
+                .resolve_offer_url(http_client.clone(), credential_offer_url)
+                .await;
+            let legacy =
+                legacy::resolve_offer_url(http_client, credential_offer_url, &self.client_id).await;
+
+            match (current, legacy) {
+                (Ok(current), Ok(legacy)) => Ok(Oid4vciFacadeResolvedOffer {
+                    preferred_version: Oid4vciVersion::V1,
+                    inner: Oid4vciFacadeResolvedOfferInner::Auto {
+                        current: Arc::new(current),
+                        legacy,
+                    },
+                }),
+                (Ok(current), Err(_)) => Ok(Oid4vciFacadeResolvedOffer {
+                    preferred_version: Oid4vciVersion::V1,
+                    inner: Oid4vciFacadeResolvedOfferInner::V1(Arc::new(current)),
+                }),
+                (Err(_), Ok(legacy)) => Ok(Oid4vciFacadeResolvedOffer {
+                    preferred_version: Oid4vciVersion::Legacy,
+                    inner: Oid4vciFacadeResolvedOfferInner::Legacy(legacy),
+                }),
+                (Err(err), Err(_)) => Err(err),
+            }
+        } else if allow_v1 {
+            self.v1_client
                 .resolve_offer_url(http_client, credential_offer_url)
                 .await
                 .map(|offer| Oid4vciFacadeResolvedOffer {
                     preferred_version: Oid4vciVersion::V1,
                     inner: Oid4vciFacadeResolvedOfferInner::V1(Arc::new(offer)),
-                }),
-            Oid4vciCompatibilityMode::ForceLegacy => {
-                legacy::resolve_offer_url(http_client, credential_offer_url, &self.client_id)
-                    .await
-                    .map(|offer| Oid4vciFacadeResolvedOffer {
-                        preferred_version: Oid4vciVersion::Legacy,
-                        inner: Oid4vciFacadeResolvedOfferInner::Legacy(offer),
-                    })
-            }
-            Oid4vciCompatibilityMode::Auto => {
-                let current = self
-                    .v1_client
-                    .resolve_offer_url(http_client.clone(), credential_offer_url)
-                    .await;
-                let legacy =
-                    legacy::resolve_offer_url(http_client, credential_offer_url, &self.client_id)
-                        .await;
-
-                match (current, legacy) {
-                    (Ok(current), Ok(legacy)) => Ok(Oid4vciFacadeResolvedOffer {
-                        preferred_version: Oid4vciVersion::V1,
-                        inner: Oid4vciFacadeResolvedOfferInner::Auto {
-                            current: Arc::new(current),
-                            legacy,
-                        },
-                    }),
-                    (Ok(current), Err(_)) => Ok(Oid4vciFacadeResolvedOffer {
-                        preferred_version: Oid4vciVersion::V1,
-                        inner: Oid4vciFacadeResolvedOfferInner::V1(Arc::new(current)),
-                    }),
-                    (Err(_), Ok(legacy)) => Ok(Oid4vciFacadeResolvedOffer {
-                        preferred_version: Oid4vciVersion::Legacy,
-                        inner: Oid4vciFacadeResolvedOfferInner::Legacy(legacy),
-                    }),
-                    (Err(err), Err(_)) => Err(err),
-                }
-            }
+                })
+        } else {
+            legacy::resolve_offer_url(http_client, credential_offer_url, &self.client_id)
+                .await
+                .map(|offer| Oid4vciFacadeResolvedOffer {
+                    preferred_version: Oid4vciVersion::Legacy,
+                    inner: Oid4vciFacadeResolvedOfferInner::Legacy(offer),
+                })
         }
     }
 
@@ -310,21 +301,19 @@ impl Oid4vciFacadeWaitingForAuthorizationCode {
 #[uniffi::export]
 impl Oid4vciFacadeTxCodeRequired {
     pub async fn proceed(
-        self: Arc<Self>,
+        &self,
         http_client: Arc<dyn AsyncHttpClient>,
         tx_code: String,
     ) -> Result<Oid4vciFacadeCredentialToken, Oid4vciError> {
-        let inner = Arc::into_inner(self).ok_or(Oid4vciError::AlreadyProceeded)?;
-        inner
-            .inner
+        self.inner
             .proceed(http_client, tx_code)
             .await
             .map(|token| Oid4vciFacadeCredentialToken {
                 version: Oid4vciVersion::V1,
                 inner: Oid4vciFacadeCredentialTokenInner::V1 {
-                    client_id: inner.client_id,
+                    client_id: self.client_id.clone(),
                     token,
-                    fallback_legacy_offer: inner.fallback_legacy_offer,
+                    fallback_legacy_offer: self.fallback_legacy_offer.clone(),
                 },
             })
     }

@@ -1,6 +1,7 @@
+use crate::http_client::HttpClient;
 use std::str::FromStr;
 
-use reqwest::StatusCode;
+use http::StatusCode;
 use ssi::status::bitstring_status_list::{
     BitString, BitstringStatusListCredential, BitstringStatusListEntry,
     StatusMessage as BitStringStatusMessage, StatusPurpose as BitStringStatusPurpose,
@@ -106,7 +107,8 @@ pub trait BitStringStatusListResolver {
             .parse()
             .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?;
 
-        let response = reqwest::get(url)
+        let response = HttpClient::shared()
+            .get(url.as_str())
             .await
             .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?;
 
@@ -117,9 +119,7 @@ pub trait BitStringStatusListResolver {
             )));
         }
 
-        response
-            .json()
-            .await
+        serde_json::from_slice(response.body())
             .map_err(|e| StatusListError::Resolution(format!("{e:?}")))
     }
 

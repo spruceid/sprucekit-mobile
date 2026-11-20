@@ -1,7 +1,6 @@
 plugins {
     id 'com.android.library'
     id 'org.jetbrains.kotlin.android'
-    id 'com.github.willir.rust.cargo-ndk-android'
     id 'maven-publish'
     id 'signing'
     id 'com.gradleup.nmcp'
@@ -47,6 +46,14 @@ android {
         }
     }
     ndkVersion '29.0.13599879 rc2'
+
+    // 32-bit x86 is no longer built; keep a stale jniLibs/x86 from an older
+    // checkout out of the AAR.
+    packaging {
+        jniLibs {
+            excludes += ['lib/x86/**']
+        }
+    }
 }
 
 dependencies {
@@ -56,7 +63,7 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
     implementation("androidx.compose.runtime:runtime:1.8.3")
 
-    implementation "net.java.dev.jna:jna:5.17.0@aar"
+    implementation "net.java.dev.jna:jna:5.19.1@aar"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2"
     implementation "androidx.annotation:annotation:1.9.1"
     implementation "androidx.core:core-ktx:1.16.0"
@@ -64,28 +71,103 @@ dependencies {
     implementation 'org.jetbrains.kotlin:kotlin-stdlib:2.1.0'
 }
 
-apply plugin: 'com.github.willir.rust.cargo-ndk-android'
+tasks.register('buildCargoNdk', Exec) {
+    def rustTargetAbis = [
+            "arm"   : "armeabi-v7a",
+            "arm64" : "arm64-v8a",
+            "x86_64": "x86_64",
+    ]
+    // `-Prust-target=<id>` restricts the build to a single target.
+    def rustTarget = findProperty("rust-target")
+    def abis = rustTargetAbis.values()
+    if (rustTarget != null) {
+        if (rustTarget.toString() == "x86") {
+            throw new GradleException("rust-target 'x86' (32-bit) is no longer built; use 'x86_64' for emulators")
+        }
+        def abi = rustTargetAbis[rustTarget.toString()]
+        if (abi == null) {
+            throw new GradleException("Unknown rust-target '${rustTarget}', expected one of ${rustTargetAbis.keySet()}")
+        }
+        abis = [abi]
+    }
 
-cargoNdk {
-    module =  "../rust"
-    targetDirectory = "target"
-    targets = ["arm", "arm64", "x86", "x86_64"]
+    dependsOn(tasks.named("bindGen"))
+    onlyIf { rustUpdated(name) }
+    doLast { onSuccess(name) }
+
+    workingDir rootDir.toPath().toString() + "/../rust"
+    commandLine(["cargo", "ndk"] + abis.collectMany { ["-t", it] } + [
+            "--platform", android.defaultConfig.minSdk.toString(),
+            "-o", "${projectDir}/src/main/jniLibs",
+            // `rustc --crate-type cdylib` rather than `build`: Cargo skips LTO for a
+            // crate that also emits an rlib (mobile-sdk-rs keeps one for its
+            // integration tests), so the release profile's LTO only applies when the
+            // cdylib is the sole output.
+            "rustc", "--lib", "--crate-type", "cdylib", "--release",
+    ] + (Os.isFamily(Os.FAMILY_WINDOWS) ? [] : [
+            // Hide the UNIFFI_META_* statics from the .so exports so the linker drops
+            // them. See rust/scripts/android-version-script.sh. Windows hosts skip this
+            // because bindGen doesn't generate the script there.
+            "--",
+            "-C", "link-arg=-Wl,--version-script=${androidVersionScript()}",
+            "-C", "link-arg=-Wl,--undefined-version",
+    ]))
+
+    def localProperties = rootProject.file("local.properties")
+    if (localProperties.exists()) {
+        def properties = new Properties()
+        localProperties.withInputStream { properties.load(it) }
+        def ndkDir = properties.getProperty("ndk.dir")
+        if (ndkDir != null) {
+            environment "ANDROID_NDK_HOME", ndkDir
+        }
+    }
 }
 
 def markerFile(taskName) {
     return file("${getLayout().buildDirectory.get()}/.${taskName}LastRun")
 }
 
+// Linker version script for the Android .so, written by bindGen.
+def androidVersionScript() {
+    return file("${getLayout().buildDirectory.get()}/rust/android-exports.map")
+}
+
 def rustUpdated(taskName) {
-    def srcTree = fileTree("../../rust/src")
-    def manifest = files("../../rust/Cargo.toml", "../../rust/Cargo.lock")
+    def srcTree = fileTree("../../rust/src") + fileTree("../../rust/mobile-toolkit/src")
+    def manifest = files(
+            "../../rust/Cargo.toml",
+            "../../rust/Cargo.lock",
+            "../../rust/uniffi.toml",
+            "../../rust/mobile-toolkit/Cargo.toml",
+            "../../rust/mobile-toolkit/Cargo.lock",
+            "../../rust/mobile-toolkit/uniffi.toml",
+            "../../rust/scripts/android-version-script.sh",
+            "../../rust/scripts/export-prefixes.sh",
+    )
     def markerFile = markerFile(taskName)
 
     if (!markerFile.exists()) {
         return true
     }
 
+    if (taskName.startsWith("buildCargoNdk")
+            && fileTree(dir: "src/main/jniLibs", include: "**/*.so").isEmpty()) {
+        return true
+    }
+    if (taskName == "bindGen"
+            && (fileTree(dir: "src/main/java", include: "**/mobile_sdk_rs.kt").isEmpty()
+                    || fileTree(dir: "src/main/java", include: "**/mobile_toolkit.kt").isEmpty()
+                    || (!Os.isFamily(Os.FAMILY_WINDOWS) && !androidVersionScript().exists()))) {
+        return true
+    }
+
     def lastRun = Long.parseLong(markerFile.text)
+
+    // bindGen rewrites the version script; relink when it changed.
+    if (taskName.startsWith("buildCargoNdk")) {
+        manifest += files(androidVersionScript())
+    }
 
     def changed = (srcTree.files + manifest.files).any {
         getLogger().info("File: ${it.name}, last modified: ${it.lastModified()}, last run: $lastRun")
@@ -121,16 +203,14 @@ afterEvaluate {
         }
 
         tasks.named("generate${productFlavor}${buildType}Assets") {
-            it.dependsOn(tasks.named("buildCargoNdk${variant.name.capitalize()}"))
+            it.dependsOn(tasks.named("buildCargoNdk"))
+        }
+
+        tasks.named("merge${productFlavor}${buildType}JniLibFolders") {
+            it.dependsOn(tasks.named("buildCargoNdk"))
         }
     }
 
-    (tasks.withType(CargoNdkBuildTask)).configureEach {
-        def name = it.name
-        it.dependsOn(tasks.named("bindGen"))
-        it.onlyIf { rustUpdated(name) }
-        it.doLast { onSuccess(name) }
-    }
     tasks.named("bindGen").configure {
         def name = it.name
         it.onlyIf { rustUpdated(name) }
@@ -138,14 +218,13 @@ afterEvaluate {
     }
 }
 
-import com.github.willir.rust.CargoNdkBuildTask
 import org.apache.tools.ant.taskdefs.condition.Os
 tasks.register('bindGen', Exec) {
     def outDir = "${projectDir}/src/main/java"
     workingDir rootDir.toPath().toString() + "/../rust"
     if (Os.isFamily(Os.FAMILY_WINDOWS)) {
         commandLine("cmd", "/c",
-                "cargo build && " + "cargo run --bin uniffi-bindgen generate --library target\\debug\\libmobile_sdk_rs.dll " + "--language kotlin " + "--out-dir " + outDir.replace('/', '\\'))
+                "cargo build && " + "cargo run -p uniffi-bindgen generate --library target\\debug\\libmobile_sdk_rs.dll " + "--language kotlin " + "--out-dir " + outDir.replace('/', '\\'))
     } else {
         def extension
         if (Os.isFamily(Os.FAMILY_MAC)) {
@@ -156,11 +235,14 @@ tasks.register('bindGen', Exec) {
         commandLine("sh", "-c",
                 """\
                 cargo build && \
-                cargo run --bin uniffi-bindgen generate \
+                cargo run -p uniffi-bindgen generate \
                 --library target/debug/libmobile_sdk_rs.$extension \
                 --language kotlin \
                 --out-dir $outDir \
-                --no-format
+                --no-format && \
+                sh scripts/android-version-script.sh \
+                target/debug/libmobile_sdk_rs.$extension \
+                "${androidVersionScript()}"
                 """)
     }
 }

@@ -11,6 +11,7 @@ import com.spruceid.mobilesdkexample.HomeView
 import com.spruceid.mobilesdkexample.credentials.AddToWalletView
 import com.spruceid.mobilesdkexample.credentials.CredentialDetailsView
 import com.spruceid.mobilesdkexample.verifier.AddVerificationMethodView
+import com.spruceid.mobilesdkexample.verifier.MDocVerificationProfile
 import com.spruceid.mobilesdkexample.verifier.VerifyCwtView
 import com.spruceid.mobilesdkexample.verifier.VerifyDLView
 import com.spruceid.mobilesdkexample.verifier.VerifyDelegatedOid4vpView
@@ -26,6 +27,8 @@ import com.spruceid.mobilesdkexample.wallet.DispatchQRView
 import com.spruceid.mobilesdkexample.wallet.HandleMdocOID4VPView
 import com.spruceid.mobilesdkexample.wallet.HandleOID4VCIView
 import com.spruceid.mobilesdkexample.wallet.HandleOID4VPView
+import com.spruceid.mobilesdkexample.wallet.HandleInteractionView
+import com.spruceid.mobilesdkexample.wallet.HandleVCALMView
 import com.spruceid.mobilesdkexample.walletsettings.WalletSettingsActivityLogScreen
 import com.spruceid.mobilesdkexample.walletsettings.WalletSettingsHomeView
 
@@ -83,7 +86,15 @@ fun SetupNavGraph(
         ) {
             VerifyMDocView(
                 navController,
-                checkAgeOver18 = true
+                profile = MDocVerificationProfile.MDL_AGE_OVER_18
+            )
+        }
+        composable(
+            route = Screen.VerifyPhotoIdScreen.route,
+        ) {
+            VerifyMDocView(
+                navController,
+                profile = MDocVerificationProfile.PHOTO_ID
             )
         }
         composable(
@@ -143,7 +154,7 @@ fun SetupNavGraph(
             if (!rawCredential.isNullOrEmpty()) {
                 AddToWalletView(
                     navController,
-                    rawCredential
+                    listOf(rawCredential)
                 )
             } else {
                 navController.navigate(Screen.HomeScreen.route) {
@@ -154,6 +165,40 @@ fun SetupNavGraph(
         composable(
             route = Screen.ScanQRScreen.route,
         ) { DispatchQRView(navController) }
+        composable(
+            route = Screen.HandleInteraction.route, arguments = listOf(
+            navArgument("url") {
+                type = NavType.StringType
+            })) { backStackEntry ->
+            val url = backStackEntry.arguments?.getString("url")!!
+            HandleInteractionView(
+                navController, url, null
+            )
+        }
+        composable(
+            route = Screen.HandleInteractionWithCredentialPack.route,
+            arguments = listOf(navArgument("url") {
+                type = NavType.StringType
+            }, navArgument("credential_pack_id") {
+                type = NavType.StringType
+                nullable = true
+                defaultValue = null
+            })) { backStackEntry ->
+            val url = backStackEntry.arguments?.getString("url")!!
+            val credentialPackId = backStackEntry.arguments?.getString("credential_pack_id")
+            HandleInteractionView(
+                navController,
+                url,
+                credentialPackId
+            ) }
+        composable(
+            route = Screen.HandleVCALM.route,
+        ) { backStackEntry ->
+            val url = backStackEntry.arguments?.getString("url")!!
+            HandleVCALMView(
+                navController,
+                url
+            ) }
         composable(
             route = Screen.HandleOID4VCI.route,
         ) { backStackEntry ->

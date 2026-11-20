@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.spruceid.mobile.sdk.ConnectionLiveData
+import com.spruceid.mobile.sdk.RustHttpClient
 import com.spruceid.mobile.sdk.nfc.NfcListenManager
 import com.spruceid.mobilesdkexample.credentials.NfcPresentationService
 import com.spruceid.mobilesdkexample.navigation.Screen
@@ -170,4 +171,10 @@ class MainActivity : ComponentActivity() {
 }
 
 @HiltAndroidApp
-class MainApplication : Application()
+class MainApplication : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        // Route Rust HTTP requests through the native client, so proxy settings apply.
+        RustHttpClient.configure()
+    }
+}

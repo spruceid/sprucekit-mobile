@@ -42,13 +42,15 @@ publishing {
     //     }
     // }
     publications {
-        // This command must be commented on when releasing a new version.
-        // create<MavenPublication>("debug") {
-        //    groupId = "com.spruceid.mobile.sdk"
-        //    artifactId = "mobilesdk"
-        //    version = System.getenv("VERSION")
-        //  afterEvaluate { from(components["release"]) }
-        // }
+        // Local-development publication (publishDebugPublicationToMavenLocal).
+        // Keep commented out in the committed state; uncomment when publishing
+        // a local build, and re-comment before releasing a new version.
+        create<MavenPublication>("debug") {
+            groupId = "com.spruceid.mobile.sdk"
+            artifactId = "mobilesdk"
+            version = System.getenv("VERSION")
+            afterEvaluate { from(components["release"]) }
+        }
 
         // Creates a Maven publication called "release".
         create<MavenPublication>("release") {
@@ -168,9 +170,10 @@ dependencies {
     implementation("com.google.android.play:integrity:1.4.0")
     implementation("org.bitbucket.b_c:jose4j:0.9.6")
     implementation("io.ktor:ktor-client-core:3.2.2")
-    implementation("io.ktor:ktor-client-cio:3.2.2")
+    implementation("io.ktor:ktor-client-okhttp:3.2.2")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20250517")
+    testImplementation("io.mockk:mockk:1.13.17")
     androidTestImplementation("com.android.support.test:runner:1.0.2")
     androidTestImplementation("com.android.support.test.espresso:espresso-core:3.0.2")
 

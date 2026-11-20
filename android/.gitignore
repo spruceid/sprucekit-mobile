@@ -385,4 +385,9 @@ $RECYCLE.BIN/
 kls_database.db
 
 *.hprof
-MobileSdkRs/src
+# MobileSdkRs sources are generated (UniFFI Kotlin bindings + cargo-ndk .so
+# outputs), except the hand-written compat re-exports in ToolkitTypes.kt.
+MobileSdkRs/src/main/jniLibs/
+MobileSdkRs/src/main/java/uniffi/
+MobileSdkRs/src/main/java/com/spruceid/mobile/toolkit/
+MobileSdkRs/src/main/java/com/spruceid/mobile/sdk/rs/mobile_sdk_rs.kt

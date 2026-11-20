@@ -1,0 +1,26 @@
+# US English is enforced on user-facing copy by the `spelling` CI job, which
+# checks the Showcase apps and the Flutter example -- the surfaces a person
+# actually reads. The SDK and Rust core are out of scope.
+#
+# `locale = "en-us"` catches most British spellings on its own; extend-words
+# fills the gaps where typos accepts both variants.
+
+[default]
+locale = "en-us"
+
+# Embedded trust-anchor certificates are base64, not prose.
+extend-ignore-re = ["[A-Za-z0-9+/]{20,}={0,2}"]
+
+[default.extend-words]
+acknowledgement = "acknowledgment"
+amongst = "among"
+cancelled = "canceled"
+cancelling = "canceling"
+programme = "program"
+whilst = "while"
+
+[default.extend-identifiers]
+# ISO mDL claim keys. The wire spells these in British English, so the keys
+# stay as-is; only copy shown to a person is Americanized.
+eye_colour = "eye_colour"
+hair_colour = "hair_colour"

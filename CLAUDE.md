@@ -15,20 +15,24 @@ Each layer has its own CLAUDE.md with build commands and architecture details:
 - [Rust core library](rust/CLAUDE.md)
 - [iOS SDK + Showcase](ios/CLAUDE.md)
 - [Android SDK + Showcase](android/CLAUDE.md)
-- [Flutter plugin](flutter/CLAUDE.md)
+- [Flutter plugin](sprucekit_mobile/CLAUDE.md)
 
 ## Cross-Layer Development Workflow
 
 Changes to the Rust layer require regenerating bindings before platform work:
 
-- **iOS**: `cd rust && cargo swift package -p ios -n MobileSdkRs`
-  - CI enforces the generated `rust/MobileSdkRs/Sources/MobileSdkRs/mobile_sdk_rs.swift` is committed via `git diff --exit-code`
-- **Android**: Bindings regenerated automatically by the Gradle cargo-ndk plugin during build
-- **Flutter**: Wraps native SDKs (not Rust directly). Rebuild the relevant native SDK, then `pod install` (iOS) or Gradle rebuild (Android).
+- **iOS**: `cd rust && ./build-ios.sh`
+  - CI enforces the generated `rust/MobileSdkRs/Sources/MobileSdkRs/` Swift files are committed via `git diff --exit-code`
+- **Android**: Bindings regenerated automatically during the Gradle build (`buildCargoNdk` and `bindGen` tasks in `android/MobileSdkRs/build.gradle`)
+- **Flutter**: Wraps native SDKs (not Rust directly). Rebuild the relevant native SDK, then build the example with `SPRUCEKIT_SDK_FROM_SOURCE=1` (iOS, SPM) or Gradle rebuild (Android). See `sprucekit_mobile/CLAUDE.md`.
 
 ## CI
 
-CI runs on push to main and PRs with four jobs (rust, ios, android, flutter). See `.github/workflows/ci.yml`.
+CI runs on push to main and PRs with seven jobs (rust, ios, android, size-ios, size-report, spelling, flutter). See `.github/workflows/ci.yml`.
+
+The `rust` job runs `rust/scripts/check-deps.sh`: no OpenSSL or `native-tls` in the Android and iOS dependency graphs. `size-report` compares the release library sizes (Android arm64 `.so` from the `android` job, iOS device `.a` from `size-ios`) with the newest `size-report-main` artifact. See `CONTRIBUTING.md` → Pre-push Checklist.
+
+The `spelling` job runs `typos` over the Showcase apps and the Flutter example to keep user-facing copy in US English. Exemptions are in `_typos.toml`.
 
 `RUSTFLAGS="-Dwarnings"` is set globally -- all Rust warnings are errors in CI.
 

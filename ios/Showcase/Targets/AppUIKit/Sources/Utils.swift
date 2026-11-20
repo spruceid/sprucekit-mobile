@@ -3,7 +3,6 @@ import SpruceIDMobileSdk
 import SpruceIDMobileSdkRs
 import Foundation
 import SwiftUI
-import Network
 
 // modifier
 struct HideViewModifier: ViewModifier {
@@ -18,9 +17,9 @@ struct HideViewModifier: ViewModifier {
 }
 
 extension View {
-    func hide(if isHiddden: Bool) -> some View {
+    func hide(if isHidden: Bool) -> some View {
         ModifiedContent(content: self,
-                        modifier: HideViewModifier(isHidden: isHiddden)
+                        modifier: HideViewModifier(isHidden: isHidden)
         )
     }
 }
@@ -88,25 +87,6 @@ func generateQRCode(from data: Data) -> UIImage {
         }
     }
     return UIImage(systemName: "xmark.circle") ?? UIImage()
-}
-
-func checkInternetConnection() -> Bool {
-    let monitor = NWPathMonitor()
-    let queue = DispatchQueue.global(qos: .background)
-    var isConnected = false
-
-    let semaphore = DispatchSemaphore(value: 0)
-
-    monitor.pathUpdateHandler = { path in
-        isConnected = (path.status == .satisfied)
-        semaphore.signal()
-        monitor.cancel()
-    }
-
-    monitor.start(queue: queue)
-    semaphore.wait()
-
-    return isConnected
 }
 
 func generateTxtFile(content: String, filename: String) -> URL? {
@@ -182,6 +162,50 @@ extension Sequence {
 }
 
 let trustedDids: [String] = []
+
+/// Creates the wallet's shared signing key if it isn't there yet. Safe to call
+/// anywhere: a credential presented with this key was never cnf-bound to a
+/// per-credential one, so a freshly minted key still verifies.
+func ensureDefaultSigningKey() {
+    if !KeyManager.keyExists(id: DEFAULT_SIGNING_KEY_ID) {
+        _ = KeyManager.generateSigningKey(id: DEFAULT_SIGNING_KEY_ID)
+    }
+}
+
+/// Parses a raw credential string, saves it as a new `CredentialPack`, and
+/// records a "Claimed" wallet activity log entry for it — the same sequence
+/// `AddToWalletView`'s own accept step uses. Shared so other flows (e.g. VCALM
+/// offers) that store a credential outside of `AddToWalletView`'s own review
+/// UI stay consistent with it, rather than reimplementing this inline.
+///
+/// Binds the credential to `keyAlias`, or to the shared key when `nil`.
+@discardableResult
+func acceptRawCredentialIntoWallet(
+    rawCredential: String,
+    credentialPackObservable: CredentialPackObservable,
+    keyAlias: String? = nil
+) async throws -> CredentialPack {
+    // A per-credential alias is never bootstrapped; it has to come from issuance.
+    if keyAlias == nil {
+        ensureDefaultSigningKey()
+    }
+    let credentialPack = CredentialPack()
+    _ = try await credentialPack.tryAddAnyFormatWithKey(
+        rawCredential: rawCredential, keyAlias: keyAlias ?? DEFAULT_SIGNING_KEY_ID)
+    try await credentialPackObservable.add(credentialPack: credentialPack)
+
+    let credentialInfo = getCredentialIdTitleAndIssuer(credentialPack: credentialPack)
+    _ = WalletActivityLogDataStore.shared.insert(
+        credentialPackId: credentialPack.id.uuidString,
+        credentialId: credentialInfo.0,
+        credentialTitle: credentialInfo.1,
+        issuer: credentialInfo.2,
+        action: "Claimed",
+        dateTime: Date(),
+        additionalInformation: ""
+    )
+    return credentialPack
+}
 
 func convertToGenericJSON(map: [String: [String: MDocItem]]) -> GenericJSON {
     var jsonObject: [String: GenericJSON] = [:]

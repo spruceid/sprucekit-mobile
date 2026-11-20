@@ -158,8 +158,6 @@ struct WalletHomeBody: View {
                         }
                     }
                     .refreshable {
-                        statusListObservable.hasConnection =
-                            checkInternetConnection()
                         await loadCredentials()
                         await hacApplicationObservable.updateAllIssuanceStates()
                     }
@@ -170,8 +168,6 @@ struct WalletHomeBody: View {
                     onButtonClick: {
                         Task {
                             await generateMockMdl()
-                            statusListObservable.hasConnection =
-                                checkInternetConnection()
                             await loadCredentials()
                         }
                     }
@@ -181,7 +177,6 @@ struct WalletHomeBody: View {
         .animation(.easeInOut(duration: 0.3), value: loading)
         .onAppear(perform: {
             Task {
-                statusListObservable.hasConnection = checkInternetConnection()
                 await loadCredentials()
                 do {
                     try await credentialPackObservable.registerUnregisteredIDProviderDocuments()

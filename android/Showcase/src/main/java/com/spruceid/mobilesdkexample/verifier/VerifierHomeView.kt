@@ -157,7 +157,7 @@ fun VerifierHomeBody(
                 }
             )
             VerifierListItem(
-                title = "Mobile Driver's Licence",
+                title = "Mobile Driver's License",
                 description = "Verifies an ISO formatted mobile driver's license by reading a QR code",
                 type = VerifierListItemTagType.SCAN_QR_CODE,
                 modifier = Modifier.clickable {
@@ -165,11 +165,19 @@ fun VerifierHomeBody(
                 }
             )
             VerifierListItem(
-                title = "Mobile Driver's Licence - Over 18",
+                title = "Mobile Driver's License - Over 18",
                 description = "Verifies an ISO formatted mobile driver's license by reading a QR code",
                 type = VerifierListItemTagType.SCAN_QR_CODE,
                 modifier = Modifier.clickable {
                     navController.navigate(Screen.VerifyMDlOver18Screen.route)
+                }
+            )
+            VerifierListItem(
+                title = "Photo ID",
+                description = "Verifies an ISO 23220-4 Photo ID by reading a QR code",
+                type = VerifierListItemTagType.SCAN_QR_CODE,
+                modifier = Modifier.clickable {
+                    navController.navigate(Screen.VerifyPhotoIdScreen.route)
                 }
             )
             VerifierListItem(

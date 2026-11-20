@@ -1,9 +1,10 @@
 use super::status::{StatusListError, StatusMessage};
+use crate::http_client::HttpClient;
 
 use std::str::FromStr;
 
 use futures::stream::{self, StreamExt};
-use reqwest::StatusCode;
+use http::StatusCode;
 use ssi::status::bitstring_status_list_20240406::{
     BitString, BitstringStatusListCredential, BitstringStatusListEntry,
     StatusMessage as BitStringStatusMessage, StatusPurpose as BitString20240406StatusPurpose,
@@ -96,7 +97,8 @@ pub trait BitStringStatusListResolver20240406 {
                     .parse::<Url>()
                     .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?;
 
-                let response = reqwest::get(url)
+                let response = HttpClient::shared()
+                    .get(url.as_str())
                     .await
                     .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?;
 
@@ -107,9 +109,7 @@ pub trait BitStringStatusListResolver20240406 {
                     )));
                 }
 
-                response
-                    .json()
-                    .await
+                serde_json::from_slice(response.body())
                     .map_err(|e| StatusListError::Resolution(format!("{e:?}")))
             })
             .buffer_unordered(3)

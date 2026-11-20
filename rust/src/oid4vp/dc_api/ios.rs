@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap},
     sync::Arc,
 };
 
@@ -104,10 +104,10 @@ impl IOSISO18013MobileDocumentRequest {
                                             .get(namespace)
                                             .and_then(|elements| elements.get(element_identifier))
                                         else {
-                                            missing_fields.insert(
-                                                namespace.clone(),
-                                                element_identifier.clone(),
-                                            );
+                                            missing_fields
+                                                .entry(namespace.clone())
+                                                .or_insert_with(BTreeSet::new)
+                                                .insert(element_identifier.clone());
                                             continue;
                                         };
                                         let displayable_value =
@@ -164,6 +164,7 @@ impl IOSISO18013MobileDocumentRequest {
                                     field_map,
                                     requested_fields,
                                     missing_fields,
+                                    validity_status: mdoc.validity_status(),
                                 }));
                             }
                         }

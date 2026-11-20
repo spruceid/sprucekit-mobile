@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use crate::credential::{ParsedCredential, PresentableCredential};
 use crate::crypto::KeyStore;
+use crate::http_client::HttpClient;
 use crate::vdc_collection::VdcCollection;
 
 use super::draft18::{
@@ -17,19 +18,19 @@ use super::draft18::{
     presentation::{Draft18PresentationError, Draft18PresentationSigner},
     Draft18Holder,
 };
-use openidvp_draft18::core::presentation_definition::{
-    PresentationDefinition, SubmissionRequirement, SubmissionRequirementBase,
-};
-
+use super::dynamic_credential::{DynamicCredentialOffer, DynamicCredentialProvider};
 use super::holder::{AuthRequest, Holder};
 use super::permission_request::{
     PermissionRequest, PermissionRequestError, PermissionResponse, RequestedField, ResponseOptions,
 };
 use super::presentation::{PresentationError, PresentationSigner};
-use super::{get_oid4vp_version, Oid4vpVersion};
+use super::{select_oid4vp_version, Oid4vpVersion};
 use crate::oid4vp::draft18::error::Draft18OID4VPError;
 use crate::oid4vp::error::OID4VPError;
 use base64::prelude::{Engine as _, BASE64_URL_SAFE_NO_PAD};
+use openidvp_draft18::core::presentation_definition::{
+    PresentationDefinition, SubmissionRequirement, SubmissionRequirementBase,
+};
 use serde_json::{Map, Value};
 use ssi::claims::data_integrity::CryptosuiteString;
 use ssi::crypto::Algorithm;
@@ -44,6 +45,8 @@ pub enum Oid4vpFacadeError {
     RequestParsing(String),
     #[error("Version-specific OID4VP values were mixed in a single operation.")]
     VersionMismatch,
+    #[error("Draft 13 and Draft 18 cannot both be supported: a bare request_uri is indistinguishable between them before its single-use fetch.")]
+    ConflictingVersions,
     #[error(transparent)]
     V1(#[from] OID4VPError),
     #[error(transparent)]
@@ -64,21 +67,6 @@ pub struct Oid4vpResponseOptions {
     pub force_array_serialization: bool,
     pub should_strip_quotes: bool,
     pub remove_vp_path_prefix: bool,
-}
-
-#[deprecated(
-    note = "Compatibility facade for legacy OID4VP integrations only. Prefer the OID4VP v1 APIs for new integrations; this facade may be removed in a future release."
-)]
-#[derive(uniffi::Enum, Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum Oid4vpCompatibilityMode {
-    #[default]
-    Auto,
-    V1,
-    Draft18,
-    /// Force the OpenID4VP draft-13 path (translated onto the draft-18 engine).
-    /// Use this for draft-13 requests delivered purely by `request_uri`, which
-    /// `Auto` cannot detect from the link alone.
-    Draft13,
 }
 
 #[deprecated(
@@ -121,8 +109,10 @@ pub struct Oid4vpHolder {
     source: Oid4vpHolderSource,
     trusted_dids: Vec<String>,
     signer: Arc<Box<dyn Oid4vpPresentationSigner>>,
+    key_id: String,
     context_map: Option<HashMap<String, String>>,
     keystore: Option<Arc<dyn KeyStore>>,
+    providers: Vec<Arc<dyn DynamicCredentialProvider>>,
 }
 
 impl std::fmt::Debug for Oid4vpHolder {
@@ -131,6 +121,7 @@ impl std::fmt::Debug for Oid4vpHolder {
             .field("trusted_dids", &self.trusted_dids)
             .field("context_map", &self.context_map)
             .field("keystore", &self.keystore.as_ref().map(|_| "KeyStore"))
+            .field("providers", &self.providers.len())
             .finish()
     }
 }
@@ -194,12 +185,16 @@ pub struct Oid4vpPermissionResponse {
 #[uniffi::export(callback_interface)]
 #[async_trait::async_trait]
 pub trait Oid4vpPresentationSigner: Send + Sync + std::fmt::Debug {
-    async fn sign(&self, payload: Vec<u8>) -> Result<Vec<u8>, Oid4vpFacadeError>;
+    async fn sign(&self, key_id: String, payload: Vec<u8>) -> Result<Vec<u8>, Oid4vpFacadeError>;
+    /// The signing algorithm. NOTE: unlike the `key_id`-keyed methods below,
+    /// `algorithm` and `cryptosuite` are not keyed — per-credential signing keys
+    /// are assumed to all share one algorithm (P-256 / ES256). Mixing keys of
+    /// different algorithms would require keying these too.
     fn algorithm(&self) -> Algorithm;
-    async fn verification_method(&self) -> String;
-    fn did(&self) -> String;
+    async fn verification_method(&self, key_id: String) -> String;
+    fn did(&self, key_id: String) -> String;
     fn cryptosuite(&self) -> CryptosuiteString;
-    fn jwk(&self) -> String;
+    fn jwk(&self, key_id: String) -> String;
 }
 
 #[derive(Debug)]
@@ -209,31 +204,31 @@ struct V1SignerAdapter {
 
 #[async_trait::async_trait]
 impl PresentationSigner for V1SignerAdapter {
-    async fn sign(&self, payload: Vec<u8>) -> Result<Vec<u8>, PresentationError> {
+    async fn sign(&self, key_id: String, payload: Vec<u8>) -> Result<Vec<u8>, PresentationError> {
         self.signer
-            .sign(payload)
+            .sign(key_id, payload)
             .await
-            .map_err(|e| PresentationError::Signing(e.to_string()))
+            .map_err(|e: Oid4vpFacadeError| PresentationError::Signing(e.to_string()))
     }
 
     fn algorithm(&self) -> Algorithm {
         self.signer.algorithm()
     }
 
-    async fn verification_method(&self) -> String {
-        self.signer.verification_method().await
+    async fn verification_method(&self, key_id: String) -> String {
+        self.signer.verification_method(key_id).await
     }
 
-    fn did(&self) -> String {
-        self.signer.did()
+    fn did(&self, key_id: String) -> String {
+        self.signer.did(key_id)
     }
 
     fn cryptosuite(&self) -> CryptosuiteString {
         self.signer.cryptosuite()
     }
 
-    fn jwk(&self) -> String {
-        self.signer.jwk()
+    fn jwk(&self, key_id: String) -> String {
+        self.signer.jwk(key_id)
     }
 }
 
@@ -244,9 +239,13 @@ struct Draft18SignerAdapter {
 
 #[async_trait::async_trait]
 impl Draft18PresentationSigner for Draft18SignerAdapter {
-    async fn sign(&self, payload: Vec<u8>) -> Result<Vec<u8>, Draft18PresentationError> {
+    async fn sign(
+        &self,
+        key_id: String,
+        payload: Vec<u8>,
+    ) -> Result<Vec<u8>, Draft18PresentationError> {
         self.signer
-            .sign(payload)
+            .sign(key_id, payload)
             .await
             .map_err(|e| Draft18PresentationError::Signing(e.to_string()))
     }
@@ -255,20 +254,20 @@ impl Draft18PresentationSigner for Draft18SignerAdapter {
         self.signer.algorithm()
     }
 
-    async fn verification_method(&self) -> String {
-        self.signer.verification_method().await
+    async fn verification_method(&self, key_id: String) -> String {
+        self.signer.verification_method(key_id).await
     }
 
-    fn did(&self) -> String {
-        self.signer.did()
+    fn did(&self, key_id: String) -> String {
+        self.signer.did(key_id)
     }
 
     fn cryptosuite(&self) -> CryptosuiteString {
         self.signer.cryptosuite()
     }
 
-    fn jwk(&self) -> String {
-        self.signer.jwk()
+    fn jwk(&self, key_id: String) -> String {
+        self.signer.jwk(key_id)
     }
 }
 
@@ -280,15 +279,45 @@ impl Oid4vpHolder {
         vdc_collection: Arc<VdcCollection>,
         trusted_dids: Vec<String>,
         signer: Box<dyn Oid4vpPresentationSigner>,
+        key_id: String,
         context_map: Option<HashMap<String, String>>,
         keystore: Option<Arc<dyn KeyStore>>,
+    ) -> Result<Arc<Self>, Oid4vpFacadeError> {
+        Self::new_with_providers(
+            vdc_collection,
+            trusted_dids,
+            signer,
+            key_id,
+            context_map,
+            keystore,
+            vec![],
+        )
+        .await
+    }
+
+    /// Create a holder with registered [`DynamicCredentialProvider`]s, which
+    /// issue credentials on device during a presentation.
+    ///
+    /// Providers participate in v1 sessions only: Draft 18 / Draft 13
+    /// sessions report no dynamic offers.
+    #[uniffi::constructor]
+    pub async fn new_with_providers(
+        vdc_collection: Arc<VdcCollection>,
+        trusted_dids: Vec<String>,
+        signer: Box<dyn Oid4vpPresentationSigner>,
+        key_id: String,
+        context_map: Option<HashMap<String, String>>,
+        keystore: Option<Arc<dyn KeyStore>>,
+        providers: Vec<Arc<dyn DynamicCredentialProvider>>,
     ) -> Result<Arc<Self>, Oid4vpFacadeError> {
         Ok(Arc::new(Self {
             source: Oid4vpHolderSource::Collection(vdc_collection),
             trusted_dids,
             signer: Arc::new(signer),
+            key_id,
             context_map,
             keystore,
+            providers,
         }))
     }
 
@@ -297,40 +326,89 @@ impl Oid4vpHolder {
         provided_credentials: Vec<Arc<ParsedCredential>>,
         trusted_dids: Vec<String>,
         signer: Box<dyn Oid4vpPresentationSigner>,
+        key_id: String,
         context_map: Option<HashMap<String, String>>,
         keystore: Option<Arc<dyn KeyStore>>,
+    ) -> Result<Arc<Self>, Oid4vpFacadeError> {
+        Self::new_with_credentials_and_providers(
+            provided_credentials,
+            trusted_dids,
+            signer,
+            key_id,
+            context_map,
+            keystore,
+            vec![],
+        )
+        .await
+    }
+
+    /// Create a holder with stored credentials plus registered
+    /// [`DynamicCredentialProvider`]s, which issue credentials on device
+    /// during a presentation.
+    ///
+    /// Providers participate in v1 sessions only: Draft 18 / Draft 13
+    /// sessions report no dynamic offers.
+    #[uniffi::constructor]
+    pub async fn new_with_credentials_and_providers(
+        provided_credentials: Vec<Arc<ParsedCredential>>,
+        trusted_dids: Vec<String>,
+        signer: Box<dyn Oid4vpPresentationSigner>,
+        key_id: String,
+        context_map: Option<HashMap<String, String>>,
+        keystore: Option<Arc<dyn KeyStore>>,
+        providers: Vec<Arc<dyn DynamicCredentialProvider>>,
     ) -> Result<Arc<Self>, Oid4vpFacadeError> {
         Ok(Arc::new(Self {
             source: Oid4vpHolderSource::Credentials(provided_credentials),
             trusted_dids,
             signer: Arc::new(signer),
+            key_id,
             context_map,
             keystore,
+            providers,
         }))
     }
 
     pub async fn start(&self, request: String) -> Result<Arc<Oid4vpSession>, Oid4vpFacadeError> {
-        self.start_with_compatibility_mode(request, Oid4vpCompatibilityMode::Auto)
+        self.start_with_supported_versions(request, Vec::new())
             .await
     }
 
-    pub async fn start_with_compatibility_mode(
+    /// Start a session, restricting version selection to `supported_versions`.
+    ///
+    /// An empty list means "any version" (auto-detection). A non-empty list
+    /// excludes every version not listed, so an unsupported version is never
+    /// selected — and never gets to consume a single-use `request_uri` on a
+    /// wrong-version fetch. Order is irrelevant; the list gates membership only.
+    ///
+    /// Draft 13 and Draft 18 may not both be supported: a bare `request_uri`
+    /// is indistinguishable between them until its single-use fetch, so keeping
+    /// both in scope would reintroduce the wrong-version-burns-the-request bug.
+    /// That combination is rejected up front with [`Oid4vpFacadeError::ConflictingVersions`].
+    pub async fn start_with_supported_versions(
         &self,
         request: String,
-        compatibility_mode: Oid4vpCompatibilityMode,
+        supported_versions: Vec<Oid4vpVersion>,
     ) -> Result<Arc<Oid4vpSession>, Oid4vpFacadeError> {
-        let version = match compatibility_mode {
-            Oid4vpCompatibilityMode::Auto => get_oid4vp_version(request.clone()),
-            Oid4vpCompatibilityMode::V1 => Oid4vpVersion::V1,
-            Oid4vpCompatibilityMode::Draft18 => Oid4vpVersion::Draft18,
-            Oid4vpCompatibilityMode::Draft13 => Oid4vpVersion::Draft13,
-        };
+        if supported_versions.contains(&Oid4vpVersion::Draft13)
+            && supported_versions.contains(&Oid4vpVersion::Draft18)
+        {
+            return Err(Oid4vpFacadeError::ConflictingVersions);
+        }
+        let version = select_oid4vp_version(&request, &supported_versions);
+        self.start_version(version, &request).await
+    }
 
+    async fn start_version(
+        &self,
+        version: Oid4vpVersion,
+        request: &str,
+    ) -> Result<Arc<Oid4vpSession>, Oid4vpFacadeError> {
         match version {
             Oid4vpVersion::V1 => {
                 let holder = self.new_v1_holder().await?;
                 let permission_request = holder
-                    .authorization_request(parse_v1_auth_request(&request)?)
+                    .authorization_request(parse_v1_auth_request(request)?)
                     .await?;
 
                 Ok(Arc::new(Oid4vpSession {
@@ -343,7 +421,7 @@ impl Oid4vpHolder {
             Oid4vpVersion::Draft18 => {
                 let holder = self.new_draft18_holder().await?;
                 let permission_request = holder
-                    .authorization_request(parse_draft18_auth_request(&request)?)
+                    .authorization_request(parse_draft18_auth_request(request)?)
                     .await?;
 
                 Ok(Arc::new(Oid4vpSession {
@@ -361,7 +439,7 @@ impl Oid4vpHolder {
                 // and the form-POST submission to the verifier are identical, and
                 // the resulting POST is exactly the draft-13 §7.2 response.
                 let holder = self.new_draft18_holder().await?;
-                let translated = draft13_request_to_draft18(&request).await?;
+                let translated = draft13_request_to_draft18(request).await?;
                 let permission_request = holder.authorization_request(translated).await?;
 
                 Ok(Arc::new(Oid4vpSession {
@@ -382,24 +460,30 @@ impl Oid4vpHolder {
         });
 
         match &self.source {
-            Oid4vpHolderSource::Collection(vdc_collection) => Holder::new(
+            Oid4vpHolderSource::Collection(vdc_collection) => Holder::new_with_providers(
                 vdc_collection.clone(),
                 self.trusted_dids.clone(),
                 signer,
+                self.key_id.clone(),
                 self.context_map.clone(),
                 self.keystore.clone(),
+                self.providers.clone(),
             )
             .await
             .map_err(Into::into),
-            Oid4vpHolderSource::Credentials(credentials) => Holder::new_with_credentials(
-                credentials.clone(),
-                self.trusted_dids.clone(),
-                signer,
-                self.context_map.clone(),
-                self.keystore.clone(),
-            )
-            .await
-            .map_err(Into::into),
+            Oid4vpHolderSource::Credentials(credentials) => {
+                Holder::new_with_credentials_and_providers(
+                    credentials.clone(),
+                    self.trusted_dids.clone(),
+                    signer,
+                    self.key_id.clone(),
+                    self.context_map.clone(),
+                    self.keystore.clone(),
+                    self.providers.clone(),
+                )
+                .await
+                .map_err(Into::into)
+            }
         }
     }
 
@@ -413,6 +497,7 @@ impl Oid4vpHolder {
                 vdc_collection.clone(),
                 self.trusted_dids.clone(),
                 signer,
+                self.key_id.clone(),
                 self.context_map.clone(),
             )
             .await
@@ -421,6 +506,7 @@ impl Oid4vpHolder {
                 credentials.clone(),
                 self.trusted_dids.clone(),
                 signer,
+                self.key_id.clone(),
                 self.context_map.clone(),
             )
             .await
@@ -492,6 +578,19 @@ impl Oid4vpSession {
                 })
                 .collect(),
             Oid4vpSessionInner::Draft18 { request, .. } => draft18_requirements(request),
+        }
+    }
+
+    /// Dynamic credential offers surfaced for this session by the holder's
+    /// [`DynamicCredentialProvider`]s. Stored credentials are listed
+    /// separately by [`Oid4vpSession::credentials`].
+    ///
+    /// Always empty for Draft 18 / Draft 13 sessions: the dynamic-credential
+    /// hook is OID4VP-v1 only.
+    pub fn dynamic_offers(&self) -> Vec<DynamicCredentialOffer> {
+        match &self.inner {
+            Oid4vpSessionInner::V1 { request, .. } => request.dynamic_offers(),
+            Oid4vpSessionInner::Draft18 { .. } => vec![],
         }
     }
 
@@ -588,6 +687,59 @@ impl Oid4vpSession {
         }
     }
 
+    /// Create the permission response, additionally issuing the dynamic
+    /// credential offers selected from [`Oid4vpSession::dynamic_offers`].
+    ///
+    /// Either `selected_credentials` or `selected_offers` (or both) may be
+    /// non-empty. Selecting offers on a Draft 18 / Draft 13 session returns
+    /// [`Oid4vpFacadeError::VersionMismatch`]: the dynamic-credential hook is
+    /// OID4VP-v1 only.
+    pub async fn create_permission_response_with_offers(
+        &self,
+        selected_credentials: Vec<Arc<Oid4vpPresentableCredential>>,
+        selected_fields: Vec<Vec<String>>,
+        selected_offers: Vec<DynamicCredentialOffer>,
+        response_options: Oid4vpResponseOptions,
+    ) -> Result<Arc<Oid4vpPermissionResponse>, Oid4vpFacadeError> {
+        match &self.inner {
+            Oid4vpSessionInner::V1 { request, .. } => {
+                let credentials = selected_credentials
+                    .into_iter()
+                    .map(|credential| match &credential.inner {
+                        Oid4vpPresentableCredentialInner::V1(inner) => Ok(inner.clone()),
+                        _ => Err(Oid4vpFacadeError::VersionMismatch),
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+
+                let response = request
+                    .create_permission_response_with_offers(
+                        credentials,
+                        selected_fields,
+                        selected_offers,
+                        ResponseOptions {
+                            force_array_serialization: response_options.force_array_serialization,
+                        },
+                    )
+                    .await?;
+
+                Ok(Arc::new(Oid4vpPermissionResponse {
+                    inner: Oid4vpPermissionResponseInner::V1(response),
+                }))
+            }
+            Oid4vpSessionInner::Draft18 { .. } => {
+                if !selected_offers.is_empty() {
+                    return Err(Oid4vpFacadeError::VersionMismatch);
+                }
+                self.create_permission_response(
+                    selected_credentials,
+                    selected_fields,
+                    response_options,
+                )
+                .await
+            }
+        }
+    }
+
     pub async fn submit_permission_response(
         &self,
         response: Arc<Oid4vpPermissionResponse>,
@@ -607,6 +759,26 @@ impl Oid4vpSession {
                 .await
                 .map_err(Into::into),
             _ => Err(Oid4vpFacadeError::VersionMismatch),
+        }
+    }
+
+    /// Notify the verifier that the end-user declined this OID4VP request.
+    ///
+    /// The notification is available for v1, Draft 18, and Draft 13 sessions
+    /// when they use `direct_post` or `direct_post.jwt`. Draft 13 is translated
+    /// to the Draft 18 implementation by this compatibility facade.
+    pub async fn deny_permission(&self) -> Result<Option<Url>, Oid4vpFacadeError> {
+        match &self.inner {
+            Oid4vpSessionInner::V1 { holder, request } => holder
+                .submit_permission_denial(&request.request)
+                .await
+                .map_err(Into::into),
+            Oid4vpSessionInner::Draft18 {
+                holder, request, ..
+            } => holder
+                .submit_permission_denial(&request.request)
+                .await
+                .map_err(Into::into),
         }
     }
 }
@@ -961,11 +1133,11 @@ async fn draft13_resolve_indirection(
     }
 
     if let Some(Value::String(request_uri)) = map.get("request_uri") {
-        let body = reqwest::get(request_uri)
+        let response = HttpClient::shared()
+            .get(request_uri)
             .await
-            .map_err(|e| Oid4vpFacadeError::RequestParsing(format!("request_uri fetch: {e}")))?
-            .text()
-            .await
+            .map_err(|e| Oid4vpFacadeError::RequestParsing(format!("request_uri fetch: {e}")))?;
+        let body = String::from_utf8(response.into_body())
             .map_err(|e| Oid4vpFacadeError::RequestParsing(format!("request_uri body: {e}")))?;
         return draft13_params_from_request_object(&body).ok_or_else(|| {
             Oid4vpFacadeError::RequestParsing("could not parse fetched request object".into())
@@ -1081,7 +1253,11 @@ mod tests {
 
     #[async_trait::async_trait]
     impl Oid4vpPresentationSigner for TestSigner {
-        async fn sign(&self, payload: Vec<u8>) -> Result<Vec<u8>, Oid4vpFacadeError> {
+        async fn sign(
+            &self,
+            _key_id: String,
+            payload: Vec<u8>,
+        ) -> Result<Vec<u8>, Oid4vpFacadeError> {
             let sig = self
                 .jwk
                 .sign_bytes(&payload)
@@ -1100,18 +1276,18 @@ mod tests {
                 .unwrap_or(Algorithm::ES256)
         }
 
-        async fn verification_method(&self) -> String {
+        async fn verification_method(&self, _key_id: String) -> String {
             DidMethod::Key
-                .vm_from_jwk(&self.jwk())
+                .vm_from_jwk(&self.jwk(String::new()))
                 .await
                 .unwrap()
                 .id
                 .to_string()
         }
 
-        fn did(&self) -> String {
+        fn did(&self, _key_id: String) -> String {
             DidMethod::Key
-                .did_from_jwk(&self.jwk())
+                .did_from_jwk(&self.jwk(String::new()))
                 .unwrap()
                 .to_string()
         }
@@ -1120,7 +1296,7 @@ mod tests {
             CryptosuiteString::new("ecdsa-rdfc-2019".to_string()).unwrap()
         }
 
-        fn jwk(&self) -> String {
+        fn jwk(&self, _key_id: String) -> String {
             serde_json::to_string(&self.jwk.to_public()).unwrap()
         }
     }
@@ -1368,6 +1544,7 @@ mod tests {
             Box::new(TestSigner {
                 jwk: JWK::generate_p256(),
             }),
+            String::new(),
             None,
             None,
         )
@@ -1387,6 +1564,7 @@ mod tests {
             vec![credential],
             Vec::new(),
             Box::new(TestSigner { jwk: load_jwk() }),
+            String::new(),
             Some(default_ld_json_context()),
             None,
         )
@@ -1394,7 +1572,7 @@ mod tests {
         .unwrap();
 
         let session = holder
-            .start_with_compatibility_mode(hybrid_request(), Oid4vpCompatibilityMode::V1)
+            .start_with_supported_versions(hybrid_request(), vec![Oid4vpVersion::V1])
             .await
             .unwrap();
 
@@ -1408,6 +1586,7 @@ mod tests {
             vec![credential],
             Vec::new(),
             Box::new(TestSigner { jwk: load_jwk() }),
+            String::new(),
             Some(default_ld_json_context()),
             None,
         )
@@ -1415,7 +1594,7 @@ mod tests {
         .unwrap();
 
         let session = holder
-            .start_with_compatibility_mode(hybrid_request(), Oid4vpCompatibilityMode::Draft18)
+            .start_with_supported_versions(hybrid_request(), vec![Oid4vpVersion::Draft18])
             .await
             .unwrap();
 
@@ -1429,6 +1608,7 @@ mod tests {
             vec![credential.clone()],
             Vec::new(),
             Box::new(TestSigner { jwk: load_jwk() }),
+            String::new(),
             Some(default_ld_json_context()),
             None,
         )
@@ -1476,6 +1656,251 @@ mod tests {
         assert!(vp_token.contains("AlumniCredential"));
     }
 
+    const DUAL_PROOF_BADGE: &str =
+        include_str!("../../tests/examples/open_badge_dual_proof_vc.json");
+
+    fn dual_proof_badge_credential() -> Arc<ParsedCredential> {
+        let json_vc = JsonVc::new_from_json(DUAL_PROOF_BADGE.to_string()).unwrap();
+        ParsedCredential::new_ldp_vc(json_vc)
+    }
+
+    /// The stored badge as JSON, to compare disclosed members against.
+    fn dual_proof_badge_json() -> Value {
+        serde_json::from_str(DUAL_PROOF_BADGE).unwrap()
+    }
+
+    /// A v1 request for one Open Badge claim, carrying the given
+    /// `vp_formats_supported` value in its client metadata.
+    fn badge_request(vp_formats_supported: Value) -> String {
+        json!({
+            "client_id": "redirect_uri:https://wallet.example/callback",
+            "response_uri": "https://wallet.example/callback",
+            "response_type": "vp_token",
+            "response_mode": "direct_post",
+            "state": "state-badge",
+            "nonce": "nonce-badge",
+            "client_metadata": { "vp_formats_supported": vp_formats_supported },
+            "dcql_query": {
+                "credentials": [{
+                    "id": "badge_0",
+                    "format": "ldp_vc",
+                    "claims": [{ "path": ["credentialSubject", "achievement", "name"] }]
+                }]
+            }
+        })
+        .to_string()
+    }
+
+    /// Run the v1 flow for the dual-proof badge, selecting every requested
+    /// field the way the wallets do, and return the credential embedded in
+    /// the resulting presentation.
+    async fn present_badge(vp_formats_supported: Value) -> Value {
+        let presentation = present_badge_item(badge_request(vp_formats_supported)).await;
+        match &presentation["verifiableCredential"] {
+            Value::Array(credentials) => credentials[0].clone(),
+            credential => credential.clone(),
+        }
+    }
+
+    /// The badge's `vp_token` item for `request`, selecting every requested
+    /// field.
+    async fn present_badge_item(request: String) -> Value {
+        let holder = Oid4vpHolder::new_with_credentials(
+            vec![dual_proof_badge_credential()],
+            Vec::new(),
+            Box::new(TestSigner { jwk: load_jwk() }),
+            String::new(),
+            Some(default_ld_json_context()),
+            None,
+        )
+        .await
+        .unwrap();
+
+        let session = holder.start(request).await.unwrap();
+        let requirement = session.requirements().pop().unwrap();
+        let fields = session
+            .requested_fields(requirement.credentials.first().unwrap())
+            .unwrap();
+
+        let response = session
+            .create_permission_response(
+                requirement.credentials.clone(),
+                vec![fields.iter().map(|field| field.path.clone()).collect()],
+                Oid4vpResponseOptions::default(),
+            )
+            .await
+            .unwrap();
+
+        let vp_token: Value = serde_json::from_str(&response.vp_token().unwrap()).unwrap();
+        let item = &vp_token["badge_0"];
+        match item.as_array() {
+            Some(items) => items[0].clone(),
+            None => item.clone(),
+        }
+    }
+
+    /// Cryptosuites of the credential's proof or proof set.
+    fn cryptosuites(credential: &Value) -> Vec<&str> {
+        match &credential["proof"] {
+            Value::Array(proofs) => proofs
+                .iter()
+                .filter_map(|proof| proof["cryptosuite"].as_str())
+                .collect(),
+            proof => proof["cryptosuite"].as_str().into_iter().collect(),
+        }
+    }
+
+    #[tokio::test]
+    async fn facade_v1_derives_when_verifier_declares_no_format_restriction() {
+        let credential = present_badge(json!({})).await;
+
+        assert_eq!(cryptosuites(&credential), ["ecdsa-sd-2023"]);
+        assert_eq!(
+            credential["credentialSubject"]["achievement"]["name"],
+            dual_proof_badge_json()["credentialSubject"]["achievement"]["name"]
+        );
+        assert!(credential["credentialSubject"]["achievement"]
+            .get("description")
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn facade_v1_derives_when_verifier_lists_ecdsa_sd_2023() {
+        let credential = present_badge(json!({
+            "ldp_vc": { "proof_type_values": ["ecdsa-rdfc-2019", "ecdsa-sd-2023"] }
+        }))
+        .await;
+
+        assert_eq!(cryptosuites(&credential), ["ecdsa-sd-2023"]);
+        assert!(credential["credentialSubject"]["achievement"]
+            .get("description")
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn facade_v1_presents_full_credential_when_verifier_only_lists_rdfc() {
+        let credential = present_badge(json!({
+            "ldp_vc": { "proof_type_values": ["ecdsa-rdfc-2019"] }
+        }))
+        .await;
+
+        assert_eq!(cryptosuites(&credential), ["ecdsa-rdfc-2019"]);
+        assert!(credential["credentialSubject"]["achievement"]["description"].is_string());
+    }
+
+    /// The `vp_token` for `request`, selecting every match and every
+    /// requested field.
+    async fn present_all(
+        credentials: Vec<Arc<ParsedCredential>>,
+        request: String,
+    ) -> Result<Value, Oid4vpFacadeError> {
+        let holder = Oid4vpHolder::new_with_credentials(
+            credentials,
+            Vec::new(),
+            Box::new(TestSigner { jwk: load_jwk() }),
+            String::new(),
+            Some(default_ld_json_context()),
+            None,
+        )
+        .await
+        .unwrap();
+
+        let session = holder.start(request).await.unwrap();
+        let requirement = session.requirements().pop().unwrap();
+        let fields = requirement
+            .credentials
+            .iter()
+            .map(|credential| {
+                session
+                    .requested_fields(credential)
+                    .unwrap()
+                    .iter()
+                    .map(|field| field.path.clone())
+                    .collect()
+            })
+            .collect();
+
+        let response = session
+            .create_permission_response(
+                requirement.credentials.clone(),
+                fields,
+                Oid4vpResponseOptions::default(),
+            )
+            .await?;
+
+        Ok(serde_json::from_str(&response.vp_token().unwrap()).unwrap())
+    }
+
+    /// OID4VP 1.0 §8.1: one Presentation per query without `multiple`.
+    #[tokio::test]
+    async fn facade_v1_rejects_multiple_presentations_unless_allowed() {
+        let badges = || vec![dual_proof_badge_credential(), dual_proof_badge_credential()];
+
+        let error = present_all(badges(), badge_request(json!({})))
+            .await
+            .expect_err("two presentations for one query")
+            .to_string();
+        assert!(error.contains("does not allow `multiple`"), "{error}");
+
+        let mut request: Value = serde_json::from_str(&badge_request(json!({}))).unwrap();
+        request["dcql_query"]["credentials"][0]["multiple"] = json!(true);
+        let vp_token = present_all(badges(), request.to_string()).await.unwrap();
+        assert_eq!(vp_token["badge_0"].as_array().unwrap().len(), 2);
+    }
+
+    /// OID4VP 1.0 §6.4.1: asked for no claims, an SD-only badge discloses
+    /// its mandatory claims alone.
+    #[tokio::test]
+    async fn facade_v1_presents_only_mandatory_claims_of_an_sd_only_badge() {
+        let mut badge = dual_proof_badge_json();
+        let proofs = badge["proof"].as_array_mut().unwrap();
+        proofs.retain(|proof| proof["cryptosuite"] == "ecdsa-sd-2023");
+        let sd_only =
+            ParsedCredential::new_ldp_vc(JsonVc::new_from_json(badge.to_string()).unwrap());
+
+        let mut request: Value = serde_json::from_str(&badge_request(json!({}))).unwrap();
+        request["dcql_query"]["credentials"][0]
+            .as_object_mut()
+            .unwrap()
+            .remove("claims");
+
+        let vp_token = present_all(vec![sd_only], request.to_string())
+            .await
+            .unwrap();
+        let credential = &vp_token["badge_0"][0]["verifiableCredential"];
+        let credential = credential.as_array().map_or(credential, |items| &items[0]);
+
+        // Derived, and without the unrequested `achievement.name`.
+        assert_eq!(cryptosuites(credential), ["ecdsa-sd-2023"]);
+        assert!(credential["proof"]["proofValue"]
+            .as_str()
+            .is_some_and(|value| !value.starts_with("u2V0A")));
+        assert!(credential["credentialSubject"]["achievement"]
+            .get("name")
+            .is_none());
+    }
+
+    /// OID4VP 1.0 Appendix B.1: without Holder Binding, the VC is returned.
+    #[tokio::test]
+    async fn facade_v1_presents_the_credential_without_holder_binding() {
+        let mut request: Value = serde_json::from_str(&badge_request(json!({}))).unwrap();
+        request["dcql_query"]["credentials"][0]["require_cryptographic_holder_binding"] =
+            json!(false);
+
+        let item = present_badge_item(request.to_string()).await;
+
+        assert!(item.get("verifiableCredential").is_none());
+        assert!(item["type"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("OpenBadgeCredential")));
+        // Still derived, disclosing only the requested claim.
+        assert_eq!(cryptosuites(&item), ["ecdsa-sd-2023"]);
+        assert!(item["credentialSubject"]["achievement"]
+            .get("description")
+            .is_none());
+    }
+
     #[tokio::test]
     async fn facade_draft18_flow_creates_permission_response() {
         let credential = alumni_credential();
@@ -1483,6 +1908,7 @@ mod tests {
             vec![credential.clone()],
             Vec::new(),
             Box::new(TestSigner { jwk: load_jwk() }),
+            String::new(),
             Some(default_ld_json_context()),
             None,
         )
@@ -1546,6 +1972,7 @@ mod tests {
             vec![credential],
             Vec::new(),
             Box::new(TestSigner { jwk: load_jwk() }),
+            String::new(),
             Some(default_ld_json_context()),
             None,
         )
@@ -1565,6 +1992,7 @@ mod tests {
             vec![credential.clone()],
             Vec::new(),
             Box::new(TestSigner { jwk: load_jwk() }),
+            String::new(),
             Some(default_ld_json_context()),
             None,
         )
@@ -1575,7 +2003,7 @@ mod tests {
         // PE matching, requirements, requested fields, and vp_token — the session
         // simply reports the draft-13 version.
         let session = holder
-            .start_with_compatibility_mode(draft13_request(), Oid4vpCompatibilityMode::Draft13)
+            .start_with_supported_versions(draft13_request(), vec![Oid4vpVersion::Draft13])
             .await
             .unwrap();
 
@@ -1818,6 +2246,7 @@ mod tests {
             vec![alumni_credential()],
             Vec::new(),
             Box::new(TestSigner { jwk: load_jwk() }),
+            String::new(),
             Some(default_ld_json_context()),
             None,
         )
@@ -1825,7 +2254,7 @@ mod tests {
         .unwrap();
 
         let session = holder
-            .start_with_compatibility_mode(request, Oid4vpCompatibilityMode::Draft13)
+            .start_with_supported_versions(request, vec![Oid4vpVersion::Draft13])
             .await
             .unwrap();
         assert_eq!(session.version(), Oid4vpVersion::Draft13);
@@ -1865,5 +2294,589 @@ mod tests {
             decoded.contains("\"path\":\"$\""),
             "single-VP descriptor_map root path must be \"$\" (draft-13 §6.2), got: {decoded}"
         );
+    }
+
+    #[tokio::test]
+    async fn facade_v1_denial_posts_access_denied_with_state() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/response"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({})))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let response_uri = format!("{}/response", server.uri());
+        let request = json!({
+            "client_id": format!("redirect_uri:{response_uri}"),
+            "response_uri": response_uri,
+            "response_type": "vp_token",
+            "response_mode": "direct_post",
+            "state": "transaction-state",
+            "nonce": "nonce-denial",
+            "client_metadata": {
+                "vp_formats_supported": {
+                    "ldp_vc": { "proof_type_values": ["ecdsa-rdfc-2019"] }
+                }
+            },
+            "dcql_query": {
+                "credentials": [{
+                    "id": "credential",
+                    "format": "ldp_vc"
+                }]
+            }
+        })
+        .to_string();
+
+        let holder = Oid4vpHolder::new_with_credentials(
+            vec![alumni_credential()],
+            Vec::new(),
+            Box::new(TestSigner { jwk: load_jwk() }),
+            String::new(),
+            Some(default_ld_json_context()),
+            None,
+        )
+        .await
+        .unwrap();
+
+        let session = holder
+            .start_with_supported_versions(request, vec![Oid4vpVersion::V1])
+            .await
+            .unwrap();
+
+        assert_eq!(session.deny_permission().await.unwrap(), None);
+
+        let received = server.received_requests().await.unwrap();
+        assert_eq!(received.len(), 1);
+        let body = String::from_utf8(received[0].body.clone()).unwrap();
+        assert!(
+            body.contains("error=access_denied"),
+            "unexpected body: {body}"
+        );
+        assert!(
+            body.contains("state=transaction-state"),
+            "unexpected body: {body}"
+        );
+        assert!(!body.contains("vp_token"), "unexpected body: {body}");
+    }
+
+    #[tokio::test]
+    async fn facade_draft18_denial_posts_access_denied_with_state() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/response"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({})))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let response_uri = format!("{}/response", server.uri());
+        let mut request: serde_json::Value = serde_json::from_str(&draft18_request()).unwrap();
+        request["response_uri"] = json!(response_uri);
+
+        let holder = Oid4vpHolder::new_with_credentials(
+            vec![alumni_credential()],
+            Vec::new(),
+            Box::new(TestSigner { jwk: load_jwk() }),
+            String::new(),
+            Some(default_ld_json_context()),
+            None,
+        )
+        .await
+        .unwrap();
+
+        let session = holder
+            .start_with_supported_versions(request.to_string(), vec![Oid4vpVersion::Draft18])
+            .await
+            .unwrap();
+
+        assert_eq!(session.deny_permission().await.unwrap(), None);
+
+        let received = server.received_requests().await.unwrap();
+        assert_eq!(received.len(), 1);
+        let body = String::from_utf8(received[0].body.clone()).unwrap();
+        assert!(
+            body.contains("error=access_denied"),
+            "unexpected body: {body}"
+        );
+        assert!(body.contains("state=state-456"), "unexpected body: {body}");
+        assert!(!body.contains("vp_token"), "unexpected body: {body}");
+    }
+
+    #[tokio::test]
+    async fn facade_draft13_denial_posts_access_denied_with_state() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/response"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({})))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let response_uri = format!("{}/response", server.uri());
+        let mut request: serde_json::Value = serde_json::from_str(&draft13_request()).unwrap();
+        request["redirect_uri"] = json!(response_uri);
+
+        let holder = Oid4vpHolder::new_with_credentials(
+            vec![alumni_credential()],
+            Vec::new(),
+            Box::new(TestSigner { jwk: load_jwk() }),
+            String::new(),
+            Some(default_ld_json_context()),
+            None,
+        )
+        .await
+        .unwrap();
+
+        let session = holder
+            .start_with_supported_versions(request.to_string(), vec![Oid4vpVersion::Draft13])
+            .await
+            .unwrap();
+
+        assert_eq!(session.deny_permission().await.unwrap(), None);
+
+        let received = server.received_requests().await.unwrap();
+        assert_eq!(received.len(), 1);
+        let body = String::from_utf8(received[0].body.clone()).unwrap();
+        assert!(
+            body.contains("error=access_denied"),
+            "unexpected body: {body}"
+        );
+        assert!(body.contains("state=state-d13"), "unexpected body: {body}");
+        assert!(!body.contains("vp_token"), "unexpected body: {body}");
+    }
+
+    /// Regression for the motivating bug: a draft-13 request delivered by a bare
+    /// `request_uri` (no `response_mode` in the outer link) is misclassified as
+    /// draft 18 under auto, whose fetch then burns the single-use `request_uri`
+    /// before failing. Excluding draft 18 from the supported set routes it to the
+    /// draft-13 flow, which fetches the `request_uri` exactly once.
+    #[tokio::test]
+    async fn facade_bare_request_uri_resolves_to_draft13_when_draft18_excluded() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        let redirect_uri = format!("{}/cb", server.uri());
+
+        // The draft-13 request object served behind the request_uri. Raw JSON,
+        // `response_mode=post` — the discriminator lives here, behind the fetch.
+        let request_object = json!({
+            "client_id": redirect_uri,
+            "redirect_uri": redirect_uri,
+            "response_type": "vp_token",
+            "response_mode": "post",
+            "nonce": "nonce-d13",
+            "client_metadata": {
+                "vp_formats": { "ldp_vp": { "proof_type": ["ecdsa-rdfc-2019"] } }
+            },
+            "presentation_definition": {
+                "id": "pd-alumni",
+                "input_descriptors": [{
+                    "id": "alumni_descriptor",
+                    "format": { "ldp_vc": { "proof_type": ["DataIntegrityProof"] } },
+                    "constraints": {
+                        "fields": [{ "path": ["$.credentialSubject.alumniOf.name"] }]
+                    }
+                }]
+            }
+        })
+        .to_string();
+
+        Mock::given(method("GET"))
+            .and(path("/request"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(request_object))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        // The outer link carries only a bare request_uri: the version cannot be
+        // told from it without fetching.
+        let link = format!(
+            "openid4vp://?client_id={}&request_uri={}",
+            urlencoding::encode(&redirect_uri),
+            urlencoding::encode(&format!("{}/request", server.uri()))
+        );
+
+        let holder = Oid4vpHolder::new_with_credentials(
+            vec![alumni_credential()],
+            Vec::new(),
+            Box::new(TestSigner { jwk: load_jwk() }),
+            String::new(),
+            Some(default_ld_json_context()),
+            None,
+        )
+        .await
+        .unwrap();
+
+        let session = holder
+            .start_with_supported_versions(link, vec![Oid4vpVersion::V1, Oid4vpVersion::Draft13])
+            .await
+            .unwrap();
+
+        assert_eq!(session.version(), Oid4vpVersion::Draft13);
+
+        let received = server.received_requests().await.unwrap();
+        assert_eq!(
+            received
+                .iter()
+                .filter(|r| r.url.path() == "/request")
+                .count(),
+            1,
+            "the request_uri must be fetched exactly once, by the draft-13 flow"
+        );
+    }
+
+    /// Draft 13 and Draft 18 share a request shape that is only separable after
+    /// the single-use `request_uri` fetch, so supporting both at once is rejected
+    /// up front rather than risking a wrong-version fetch.
+    #[tokio::test]
+    async fn facade_rejects_draft13_and_draft18_together() {
+        let holder = Oid4vpHolder::new_with_credentials(
+            vec![alumni_credential()],
+            Vec::new(),
+            Box::new(TestSigner { jwk: load_jwk() }),
+            String::new(),
+            Some(default_ld_json_context()),
+            None,
+        )
+        .await
+        .unwrap();
+
+        let result = holder
+            .start_with_supported_versions(
+                draft13_request(),
+                vec![Oid4vpVersion::Draft13, Oid4vpVersion::Draft18],
+            )
+            .await;
+
+        assert!(matches!(
+            result,
+            Err(Oid4vpFacadeError::ConflictingVersions)
+        ));
+    }
+
+    use crate::oid4vp::dynamic_credential::{
+        DcqlCredentialQueryJson, DynamicCredentialError, IssuedCredential, PresentationBinding,
+    };
+    use std::sync::Mutex;
+
+    const FAKE_OFFER_ID: &str = "fake-offer";
+    const FAKE_TITLE: &str = "Fake dynamic credential";
+    const FAKE_VP_TOKEN_ITEM: &str = "issued-vp-token-item";
+
+    /// A fake provider that offers a credential for every DCQL credential
+    /// query and records the [`PresentationBinding`] it was issued against.
+    #[derive(Debug, Default)]
+    struct FakeProvider {
+        issued_binding: Mutex<Option<PresentationBinding>>,
+    }
+
+    #[async_trait::async_trait]
+    impl DynamicCredentialProvider for FakeProvider {
+        async fn offers(&self, query: DcqlCredentialQueryJson) -> Vec<DynamicCredentialOffer> {
+            let query = query.parse().expect("valid DCQL credential query JSON");
+            vec![DynamicCredentialOffer {
+                offer_id: FAKE_OFFER_ID.to_string(),
+                credential_query_id: query.id().to_string(),
+                title: FAKE_TITLE.to_string(),
+            }]
+        }
+
+        async fn issue(
+            &self,
+            offer_id: String,
+            binding: PresentationBinding,
+        ) -> Result<IssuedCredential, DynamicCredentialError> {
+            if offer_id != FAKE_OFFER_ID {
+                return Err(DynamicCredentialError::IssuanceFailed(format!(
+                    "unknown offer id: {offer_id}"
+                )));
+            }
+            *self.issued_binding.lock().unwrap() = Some(binding);
+            Ok(IssuedCredential {
+                vp_token_item: FAKE_VP_TOKEN_ITEM.to_string(),
+            })
+        }
+    }
+
+    async fn holder_with_provider(provider: Arc<FakeProvider>) -> Arc<Oid4vpHolder> {
+        Oid4vpHolder::new_with_credentials_and_providers(
+            vec![alumni_credential()],
+            Vec::new(),
+            Box::new(TestSigner { jwk: load_jwk() }),
+            String::new(),
+            Some(default_ld_json_context()),
+            None,
+            vec![provider],
+        )
+        .await
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn facade_v1_session_surfaces_dynamic_offers() {
+        let provider = Arc::new(FakeProvider::default());
+        let holder = holder_with_provider(provider).await;
+
+        let session = holder.start(v1_request()).await.unwrap();
+        assert_eq!(session.version(), Oid4vpVersion::V1);
+
+        let offers = session.dynamic_offers();
+        assert_eq!(offers.len(), 1);
+        assert_eq!(offers[0].offer_id, FAKE_OFFER_ID);
+        assert_eq!(offers[0].credential_query_id, "alumni_vc_0");
+        assert_eq!(offers[0].title, FAKE_TITLE);
+    }
+
+    #[tokio::test]
+    async fn facade_draft18_session_has_no_dynamic_offers() {
+        let provider = Arc::new(FakeProvider::default());
+        let holder = holder_with_provider(provider).await;
+
+        // Same holder, same registered provider — but the dynamic-credential
+        // hook is v1-only, so a draft-18 session surfaces no offers.
+        let session = holder.start(draft18_request()).await.unwrap();
+        assert_eq!(session.version(), Oid4vpVersion::Draft18);
+        assert!(session.dynamic_offers().is_empty());
+    }
+
+    #[tokio::test]
+    async fn facade_offers_only_response_issues_into_vp_token() {
+        let provider = Arc::new(FakeProvider::default());
+        let holder = holder_with_provider(provider.clone()).await;
+
+        let session = holder.start(v1_request()).await.unwrap();
+        let offers = session.dynamic_offers();
+        assert_eq!(offers.len(), 1);
+
+        // Zero stored credentials selected; only the issued offer.
+        let response = session
+            .create_permission_response_with_offers(
+                vec![],
+                vec![],
+                offers,
+                Oid4vpResponseOptions::default(),
+            )
+            .await
+            .unwrap();
+
+        let vp_token: Value = serde_json::from_str(&response.vp_token().unwrap()).unwrap();
+        let items = vp_token
+            .get("alumni_vc_0")
+            .and_then(|v| v.as_array())
+            .expect("vp_token contains an array for alumni_vc_0");
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].as_str(), Some(FAKE_VP_TOKEN_ITEM));
+
+        // The provider was issued against this presentation's live binding.
+        let binding = provider
+            .issued_binding
+            .lock()
+            .unwrap()
+            .clone()
+            .expect("provider was asked to issue");
+        assert_eq!(binding.nonce, "nonce-123");
+        assert_eq!(
+            binding.client_id,
+            "redirect_uri:https://wallet.example/callback"
+        );
+    }
+
+    /// `v1_request` with `multiple: true` on its query (OID4VP 1.0 §8.1).
+    fn v1_request_allowing_multiple() -> String {
+        let mut request: Value = serde_json::from_str(&v1_request()).unwrap();
+        request["dcql_query"]["credentials"][0]["multiple"] = json!(true);
+        request.to_string()
+    }
+
+    #[tokio::test]
+    async fn facade_mixed_stored_and_offer_response() {
+        let provider = Arc::new(FakeProvider::default());
+        let holder = holder_with_provider(provider).await;
+
+        let session = holder.start(v1_request_allowing_multiple()).await.unwrap();
+        let requirement = session.requirements().pop().unwrap();
+        let requested_fields = session
+            .requested_fields(requirement.credentials.first().unwrap())
+            .unwrap();
+        let offers = session.dynamic_offers();
+
+        // A stored credential and an issued offer in one response.
+        let response = session
+            .create_permission_response_with_offers(
+                requirement.credentials.clone(),
+                vec![requested_fields
+                    .iter()
+                    .map(|field| field.path.clone())
+                    .collect()],
+                offers,
+                Oid4vpResponseOptions::default(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.selected_credentials().len(), 1);
+        let vp_token: Value = serde_json::from_str(&response.vp_token().unwrap()).unwrap();
+        let items = vp_token
+            .get("alumni_vc_0")
+            .and_then(|v| v.as_array())
+            .expect("vp_token contains an array for alumni_vc_0");
+        assert_eq!(items.len(), 2, "stored + issued items share the query id");
+        assert!(items
+            .iter()
+            .any(|item| item.as_str() == Some(FAKE_VP_TOKEN_ITEM)));
+        assert!(items
+            .iter()
+            .any(|item| item.to_string().contains("AlumniCredential")));
+    }
+
+    /// OID4VP 1.0 §8.1: a stored credential and an offer count together.
+    #[tokio::test]
+    async fn facade_mixed_stored_and_offer_response_requires_multiple() {
+        let provider = Arc::new(FakeProvider::default());
+        let holder = holder_with_provider(provider).await;
+
+        let session = holder.start(v1_request()).await.unwrap();
+        let requirement = session.requirements().pop().unwrap();
+        let requested_fields = session
+            .requested_fields(requirement.credentials.first().unwrap())
+            .unwrap();
+
+        let error = session
+            .create_permission_response_with_offers(
+                requirement.credentials.clone(),
+                vec![requested_fields
+                    .iter()
+                    .map(|field| field.path.clone())
+                    .collect()],
+                session.dynamic_offers(),
+                Oid4vpResponseOptions::default(),
+            )
+            .await
+            .expect_err("a stored and an issued item for one query")
+            .to_string();
+        assert!(error.contains("does not allow `multiple`"), "{error}");
+    }
+
+    #[tokio::test]
+    async fn facade_draft18_rejects_selected_offers() {
+        let provider = Arc::new(FakeProvider::default());
+        let holder = holder_with_provider(provider).await;
+
+        let session = holder.start(draft18_request()).await.unwrap();
+        let requirement = session.requirements().pop().unwrap();
+        let requested_fields = session
+            .requested_fields(requirement.credentials.first().unwrap())
+            .unwrap();
+        let selected_fields = vec![requested_fields
+            .iter()
+            .map(|field| field.path.clone())
+            .collect::<Vec<_>>()];
+
+        let result = session
+            .create_permission_response_with_offers(
+                requirement.credentials.clone(),
+                selected_fields.clone(),
+                vec![DynamicCredentialOffer {
+                    offer_id: FAKE_OFFER_ID.to_string(),
+                    credential_query_id: "alumni_descriptor".to_string(),
+                    title: FAKE_TITLE.to_string(),
+                }],
+                Oid4vpResponseOptions::default(),
+            )
+            .await;
+        assert!(matches!(result, Err(Oid4vpFacadeError::VersionMismatch)));
+
+        // With no offers selected the method delegates to the plain draft-18
+        // path.
+        let response = session
+            .create_permission_response_with_offers(
+                requirement.credentials.clone(),
+                selected_fields,
+                vec![],
+                Oid4vpResponseOptions::default(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.version(), Oid4vpVersion::Draft18);
+    }
+
+    #[tokio::test]
+    async fn facade_empty_credential_pack_with_provider_issues_offers_only_response() {
+        let provider = Arc::new(FakeProvider::default());
+
+        // No stored credentials at all — allowed when a provider is
+        // registered; the whole response may be issued on the fly.
+        let holder = Oid4vpHolder::new_with_credentials_and_providers(
+            vec![],
+            Vec::new(),
+            Box::new(TestSigner { jwk: load_jwk() }),
+            String::new(),
+            Some(default_ld_json_context()),
+            None,
+            vec![provider],
+        )
+        .await
+        .unwrap();
+
+        let session = holder.start(v1_request()).await.unwrap();
+        assert_eq!(session.version(), Oid4vpVersion::V1);
+        assert!(session.credentials().is_empty());
+
+        let offers = session.dynamic_offers();
+        assert_eq!(offers.len(), 1);
+
+        let response = session
+            .create_permission_response_with_offers(
+                vec![],
+                vec![],
+                offers,
+                Oid4vpResponseOptions::default(),
+            )
+            .await
+            .unwrap();
+
+        let vp_token: Value = serde_json::from_str(&response.vp_token().unwrap()).unwrap();
+        let items = vp_token
+            .get("alumni_vc_0")
+            .and_then(|v| v.as_array())
+            .expect("vp_token contains an array for alumni_vc_0");
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].as_str(), Some(FAKE_VP_TOKEN_ITEM));
+    }
+
+    #[tokio::test]
+    async fn facade_unknown_offer_id_errors() {
+        let provider = Arc::new(FakeProvider::default());
+        let holder = holder_with_provider(provider).await;
+
+        let session = holder.start(v1_request()).await.unwrap();
+
+        // An offer that was never surfaced (no owning provider) is rejected by
+        // the underlying permission request.
+        let result = session
+            .create_permission_response_with_offers(
+                vec![],
+                vec![],
+                vec![DynamicCredentialOffer {
+                    offer_id: "no-such-offer".to_string(),
+                    credential_query_id: "alumni_vc_0".to_string(),
+                    title: "Unknown".to_string(),
+                }],
+                Oid4vpResponseOptions::default(),
+            )
+            .await;
+
+        assert!(matches!(result, Err(Oid4vpFacadeError::V1(_))));
     }
 }

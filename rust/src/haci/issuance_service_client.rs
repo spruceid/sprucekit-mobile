@@ -88,14 +88,14 @@ impl IssuanceEndpoints {
 
         if !response.status().is_success() {
             let status = response.status().as_u16();
-            let error_text = response.text().await.unwrap_or_default();
+            let error_text = response.text().unwrap_or_default();
             return Err(IssuanceServiceError::ServerError {
                 status,
                 error_message: format!("Issuance endpoints fetching error: {error_text:?}"),
             });
         }
 
-        let endpoints: Self = response.json().await.map_err(|e| {
+        let endpoints: Self = response.json().map_err(|e| {
             IssuanceServiceError::ResponseError(format!(
                 "Issuance endpoints fetching error: {:?}",
                 e.to_string()
@@ -171,7 +171,7 @@ impl IssuanceServiceClient {
 
         if !response.status().is_success() {
             let status = response.status().as_u16();
-            let error_text = response.text().await.unwrap_or_default();
+            let error_text = response.text().unwrap_or_default();
             return Err(IssuanceServiceError::ServerError {
                 status,
                 error_message: error_text,
@@ -180,7 +180,6 @@ impl IssuanceServiceClient {
 
         let status_response: NewIssuanceResponse = response
             .json()
-            .await
             .map_err(|e| IssuanceServiceError::ResponseError(e.to_string()))?;
 
         Ok(status_response.id)
@@ -234,7 +233,7 @@ impl IssuanceServiceClient {
 
         if !response.status().is_success() {
             let status = response.status().as_u16();
-            let error_text = response.text().await.unwrap_or_default();
+            let error_text = response.text().unwrap_or_default();
             return Err(IssuanceServiceError::ServerError {
                 status,
                 error_message: error_text,
@@ -243,7 +242,6 @@ impl IssuanceServiceClient {
 
         let status_response: FlowState = response
             .json()
-            .await
             .map_err(|e| IssuanceServiceError::ResponseError(e.to_string()))?;
 
         Ok(status_response)

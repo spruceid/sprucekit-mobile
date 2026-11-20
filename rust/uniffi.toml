@@ -4,4 +4,4 @@ package_name = "com.spruceid.mobile.sdk.rs"
 android = true
 
 [bindings.swift]
-ffi_module_name = "RustFramework"
+ffi_module_name = "MobileSdkRsFFI"

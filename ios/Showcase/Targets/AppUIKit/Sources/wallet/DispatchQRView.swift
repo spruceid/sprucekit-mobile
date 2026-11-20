@@ -12,12 +12,15 @@ let HTTP_SCHEME = "http://"
 let HTTPS_SCHEME = "https://"
 
 enum SupportedQRTypes {
+    case interaction
     case oid4vp
     case oid4vci
     case http
 }
 
-let allSupportedQRTypes: [SupportedQRTypes] = [.oid4vp, .oid4vci, .http]
+let allSupportedQRTypes: [SupportedQRTypes] = [
+    .interaction, .oid4vp, .oid4vci, .http,
+]
 
 struct DispatchQR: Hashable {}
 
@@ -71,12 +74,43 @@ struct DispatchQRView: View {
                 }
             }
         }
+
+    }
+
+    /// Whether scanned [content] is an Interaction URL. Matches the `interaction:`-scheme form and the spec's QR form (§3.7.1): a bare
+    /// http(s) URL carrying an `iuv` query param (the interaction-URL version, which "MUST be 1" when using this version of this API).
+    func isInteraction(_ url: String) -> Bool {
+        // Strip the `interaction:` prefix if present, then check if it has a query parameter `iuv` with value 1
+        let options: String.CompareOptions = [.anchored, .caseInsensitive]
+        var httpsUrl = url
+        if let range = url.range(
+            of: "interaction:",
+            options: options
+        ) {
+            httpsUrl = String(url[range.upperBound...])
+        }
+
+        if let components = URLComponents(string: httpsUrl),
+            let queryItems = components.queryItems
+        {
+            if let iuv = queryItems.first(where: { $0.name == "iuv" })?
+                .value
+            {
+                return iuv == "1"
+            } else {
+                return false
+
+            }
+        }
+        return false
     }
 
     func handleScannedPayload(_ payload: String) async -> Bool {
         // Analyze payload and determine QR code type
         let qrType: SupportedQRTypes? = {
-            if payload.hasPrefix(OID4VP_SCHEME)
+            if isInteraction(payload) {
+                return .interaction
+            } else if payload.hasPrefix(OID4VP_SCHEME)
                 || payload.hasPrefix(MDOC_OID4VP_SCHEME)
             {
                 return .oid4vp
@@ -98,6 +132,14 @@ struct DispatchQRView: View {
 
         // Process based on detected type
         switch detectedType {
+        case .interaction:
+            path.append(
+                HandleInteraction(
+                    url: payload,
+                    credentialPackId: credentialPackId
+                )
+            )
+            return true
         case .oid4vp:
             if payload.hasPrefix(OID4VP_SCHEME) {
                 path.append(

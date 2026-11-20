@@ -1,0 +1,262 @@
+import 'package:pigeon/pigeon.dart';
+
+@ConfigurePigeon(
+  PigeonOptions(
+    dartOut: 'lib/pigeon/mdl_presentation.g.dart',
+    dartOptions: DartOptions(),
+    kotlinOut:
+        'android/src/main/kotlin/com/spruceid/sprucekit_mobile/MdlPresentation.g.kt',
+    kotlinOptions: KotlinOptions(
+      errorClassName: 'MdlPresentationFlutterError',
+      package: 'com.spruceid.sprucekit_mobile',
+    ),
+    swiftOut:
+        'ios/sprucekit_mobile/Sources/sprucekit_mobile/MdlPresentation.g.swift',
+    swiftOptions: SwiftOptions(errorClassName: 'MdlPresentationPigeonError'),
+    dartPackageName: 'sprucekit_mobile',
+  ),
+)
+/// Presentation state for ISO 18013-5 mDL presentation
+///
+/// An NFC tap based presentation reports its NFC detail in
+/// [MdlPresentationStateUpdate.nfcPhase] and uses the values of this enum
+/// for the main state.
+enum MdlPresentationState {
+  /// Initial state, not yet started
+  uninitialized,
+
+  /// Waiting for Bluetooth/transport to be ready
+  initializing,
+
+  /// Bluetooth needs to be turned on to continue
+  bluetoothRequired,
+
+  /// Bluetooth authorization required in Settings
+  bluetoothAuthorizationRequired,
+
+  /// QR code is ready to be displayed
+  engagingQrCode,
+
+  /// Reader has connected, waiting for request
+  connected,
+
+  /// Received request from reader, user needs to select fields
+  selectingNamespaces,
+
+  /// Sending response to reader
+  sendingResponse,
+
+  /// Successfully sent response
+  success,
+
+  /// Session timed out
+  timeout,
+
+  /// Reader disconnected unexpectedly
+  readerDisconnected,
+
+  /// An error occurred
+  error,
+}
+
+/// Requested item from a namespace
+class MdlNamespaceItem {
+  /// Field name
+  String name;
+
+  /// Whether the field is required by the reader
+  bool intentToRetain;
+
+  MdlNamespaceItem({required this.name, required this.intentToRetain});
+}
+
+/// Request from reader for a specific namespace
+class MdlNamespaceRequest {
+  /// Namespace identifier (e.g., "org.iso.18013.5.1")
+  String namespace;
+
+  /// Items requested in this namespace
+  List<MdlNamespaceItem> items;
+
+  MdlNamespaceRequest({required this.namespace, required this.items});
+}
+
+/// Items request from reader for a specific docType
+class MdlItemsRequest {
+  /// Document type (e.g., "org.iso.18013.5.1.mDL")
+  String docType;
+
+  /// Namespaces and their requested items
+  List<MdlNamespaceRequest> namespaces;
+
+  MdlItemsRequest({required this.docType, required this.namespaces});
+}
+
+/// Where an NFC tap based presentation is, on top of [MdlPresentationState]
+///
+/// Set on Android after [MdlPresentation.initializeNfcPresentation]. The
+/// iOS adapter does not emit it. The main state stays within the existing
+/// values, so callers that do not know about NFC keep working:
+/// `initializing` while the tap is pending and `error` when NFC is turned
+/// off. Read it through the `MdlPresentationStateUpdate` getters
+/// `isWaitingForNfcTap`, `isConnectingViaNfc` and `isNfcUnavailable`.
+enum MdlNfcPhase {
+  /// The phone answers reader taps. State is `initializing`.
+  waitingForTap,
+
+  /// The tap delivered the BLE carrier. Connection in progress. State is
+  /// `initializing`.
+  connecting,
+
+  /// NFC was turned off while waiting. State is `error`. Fall back to QR.
+  unavailable,
+}
+
+/// Whether an NFC tap presentation can start on this device, and why not
+///
+/// Returned by [MdlPresentation.getNfcAvailability]. Only [turnedOff] is a
+/// state that the user can change. The other failures are properties of the
+/// platform, the device, or the app build.
+enum MdlNfcAvailability {
+  /// NFC is on, and [MdlPresentation.initializeNfcPresentation] can arm a tap.
+  available,
+
+  /// The device supports NFC presentation, but NFC is turned off. The user
+  /// can turn it on in the system settings.
+  turnedOff,
+
+  /// The platform has no NFC tap presentation. The value on iOS.
+  unsupportedPlatform,
+
+  /// The device has no NFC adapter.
+  noAdapter,
+
+  /// The device has an NFC adapter but cannot emulate a card.
+  noHostCardEmulation,
+
+  /// The app manifest does not declare the plugin's NFC service. See
+  /// README.md.
+  serviceNotDeclared,
+}
+
+/// State update event from the presentation session
+class MdlPresentationStateUpdate {
+  /// Current state
+  MdlPresentationState state;
+
+  /// QR code URI (only set when state is engagingQrCode)
+  String? qrCodeUri;
+
+  /// Items requests from reader (only set when state is selectingNamespaces)
+  List<MdlItemsRequest>? itemsRequests;
+
+  /// Error message (only set when state is error)
+  String? error;
+
+  /// NFC detail for an NFC tap based presentation, see [MdlNfcPhase]
+  MdlNfcPhase? nfcPhase;
+
+  MdlPresentationStateUpdate({
+    required this.state,
+    this.qrCodeUri,
+    this.itemsRequests,
+    this.error,
+    this.nfcPhase,
+  });
+}
+
+/// Result type for presentation operations
+sealed class MdlPresentationResult {}
+
+/// Operation succeeded
+class MdlPresentationSuccess implements MdlPresentationResult {
+  String? message;
+
+  MdlPresentationSuccess({this.message});
+}
+
+/// Operation failed
+class MdlPresentationError implements MdlPresentationResult {
+  String message;
+
+  MdlPresentationError({required this.message});
+}
+
+/// Callback interface for presentation state updates
+@FlutterApi()
+abstract class MdlPresentationCallback {
+  /// Called when the presentation state changes
+  void onStateChange(MdlPresentationStateUpdate update);
+}
+
+/// ISO 18013-5 mDL Presentation API
+///
+/// Handles close proximity presentation of mDL credentials via BLE
+@HostApi()
+abstract class MdlPresentation {
+  /// Initialize a QR code based presentation session
+  ///
+  /// @param packId The credential pack ID containing the mDL
+  /// @param credentialId The credential ID of the mDL to present
+  /// @return Result indicating success or error
+  @async
+  MdlPresentationResult initializeQrPresentation(
+    String packId,
+    String credentialId,
+  );
+
+  /// Whether this device can present over an NFC tap
+  ///
+  /// True when the device has an NFC adapter that is turned on, supports
+  /// host card emulation, and the app manifest declares the plugin's NFC
+  /// service. Always false on iOS. Same as [getNfcAvailability] returning
+  /// [MdlNfcAvailability.available].
+  bool isNfcPresentationAvailable();
+
+  /// Whether this device can present over an NFC tap, and the reason when it
+  /// cannot
+  ///
+  /// [MdlNfcAvailability.unsupportedPlatform] on iOS.
+  MdlNfcAvailability getNfcAvailability();
+
+  /// Arm an NFC tap based presentation session
+  ///
+  /// The BLE session starts when a reader taps the phone. The engagement
+  /// uses ISO 18013-5 static handover with BLE central client mode. State
+  /// updates arrive on [MdlPresentationCallback.onStateChange]. A phone
+  /// that leaves the reader before the handover finishes stays armed, so
+  /// the user taps again without a restart.
+  ///
+  /// @param packId The credential pack ID containing the mDL
+  /// @param credentialId The credential ID of the mDL to present
+  /// @return Result indicating success or error
+  @async
+  MdlPresentationResult initializeNfcPresentation(
+    String packId,
+    String credentialId,
+  );
+
+  /// Get the current QR code URI for the presentation
+  ///
+  /// @return The QR code URI, or null if not in the correct state
+  String? getQrCodeUri();
+
+  /// Get the current presentation state
+  ///
+  /// @return Current state update with all relevant data
+  MdlPresentationStateUpdate getCurrentState();
+
+  /// Submit the user's selection of namespaces/fields to share
+  ///
+  /// The map structure is: docType -> namespace -> list of field names
+  ///
+  /// @param selectedNamespaces The selected namespaces and fields
+  /// @return Result indicating success or error
+  @async
+  MdlPresentationResult submitNamespaces(
+    Map<String, Map<String, List<String>>> selectedNamespaces,
+  );
+
+  /// Cancel the current presentation session
+  void cancel();
+}

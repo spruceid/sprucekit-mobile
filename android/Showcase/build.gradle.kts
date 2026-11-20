@@ -35,12 +35,12 @@ licensee {
 
 android {
     namespace = "com.spruceid.mobilesdkexample"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.spruceid.mobilesdkexample"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 60
         versionName = "1.18.2"
 

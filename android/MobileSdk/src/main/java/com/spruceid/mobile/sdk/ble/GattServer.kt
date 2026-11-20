@@ -65,8 +65,19 @@ class GattServer(
     private val characteristicL2CAPUuid =
         if (isReaderServer) BleConstants.Reader.L2CAP_UUID else BleConstants.Holder.L2CAP_UUID
 
-    private var gattServer: BluetoothGattServer? = null
+    internal var gattServer: BluetoothGattServer? = null
     private var currentConnection: BluetoothDevice? = null
+
+    /**
+     * Peers whose link this server holds, keyed by address.
+     *
+     * Android does not count an incoming connection to a GATT server as a use of the link. When
+     * the holder runs both roles, its GATT client can connect to the same reader on the same
+     * link. Closing that client then leaves no user, and Android drops the link after a 1 second
+     * idle timeout, in the middle of the session. [BluetoothGattServer.connect] makes this server
+     * a user of the link.
+     */
+    private val heldLinks = mutableMapOf<String, BluetoothDevice>()
 
     private var characteristicState: BluetoothGattCharacteristic? = null
     private var characteristicClient2Server: BluetoothGattCharacteristic? = null
@@ -100,7 +111,7 @@ class GattServer(
     private val l2capResponseQueue: BlockingQueue<ByteArray> = LinkedTransferQueue()
     private val L2CAP_BUFFER_SIZE = 8192 // 8KB
 
-    private val bluetoothGattServerCallback: BluetoothGattServerCallback =
+    internal val bluetoothGattServerCallback: BluetoothGattServerCallback =
         object : BluetoothGattServerCallback() {
             override fun onConnectionStateChange(
                 device: BluetoothDevice,
@@ -108,12 +119,17 @@ class GattServer(
                 newState: Int
             ) {
                 if (newState == BluetoothProfile.STATE_CONNECTED) {
+                    holdLink(device)
                     if (stateMachine.transitionTo(BleConnectionStateMachine.State.CONNECTED)) {
                         callback.onState(BleStates.GattServerConnected.string)
                         logger.i("Gatt Server is connected to ${device.address}")
                     } else {
                         logger.e("Invalid state transition to connected")
                     }
+                }
+
+                if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                    synchronized(heldLinks) { heldLinks.remove(device.address) }
                 }
 
                 if (newState == BluetoothProfile.STATE_DISCONNECTED
@@ -764,8 +780,16 @@ class GattServer(
             // Close L2CAP connections
             closeL2CAP()
 
-            if (currentConnection != null) {
-                gattServer?.cancelConnection(currentConnection)
+            val links = synchronized(heldLinks) {
+                val links = heldLinks.values.toMutableList()
+                heldLinks.clear()
+                links
+            }
+            currentConnection?.let { current ->
+                if (links.none { it.address == current.address }) links.add(current)
+            }
+            for (link in links) {
+                gattServer?.cancelConnection(link)
             }
 
             gattServer?.close()
@@ -782,6 +806,28 @@ class GattServer(
             // Ensure resources are cleaned up
             gattServer = null
             currentConnection = null
+        }
+    }
+
+    /** Hold the link to [device] once. See [heldLinks]. */
+    private fun holdLink(device: BluetoothDevice) {
+        val server = gattServer ?: return
+        val isNew = synchronized(heldLinks) {
+            heldLinks.putIfAbsent(device.address, device) == null
+        }
+        if (!isNew) return
+        val held = try {
+            server.connect(device, false)
+        } catch (error: SecurityException) {
+            logger.w("Could not hold the link to ${device.address}: ${error.message}")
+            false
+        }
+        if (held) {
+            logger.d("Holding the link to ${device.address}")
+        } else {
+            logger.w("Could not hold the link to ${device.address}")
+            // Forget it, so that the next connection event tries again.
+            synchronized(heldLinks) { heldLinks.remove(device.address) }
         }
     }
 

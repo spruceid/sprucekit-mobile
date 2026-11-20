@@ -60,45 +60,39 @@ import com.spruceid.mobilesdkexample.utils.removeUnderscores
 import com.spruceid.mobilesdkexample.utils.splitCamelCase
 import org.json.JSONObject
 
-class Draft18Signer(keyId: String?) : Draft18PresentationSigner {
-    private val keyId = keyId ?: DEFAULT_SIGNING_KEY_ID
+class Draft18Signer(private val keyId: String = DEFAULT_SIGNING_KEY_ID) : Draft18PresentationSigner {
     private val keyManager = KeyManager()
-    private var jwk: String
     private val didJwk = DidMethodUtils(DidMethod.JWK)
 
     init {
-        if (!keyManager.keyExists(this.keyId)) {
-            keyManager.generateSigningKey(id = this.keyId)
+        // Bootstrap the shared/legacy key so credentials with no per-credential
+        // alias (key_alias == None) can still present via the fallback key.
+        if (!keyManager.keyExists(keyId)) {
+            keyManager.generateSigningKey(id = keyId)
         }
-        this.jwk = keyManager.getJwk(this.keyId)?.toString()
-            ?: throw IllegalArgumentException("Invalid kid")
     }
 
-    override suspend fun sign(payload: ByteArray): ByteArray {
-        return keyManager.signPayload(keyId, payload)
-            ?: throw IllegalStateException("Failed to sign payload")
-    }
+    private fun jwkFor(keyId: String): String =
+        keyManager.getJwk(keyId)?.toString()
+            ?: throw IllegalArgumentException("No signing key for id $keyId")
+
+    override suspend fun sign(keyId: String, payload: ByteArray): ByteArray =
+        keyManager.signPayload(keyId, payload)
+            ?: throw IllegalStateException("Failed to sign payload with key $keyId")
 
     override fun algorithm(): String {
-        val json = JSONObject(jwk)
         return try {
-            json.getString("alg")
+            JSONObject(jwkFor(keyId)).getString("alg")
         } catch (_: Exception) {
             "ES256"
         }
     }
 
-    override suspend fun verificationMethod(): String {
-        return didJwk.vmFromJwk(jwk)
-    }
+    override suspend fun verificationMethod(keyId: String): String = didJwk.vmFromJwk(jwkFor(keyId))
 
-    override fun did(): String {
-        return didJwk.didFromJwk(jwk)
-    }
+    override fun did(keyId: String): String = didJwk.didFromJwk(jwkFor(keyId))
 
-    override fun jwk(): String {
-        return jwk
-    }
+    override fun jwk(keyId: String): String = jwkFor(keyId)
 
     override fun cryptosuite(): String {
         return "ecdsa-rdfc-2019"

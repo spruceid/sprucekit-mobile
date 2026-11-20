@@ -43,12 +43,15 @@ enum class Oid4vpProtocol(val id: String) {
  * @param iconName the name of an image file in the application's assets directory, to be shown in
  * the wallet selection modal.
  * @param walletName the name to display for this wallet in the credential selection UI.
+ * @param deviceSignedFields elements provided by [Activity.deviceSignedElements], keyed by
+ * namespace. Registered for every mdoc so the matcher offers it for requests that include them.
  */
 class Registry(
     application: Application,
     iconName: String,
     matcherName: String = "openid4vp-matcher.wasm",
-    private val walletName: String = "SpruceKit Showcase Wallet"
+    private val walletName: String = "SpruceKit Showcase Wallet",
+    private val deviceSignedFields: Map<String, List<String>> = emptyMap()
 ) {
     private val icon: ByteArray = loadAsset(application.assets, iconName)
     private val matcher: ByteArray = loadAsset(application.assets, matcherName)
@@ -109,18 +112,20 @@ class Registry(
     private fun createMdocEntry(comboId: String, mdoc: Mdoc): MdocEntry {
         val iconBitmap = BitmapFactory.decodeByteArray(icon, 0, icon.size)
 
-        // Get the display name from the credential
-        val givenName = mdoc.details()["org.iso.18013.5.1"]
-            ?.firstOrNull { it.identifier == "given_name" }
+        // Get the display name from the credential. The element identifier is namespace-specific:
+        // ISO 18013-5 uses `given_name`, ISO 23220-2 uses `given_name_unicode`.
+        val givenName = mdoc.details().values
+            .flatten()
+            .firstOrNull { it.identifier in GIVEN_NAME_ELEMENTS }
             ?.value?.replace("\"", "")
-        val title = if (givenName != null) "Driver's License ($givenName)" else "Driver's License"
+        val documentName = DOCUMENT_TYPE_NAMES[mdoc.doctype()] ?: "Credential"
+        val title = if (givenName != null) "$documentName ($givenName)" else documentName
 
         // Build the list of MdocFields
         val fields = mutableListOf<MdocField>()
         mdoc.details().forEach { (namespace, elements) ->
             elements.forEach { element ->
-                val displayName = element.identifier.split('_')
-                    .joinToString(" ") { s -> s.replaceFirstChar { it.uppercaseChar() } }
+                val displayName = displayName(element.identifier)
 
                 // For large binary fields, register with placeholder value so matcher knows field exists
                 val fieldValue = if (EXCLUDED_ELEMENTS.contains(element.identifier)) {
@@ -142,6 +147,25 @@ class Registry(
             }
         }
 
+        // The values are only known at presentation
+        deviceSignedFields.forEach { (namespace, identifiers) ->
+            val held = mdoc.details()[namespace].orEmpty().map { it.identifier }.toSet()
+            identifiers
+                .filterNot { it in held }
+                .forEach { identifier ->
+                    fields.add(
+                        MdocField(
+                            namespace = namespace,
+                            identifier = identifier,
+                            fieldValue = DEVICE_SIGNED_PLACEHOLDER,
+                            fieldDisplayPropertySet = setOf(
+                                VerificationFieldDisplayProperties(displayName = displayName(identifier))
+                            )
+                        )
+                    )
+                }
+        }
+
         return MdocEntry(
             docType = mdoc.doctype(),
             fields = fields,
@@ -156,8 +180,13 @@ class Registry(
         )
     }
 
+    private fun displayName(identifier: String) = identifier.split('_')
+        .joinToString(" ") { s -> s.replaceFirstChar { it.uppercaseChar() } }
+
     companion object {
         private const val TAG = "dcapi.Registry"
+
+        private const val DEVICE_SIGNED_PLACEHOLDER = "[device signed]"
 
         // Protocols to register credentials with (supports both unsigned and signed requests)
         private val SUPPORTED_PROTOCOLS = listOf(
@@ -170,6 +199,15 @@ class Registry(
             "openid4vp",
             "openid4vp1.0"
         )
+
+        // Titles shown in the credential selection UI, keyed by doctype
+        private val DOCUMENT_TYPE_NAMES = mapOf(
+            "org.iso.18013.5.1.mDL" to "Driver's License",
+            "org.iso.23220.photoid.1" to "Photo ID"
+        )
+
+        // Element identifiers holding the holder's given name, across the namespaces we support
+        private val GIVEN_NAME_ELEMENTS = setOf("given_name", "given_name_unicode")
 
         // Large binary elements to exclude from registry to avoid TransactionTooLargeException
         private val EXCLUDED_ELEMENTS = setOf(
