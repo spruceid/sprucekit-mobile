@@ -2,7 +2,9 @@ package com.spruceid.mobile.sdk
 
 import android.content.Context
 import android.util.Base64
+import android.util.Log
 import com.spruceid.mobile.sdk.KeyManager
+import com.spruceid.mobile.toolkit.StorageManagerException
 import com.spruceid.mobile.toolkit.StorageManagerInterface
 import java.io.File
 import java.io.FileNotFoundException
@@ -31,6 +33,10 @@ class StorageManager(val context: Context) : StorageManagerInterface {
     ///
     /// Retrieves the value from storage identified by key.
     ///
+    /// Returns null if no value is stored under the key. Throws
+    /// StorageManagerException.CouldNotDecryptValue if the stored value is not in the hybrid
+    /// format or cannot be decrypted.
+    ///
     /// Arguments:
     /// key - The key to retrieve
     override suspend fun get(key: String): ByteArray? {
@@ -44,11 +50,12 @@ class StorageManager(val context: Context) : StorageManagerInterface {
             return null
         }
 
-        // Format detection based on structure
-        return if (isHybridFormat(bytes)) {
-            decryptHybrid(bytes)
-        } else {
-            decrypt(bytes)
+        try {
+            return decryptHybrid(bytes)
+        } catch (e: Exception) {
+            // The key is not logged: keys can embed a scope (a user hash).
+            Log.w(TAG, "could not decrypt a stored value: ${e.javaClass.name}")
+            throw StorageManagerException.CouldNotDecryptValue()
         }
     }
 
@@ -81,51 +88,7 @@ class StorageManager(val context: Context) : StorageManagerInterface {
         private const val B64_FLAGS = Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP
         private const val KEY_NAME = "sprucekit/datastore"
         private const val HYBRID_PREFIX = "HYBRID|"
-
-        /// Function: isHybridFormat
-        ///
-        /// Efficiently detects if the encrypted data uses hybrid format by checking the prefix.
-        /// Only converts the minimum necessary bytes to string for performance.
-        ///
-        /// Arguments:
-        /// bytes - The encrypted data to analyze
-        ///
-        /// Returns:
-        /// true if hybrid format, false if not hybrid format
-        private fun isHybridFormat(bytes: ByteArray): Boolean {
-            if (bytes.size < HYBRID_PREFIX.length) {
-                return false
-            }
-
-            val prefixBytes = bytes.sliceArray(0 until HYBRID_PREFIX.length)
-            val prefixString = try {
-                prefixBytes.decodeToString()
-            } catch (e: Exception) {
-                return false
-            }
-
-            return prefixString == HYBRID_PREFIX
-        }
-
-        /// Function: encrypt
-        ///
-        /// Encrypts the given string (legacy method).
-        ///
-        /// Arguments:
-        /// value - The byte array value to be encrypted
-        private suspend fun encrypt(value: ByteArray): ByteArray {
-            return suspendCoroutine { continuation ->
-                val keyManager = KeyManager()
-                if (!keyManager.keyExists(KEY_NAME)) {
-                    keyManager.generateEncryptionKey(KEY_NAME)
-                }
-                val encrypted = keyManager.encryptPayload(KEY_NAME, value)
-                val iv = Base64.encodeToString(encrypted.first, B64_FLAGS)
-                val bytes = Base64.encodeToString(encrypted.second, B64_FLAGS)
-                val res = "$iv;$bytes".toByteArray()
-                continuation.resume(res)
-            }
-        }
+        private const val TAG = "sprucekit"
 
         /// Function: encryptHybrid
         ///
@@ -162,31 +125,11 @@ class StorageManager(val context: Context) : StorageManagerInterface {
             }
         }
 
-        /// Function: decrypt
-        ///
-        /// Decrypts the given ByteArray (legacy method).
-        ///
-        /// Arguments:
-        /// value - The byte array to be decrypted
-        private suspend fun decrypt(value: ByteArray): ByteArray {
-            return suspendCoroutine { continuation ->
-                val keyManager = KeyManager()
-                if (!keyManager.keyExists(KEY_NAME)) {
-                    throw Exception("Cannot retrieve values before creating encryption keys")
-                }
-                val decoded = value.decodeToString().split(";")
-                assert(decoded.size == 2)
-                val iv = Base64.decode(decoded.first(), B64_FLAGS)
-                val encrypted = Base64.decode(decoded.last(), B64_FLAGS)
-                val decrypted = keyManager.decryptPayload(KEY_NAME, iv, encrypted)
-                continuation.resume(decrypted)
-            }
-        }
-
         /// Function: decryptHybrid
         ///
         /// Decrypts hybrid format for maximum performance.
         /// Only the 32-byte AES key is decrypted with Android Keystore, data with software AES.
+        /// Throws if the value is not in the hybrid format or cannot be decrypted.
         ///
         /// Arguments:
         /// value - The byte array to be decrypted
