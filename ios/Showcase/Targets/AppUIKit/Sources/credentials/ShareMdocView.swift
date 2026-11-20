@@ -1,6 +1,7 @@
 import CoreBluetooth
 import CoreImage.CIFilterBuiltins
 import CryptoKit
+import LocalAuthentication
 import SpruceIDMobileSdk
 import SpruceIDMobileSdkRs
 import SwiftUI
@@ -175,7 +176,7 @@ public struct ShareMdocQR: View {
 
     @ViewBuilder
     var requestDismissedView: some View {
-        Text("Request rejected.")
+        Text(delegate.sharingCanceled ? "Sharing canceled." : "Request rejected.")
         resetButton
     }
     
@@ -199,7 +200,7 @@ public struct ShareMdocQR: View {
 
     @ViewBuilder
     func receivedRequestView(request: MdocProximityPresentationManager.Request) -> some View {
-        ShareMdocSelectiveDisclosureView(request: request)
+        ShareMdocSelectiveDisclosureView(request: request, delegate: delegate)
     }
 
     @ViewBuilder
@@ -210,10 +211,14 @@ public struct ShareMdocQR: View {
 
 class ShareViewDelegate: ObservableObject, MdocProximityPresentationManager.Delegate {
     @Published var state: MdocProximityPresentationManager.State = .initializing
-    
+    /// Set when the user canceled authentication, so the dismissed request reads as canceled.
+    @Published var sharingCanceled = false
+
+    private let mdoc: Mdoc
     private var sessionManager: MdocProximityPresentationManager? = nil
 
     init(mdoc: Mdoc) {
+        self.mdoc = mdoc
         self.sessionManager = MdocProximityPresentationManager(
             mdoc: mdoc,
             delegate: self,
@@ -231,7 +236,36 @@ class ShareViewDelegate: ObservableObject, MdocProximityPresentationManager.Dele
     }
     
     func reset() {
+        self.sharingCanceled = false
+        self.sessionManager?.authenticationContext = nil
         self.sessionManager?.reset()
+    }
+
+    /// Approves the request, after authenticating the user if the mdoc's device key requires it.
+    ///
+    /// The evaluated context goes to the presentation manager so the signature doesn't prompt a
+    /// second time. If the user cancels or fails authentication, the request is dismissed, so the
+    /// reader learns it was declined.
+    @MainActor
+    func approve(request: MdocProximityPresentationManager.Request, items: [String: [String: [String]]]) async {
+        if KeyManager.isUserAuthenticationRequired(id: mdoc.keyAlias()) {
+            let context = LAContext()
+            do {
+                try await context.evaluatePolicy(
+                    .deviceOwnerAuthentication,
+                    localizedReason: "Approve sharing your data with the reader"
+                )
+            } catch {
+                print("authentication canceled or failed: \(error)")
+                sharingCanceled = true
+                request.dismiss()
+                return
+            }
+            sessionManager?.authenticationContext = context
+        }
+        request.approve(items: items)
+        // The response captured the context; don't let a later session reuse it.
+        sessionManager?.authenticationContext = nil
     }
 }
 
@@ -239,9 +273,11 @@ public struct ShareMdocSelectiveDisclosureView: View {
     @State private var showingSDSheet = true
     @State private var itemsSelected: [String: [String: [String: Bool]]]
     @State private var request: MdocProximityPresentationManager.Request
+    private let delegate: ShareViewDelegate
 
-    init(request: MdocProximityPresentationManager.Request) {
+    init(request: MdocProximityPresentationManager.Request, delegate: ShareViewDelegate) {
         self.request = request
+        self.delegate = delegate
         var defaultSelected: [String: [String: [String: Bool]]] = [:]
         for itemRequest in request.items {
             var defaultSelectedNamespaces: [String: [String: Bool]] = [:]
@@ -270,13 +306,15 @@ public struct ShareMdocSelectiveDisclosureView: View {
                 itemsSelected: $itemsSelected,
                 itemsRequests: request.items,
                 onProceed: {
-                    request.approve(items:
-                        itemsSelected.mapValues {
-                            $0.mapValues {
-                                $0.filter { $1 }.map{ $0.key }
-                            }
+                    let items = itemsSelected.mapValues {
+                        $0.mapValues {
+                            $0.filter { $1 }.map{ $0.key }
                         }
-                    )
+                    }
+                    let request = request
+                    Task {
+                        await delegate.approve(request: request, items: items)
+                    }
                 },
                 onCancel: {
                     request.dismiss()

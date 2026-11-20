@@ -117,6 +117,17 @@ pub enum JwsSignatureError {
     Other(String),
 }
 
+/// A foreign `JwsSigner` that throws an error other than `JwsSignatureError`
+/// reaches Rust as `Other`, with the foreign error's description as message.
+///
+/// `JwsSignatureError` is a flat error, so uniffi can't lift it when a foreign
+/// callback throws it; foreign signers must throw a different error type.
+impl From<uniffi::UnexpectedUniFFICallbackError> for JwsSignatureError {
+    fn from(value: uniffi::UnexpectedUniFFICallbackError) -> Self {
+        Self::Other(value.reason)
+    }
+}
+
 impl From<JwsSignatureError> for ssi::claims::SignatureError {
     fn from(value: JwsSignatureError) -> Self {
         match value {
@@ -155,6 +166,21 @@ impl From<ssi::claims::SignatureError> for JwsSignatureError {
             ssi::claims::SignatureError::InvalidSecretKey => Self::InvalidSecretKey,
             ssi::claims::SignatureError::InvalidSignature => Self::InvalidSignature,
             ssi::claims::SignatureError::Other(msg) => Self::Other(msg),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::JwsSignatureError;
+
+    #[test]
+    fn unexpected_callback_error_maps_to_other() {
+        let reason = "SignerError: User authentication required: key `alias`";
+        let error = JwsSignatureError::from(uniffi::UnexpectedUniFFICallbackError::new(reason));
+        match error {
+            JwsSignatureError::Other(message) => assert_eq!(message, reason),
+            other => panic!("unexpected error variant: {other:?}"),
         }
     }
 }

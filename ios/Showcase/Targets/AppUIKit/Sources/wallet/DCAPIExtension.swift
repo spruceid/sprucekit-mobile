@@ -1,6 +1,7 @@
 #if canImport(IdentityDocumentServices) && canImport(IdentityDocumentServicesUI)
 import IdentityDocumentServices
 import IdentityDocumentServicesUI
+import LocalAuthentication
 import SwiftUI
 import SpruceIDMobileSdk
 import SpruceIDMobileSdkRs
@@ -87,13 +88,37 @@ public struct DocumentProviderExtensionView: View {
                 match: selectedMatch,
                 onContinue: { approvedResponse in
                     Task {
+                        var trimmedOrigin = origin.absoluteString
+                        if trimmedOrigin.last == "/" {
+                            let _ = trimmedOrigin.popLast()
+                        }
+                        let origin = trimmedOrigin
+                        // Authenticate before sendResponse, so nothing is signed unless it
+                        // succeeds. The evaluated context lets a protected device key sign
+                        // without a second prompt.
+                        let authContext = LAContext()
+                        do {
+                            try await authContext.evaluatePolicy(
+                                .deviceOwnerAuthentication,
+                                localizedReason: "Share your data with \(origin)"
+                            )
+                        } catch {
+                            if isUserCancellation(error) {
+                                // Like the Cancel button: the system closes the sheet and the
+                                // website learns the request was canceled.
+                                context.cancel()
+                            } else {
+                                state = .err(MdocOID4VPError(
+                                    title: "Failed to authenticate",
+                                    details: error.localizedDescription
+                                ))
+                            }
+                            return
+                        }
+                        let keyStore = KeyManager(context: authContext)
                         do {
                             try await context.sendResponse { rawRequest in
-                                var origin = origin.absoluteString
-                                if origin.last == "/" {
-                                    let _ = origin.popLast()
-                                }
-                                let responseData = try await buildAnnexCResponse(request: rawRequest.requestData, origin: origin, selectedMatch: selectedMatch, parsedCredentials: credentials, approvedResponse: approvedResponse, keyStore: KeyManager())
+                                let responseData = try await buildAnnexCResponse(request: rawRequest.requestData, origin: origin, selectedMatch: selectedMatch, parsedCredentials: credentials, approvedResponse: approvedResponse, keyStore: keyStore)
                                 return ISO18013MobileDocumentResponse(responseData: responseData)
                             }
                         } catch {
@@ -110,5 +135,11 @@ public struct DocumentProviderExtensionView: View {
             )
         }
     }
+}
+
+/// Whether authentication ended because the user (or the system) canceled it, rather than failed.
+private func isUserCancellation(_ error: Error) -> Bool {
+    guard let error = error as? LAError else { return false }
+    return [.userCancel, .systemCancel, .appCancel, .userFallback].contains(error.code)
 }
 #endif

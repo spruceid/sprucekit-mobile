@@ -17,8 +17,6 @@ import com.spruceid.mobile.sdk.rs.PeripheralServerDetails
 import com.spruceid.mobile.sdk.rs.RequestException
 import com.spruceid.mobile.sdk.rs.initializeMdlPresentationFromBytes
 import com.spruceid.mobile.sdk.PresentationMode
-import java.security.KeyStore
-import java.security.Signature
 import java.util.UUID
 
 enum class PresentationMode {
@@ -225,25 +223,23 @@ class IsoMdlPresentation(
         return true;
     }
 
+    /**
+     * Signs the response with the [keyAlias] device key and sends it to the reader.
+     *
+     * This shows no UI. If the device key was generated with a [UserAuthenticationPolicy], the
+     * caller must authenticate the user first (for example with [authenticateUser]) and call this
+     * within the policy's timeout; otherwise it throws [UserAuthenticationRequiredException].
+     */
     fun submitNamespaces(items: Map<String, Map<String, List<String>>>) {
         val payload = session!!.generateResponse(items)
 
-        val ks: KeyStore = KeyStore.getInstance("AndroidKeyStore")
-
-        ks.load(null)
-
-        val entry = ks.getEntry(this.keyAlias, null)
-        if (entry !is KeyStore.PrivateKeyEntry) {
+        if (!KeyManager().keyExists(this.keyAlias)) {
             throw IllegalStateException("No such private key under the alias <${this.keyAlias}>")
         }
 
         try {
-            val signer = Signature.getInstance("SHA256withECDSA")
-            signer.initSign(entry.privateKey)
-
-            signer.update(payload)
-
-            val signature = signer.sign()
+            val signature = KeyManager().signPayload(this.keyAlias, payload)
+                ?: throw IllegalStateException("No such private key under the alias <${this.keyAlias}>")
             val normalizedSignature =
                 CryptoCurveUtils.secp256r1().ensureRawFixedWidthSignatureEncoding(signature)
                     ?: throw Error("unrecognized signature encoding")

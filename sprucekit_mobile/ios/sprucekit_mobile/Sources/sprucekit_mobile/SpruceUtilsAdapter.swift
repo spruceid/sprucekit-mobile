@@ -248,11 +248,12 @@ class SpruceUtilsAdapter: NSObject, SpruceUtils {
     }
 
     /// Returns a `KeyManager`, generating a signing key for `alias` if one doesn't exist yet.
-    private func signingKeyManager(alias: String) -> KeyManager {
+    /// A new key gets the `DeviceKeyAuth` policy, since it becomes the mock mDL's device key;
+    /// throws `UserAuthenticationUnavailableError` when the device can't satisfy the policy.
+    private func signingKeyManager(alias: String) throws -> KeyManager {
         // Generate or retrieve the signing key
-        if !KeyManager.keyExists(id: alias) {
-            _ = KeyManager.generateSigningKey(id: alias)
-        }
+        _ = try KeyManager.getOrInsertJwk(
+            id: alias, userAuthentication: DeviceKeyAuthState.shared.policy)
         return KeyManager()
     }
 

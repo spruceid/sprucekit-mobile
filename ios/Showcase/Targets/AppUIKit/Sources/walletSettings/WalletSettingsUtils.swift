@@ -22,15 +22,27 @@ public func generateMockPhotoId() async {
     )
 }
 
-/// Issue a test mdoc against the default signing key, add it to the wallet, and log the activity.
+/// Signing key used as the DeviceKey of every locally generated test mdoc.
+///
+/// It requires user authentication so testers can exercise protected device keys: the system
+/// prompts when it signs. A key created before this change keeps its old (unprotected) settings.
+let TEST_MDOC_KEY_ALIAS = "testMdl"
+
+/// Issue a test mdoc against the test mdoc key, add it to the wallet, and log the activity.
 @MainActor
 private func generateMockMdoc(
     displayName: String,
     makeMdoc: (KeyManager, String) throws -> Mdoc
 ) async {
     do {
-        ensureDefaultSigningKey()
-        let mdoc = try makeMdoc(KeyManager(), DEFAULT_SIGNING_KEY_ID)
+        if !KeyManager.keyExists(id: TEST_MDOC_KEY_ALIAS),
+            !KeyManager.generateSigningKey(
+                id: TEST_MDOC_KEY_ALIAS,
+                userAuthentication: UserAuthenticationPolicy()
+            ) {
+            throw KeyManError.internalError("could not create the test mdoc key")
+        }
+        let mdoc = try makeMdoc(KeyManager(), TEST_MDOC_KEY_ALIAS)
         let mdocPack = CredentialPack()
 
         let credentials = try await mdocPack.addMDoc(mdoc: mdoc)

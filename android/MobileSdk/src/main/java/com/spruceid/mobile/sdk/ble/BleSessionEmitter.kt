@@ -6,7 +6,8 @@ import com.spruceid.mobile.sdk.BLESessionStateDelegate
  * Forwards BLE transport events to the host [BLESessionStateDelegate], building payloads via
  * [BleSessionUpdates]. Shared by both transports — [TransportBleCentralClient] and
  * [TransportBlePeripheralServerHolder] — so neither calls `callback.update(...)` directly and
- * the two roles report an identical event vocabulary.
+ * the two roles report an identical event vocabulary. [TransportBlePeripheralServerReader] uses
+ * it for the holder's session end.
  *
  * A null delegate is tolerated (no-op), matching the transports' optional callbacks.
  */
@@ -61,6 +62,11 @@ internal class BleSessionEmitter(private val callback: BLESessionStateDelegate?)
     /** Inbound mDL response received (Reader role). */
     fun mdl(data: ByteArray) {
         callback?.update(BleSessionUpdates.mdl(data))
+    }
+
+    /** The holder ended the session before sending a response (Reader role). */
+    fun sessionEnded() {
+        callback?.update(BleSessionUpdates.sessionEnded())
     }
 
     /** Scan/connection attempt timed out. */

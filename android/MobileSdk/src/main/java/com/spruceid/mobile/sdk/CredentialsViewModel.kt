@@ -178,6 +178,13 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
             _currState.value = PresentmentState.ERROR
             _error.value = e
             throw e
+        } catch (e: Exception) {
+            // For example UserAuthenticationRequiredException from a protected device key.
+            // `error` holds an Error, so wrap it, keeping the message and the cause.
+            Log.e("CredentialsViewModel.submitNamespaces", e.toString())
+            _currState.value = PresentmentState.ERROR
+            _error.value = Error(e.message, e)
+            throw e
         }
     }
 }

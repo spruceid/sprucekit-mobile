@@ -79,6 +79,9 @@ public class SprucekitMobilePlugin: NSObject, FlutterPlugin {
         let dcApiAdapter = DcApiAdapter(credentialPackAdapter: credentialPackAdapter)
         DcApiSetup.setUp(binaryMessenger: messenger, api: dcApiAdapter)
 
+        // Initialize DeviceKeyAuth adapter (user-authentication policy for device keys)
+        DeviceKeyAuthSetup.setUp(binaryMessenger: messenger, api: DeviceKeyAuthAdapter())
+
         // Register Scanner Platform View
         let scannerFactory = ScannerPlatformViewFactory(messenger: messenger)
         registrar.register(

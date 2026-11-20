@@ -67,6 +67,9 @@ class TransportBleCentralClient(
     // Forwards session events to the host delegate (see BleSessionEmitter).
     private val emitter = BleSessionEmitter(callback)
 
+    // Reader role only: reports the holder ending the session before its response.
+    private val sessionEnd = ReaderSessionEnd(emitter)
+
     private lateinit var gattClient: GattClient
     private lateinit var identValue: ByteArray
 
@@ -113,6 +116,9 @@ class TransportBleCentralClient(
                 emitter.connected()
 
                 // Reader as Central: Send the mDL request to Holder after connection
+                if (isReader) {
+                    sessionEnd.holderConnected()
+                }
                 if (isReader && requestData != null) {
                     logger.d("Sending mDL request: ${requestData!!.size} bytes")
                     gattClient.sendMessage(requestData!!)
@@ -125,6 +131,9 @@ class TransportBleCentralClient(
                 stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTED)
                 emitter.disconnected()
                 gattClient.disconnect()
+                if (isReader) {
+                    sessionEnd.holderEnded()
+                }
             }
 
             override fun onMessageSendProgress(progress: Int, max: Int) {
@@ -154,6 +163,7 @@ class TransportBleCentralClient(
                     if (isReader) {
                         // Reader mode: Forward the mDL response to the application
                         logger.d("Received mDL response: ${data.size} bytes")
+                        sessionEnd.responseReceived()
                         emitter.mdl(data)
                     } else {
                         // Holder mode: Process the request data
@@ -185,6 +195,9 @@ class TransportBleCentralClient(
                 )
 
                 gattClient.disconnect()
+                if (isReader) {
+                    sessionEnd.holderEnded()
+                }
             }
 
             override fun onLog(message: String) {

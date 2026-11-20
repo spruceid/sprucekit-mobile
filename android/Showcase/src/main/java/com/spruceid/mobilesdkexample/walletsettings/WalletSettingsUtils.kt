@@ -2,6 +2,7 @@ package com.spruceid.mobilesdkexample.walletsettings
 
 import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobile.sdk.KeyManager
+import com.spruceid.mobile.sdk.UserAuthenticationPolicy
 import com.spruceid.mobile.sdk.rs.KeyStore
 import com.spruceid.mobile.sdk.rs.Mdoc
 import com.spruceid.mobile.sdk.rs.generateTestMdl
@@ -46,7 +47,12 @@ private suspend fun generateMockMdoc(
     try {
         val keyManager = KeyManager()
         if (!keyManager.keyExists(TEST_MDOC_KEY_ALIAS)) {
-            keyManager.generateSigningKey(TEST_MDOC_KEY_ALIAS)
+            // Opt the test device key into user authentication so testers can exercise it.
+            // A key created before this change keeps its old (unprotected) settings.
+            keyManager.generateSigningKey(
+                TEST_MDOC_KEY_ALIAS,
+                userAuthentication = UserAuthenticationPolicy()
+            )
         }
         val mdoc = makeMdoc(keyManager, TEST_MDOC_KEY_ALIAS)
         val mdocPack = CredentialPack()
