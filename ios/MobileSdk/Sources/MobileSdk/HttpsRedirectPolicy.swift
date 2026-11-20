@@ -4,9 +4,9 @@ import SpruceIDMobileSdkRs
 /// Redirect rule for the native HTTP clients that carry the Rust layer's requests.
 ///
 /// The Rust layer checks the first URL of every request (`HttpClient::send`), but it never sees
-/// the redirects that `URLSession` follows. Without this check an https endpoint could redirect to
-/// plain http, and a 307 or 308 on the OID4VP response POST would resend the `vp_token` in clear
-/// text. App Transport Security blocks that hop only when the app has no ATS exception.
+/// the redirects that `URLSession` follows. A redirect from an https endpoint to plain http would
+/// turn a 307 or 308 on the OID4VP response POST into a clear-text resend of the `vp_token`. App
+/// Transport Security blocks that hop only when the app has no ATS exception.
 ///
 /// The rule matches the Rust layer's `require_https`:
 /// - a redirect to `https` is followed;
