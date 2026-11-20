@@ -14,7 +14,26 @@ Import `https://github.com/spruceid/sprucekit-mobile` and use the product `Spruc
 
 ### Android
 
-See https://central.sonatype.com/artifact/com.spruceid.mobile.sdk/mobilesdk.
+The Android SDK is published to `https://maven.spruceid.com`. Add the repository to `settings.gradle.kts` (or to `allprojects` in `build.gradle.kts`):
+
+```kotlin
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+        maven {
+            url = uri("https://maven.spruceid.com")
+            content { includeGroupByRegex("com\\.spruceid\\..*") }
+        }
+    }
+}
+```
+
+Then add the dependency:
+
+```kotlin
+implementation("com.spruceid.mobile.sdk:mobilesdk:<version>")
+```
 
 #### Native crash symbols
 

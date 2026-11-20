@@ -3,7 +3,6 @@ plugins {
     id("org.jetbrains.kotlin.android")
     `maven-publish`
     id("signing")
-    id("com.gradleup.nmcp")
     id("org.jetbrains.kotlin.plugin.compose") version "2.1.0"
     id("app.cash.licensee")
 }
@@ -30,17 +29,13 @@ licensee {
 }
 
 publishing {
-    // Package is tied to spruceid/mobile-sdk-rs, and it was unused so ignoring it for now
-    // repositories {
-    //     maven {
-    //         name = "GitHubPackages"
-    //         url = uri("https://maven.pkg.github.com/spruceid/sprucekit-mobile")
-    //         credentials {
-    //             username = System.getenv("GITHUB_ACTOR")
-    //             password = System.getenv("GITHUB_TOKEN")
-    //         }
-    //     }
-    // }
+    // Local staging repository. CD uploads its contents to maven.spruceid.com (R2), see .github/workflows/cd.yml.
+    repositories {
+        maven {
+            name = "R2Staging"
+            url = uri(rootProject.layout.buildDirectory.dir("r2-staging"))
+        }
+    }
     publications {
         // Local-development publication (publishDebugPublicationToMavenLocal).
         // Keep commented out in the committed state; uncomment when publishing

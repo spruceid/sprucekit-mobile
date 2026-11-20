@@ -57,14 +57,14 @@ flutter pub publish --dry-run
 - All cross-platform API changes start in `pigeons/` source files, then regenerate with `dart run pigeon`
 - Generated code lands in three places: `lib/pigeon/` (Dart), `ios/sprucekit_mobile/Sources/sprucekit_mobile/` (Swift `.g.swift`), `android/src/main/kotlin/` (Kotlin `.g.kt`)
 - Native adapter classes (e.g., `Oid4vciAdapter.swift`, `Oid4vciAdapter.kt`) implement the generated Pigeon host APIs by delegating to the native SDKs
-- For releases, the plugin depends on **published** native SDK versions: Maven Central for Android, and for iOS the GitHub release (SPM) or the `SpruceIDMobileSdk` pod (CocoaPods). For local dev, Android uses source builds by default. iOS uses them only with `SPRUCEKIT_SDK_FROM_SOURCE=1`.
+- For releases, the plugin depends on **published** native SDK versions: `https://maven.spruceid.com` (Cloudflare R2) for Android, and for iOS the GitHub release (SPM) or the `SpruceIDMobileSdk` pod (CocoaPods). For local dev, Android uses source builds by default. iOS uses them only with `SPRUCEKIT_SDK_FROM_SOURCE=1`.
 - **Adding a new Rust function to the Android adapter**: the Flutter plugin references the *published* `mobilesdkrs` artifact, so a newly-added Rust function won't be available until the next SDK release. To build the Flutter example locally against your local SDK:
   1. Publish the local SDK to Maven Local:
      ```bash
      cd android && touch local.properties
      VERSION=0.0.1-local ./gradlew :MobileSdkRs:publishDebugPublicationToMavenLocal
      ```
-     > **Note:** Use `publishDebugPublicationToMavenLocal` (not `publishToMavenLocal`) to avoid GPG signing errors. The `release` publication requires GPG signing (`gpg` command + keys), which is only needed for Maven Central. The `debug` publication skips signing and works for local development.
+     > **Note:** Use `publishDebugPublicationToMavenLocal` (not `publishToMavenLocal`) to avoid GPG signing errors. The `release` publication requires GPG signing (`gpg` command + keys), which is only needed for releases. The `debug` publication skips signing and works for local development.
   2. In `sprucekit_mobile/android/build.gradle`, make **three** changes:
      - Uncomment `mavenLocal()` in the `repositories` block.
      - Add `exclude` to the `mobilesdk` dependency to prevent its transitive dependency on the published `mobilesdkrs` from overriding your local version.

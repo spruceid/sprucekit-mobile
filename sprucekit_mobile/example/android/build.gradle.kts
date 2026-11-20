@@ -3,6 +3,10 @@ allprojects {
         mavenLocal()
         google()
         mavenCentral()
+        maven {
+            url = uri("https://maven.spruceid.com")
+            content { includeGroupByRegex("com\\.spruceid\\..*") }
+        }
     }
 }
 
