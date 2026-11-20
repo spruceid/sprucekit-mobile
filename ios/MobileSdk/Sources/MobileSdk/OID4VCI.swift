@@ -2,14 +2,27 @@ import Foundation
 import SpruceIDMobileSdkRs
 
 public class Oid4vciSyncHttpClient: SyncHttpClient, @unchecked Sendable {
-    public init() {}
+    /// The session follows a redirect only when its target passes ``HttpsRedirectPolicy``.
+    private let session: URLSession
+
+    /// - Parameter configuration: the session configuration. Tests pass one with stub
+    ///   `protocolClasses`.
+    public init(configuration: URLSessionConfiguration = .default) {
+        session = URLSession(
+            configuration: configuration,
+            delegate: HttpsRedirectPolicy(),
+            delegateQueue: nil)
+    }
+
+    deinit {
+        session.finishTasksAndInvalidate()
+    }
 
     public func httpClient(request: HttpRequest) throws -> HttpResponse {
         guard let url = URL(string: request.url) else {
             throw HttpClientError.Other(error: "failed to construct URL")
         }
 
-        let session = URLSession.shared
         var req = URLRequest(url: url,
                              cachePolicy: .useProtocolCachePolicy,
                              timeoutInterval: 60)
@@ -47,6 +60,10 @@ public class Oid4vciSyncHttpClient: SyncHttpClient, @unchecked Sendable {
             throw HttpClientError.Other(error: "failed to parse response")
         }
 
+        if let target = HttpsRedirectPolicy.refusedRedirectTarget(in: response) {
+            throw HttpsRedirectPolicy.refusedError(for: target)
+        }
+
         guard let data = data else {
             throw HttpClientError.Other(error: "failed to parse response data")
         }
@@ -75,14 +92,27 @@ public class Oid4vciSyncHttpClient: SyncHttpClient, @unchecked Sendable {
 }
 
 public class Oid4vciAsyncHttpClient: AsyncHttpClient, @unchecked Sendable {
-    public init() {}
+    /// The session follows a redirect only when its target passes ``HttpsRedirectPolicy``.
+    private let session: URLSession
+
+    /// - Parameter configuration: the session configuration. Tests pass one with stub
+    ///   `protocolClasses`.
+    public init(configuration: URLSessionConfiguration = .default) {
+        session = URLSession(
+            configuration: configuration,
+            delegate: HttpsRedirectPolicy(),
+            delegateQueue: nil)
+    }
+
+    deinit {
+        session.finishTasksAndInvalidate()
+    }
 
     public func httpClient(request: HttpRequest) async throws -> HttpResponse {
         guard let url = URL(string: request.url) else {
             throw HttpClientError.Other(error: "failed to construct URL")
         }
 
-        let session = URLSession.shared
         var req = URLRequest(url: url,
                              cachePolicy: .useProtocolCachePolicy,
                              timeoutInterval: 60)
@@ -100,6 +130,10 @@ public class Oid4vciAsyncHttpClient: AsyncHttpClient, @unchecked Sendable {
 
         guard let response = response as? HTTPURLResponse else {
             throw HttpClientError.Other(error: "failed to parse response")
+        }
+
+        if let target = HttpsRedirectPolicy.refusedRedirectTarget(in: response) {
+            throw HttpsRedirectPolicy.refusedError(for: target)
         }
 
         guard let statusCode = UInt16(exactly: response.statusCode) else {

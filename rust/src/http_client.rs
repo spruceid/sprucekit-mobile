@@ -21,6 +21,8 @@ use http::{
     Method, Request, Response, StatusCode,
 };
 
+use crate::https::{require_https, require_https_str};
+
 pub use mobile_toolkit::http_client::{
     AsyncHttpClient, HttpClientError, HttpRequest, HttpResponse,
 };
@@ -57,12 +59,43 @@ fn registered_client() -> Option<Arc<dyn AsyncHttpClient>> {
 fn fallback_client() -> Arc<dyn AsyncHttpClient> {
     FALLBACK_HTTP_CLIENT
         .get_or_init(
-            || match reqwest::Client::builder().use_rustls_tls().build() {
+            // `HttpClient::send` already refuses non-https URLs. Release builds
+            // also tell reqwest to refuse them. reqwest's `https_only` has no
+            // loopback or LAN exception, so debug builds leave it off and
+            // rely on `require_https` alone.
+            || match reqwest::Client::builder()
+                .use_rustls_tls()
+                .https_only(!cfg!(debug_assertions))
+                // `send` checks only the first URL. Check every redirect
+                // target too, or a debug build follows a redirect from an
+                // allowed loopback or LAN host to any http host, and a 307/308
+                // on the response POST resends the `vp_token` in clear text.
+                .redirect(https_redirect_policy())
+                .build()
+            {
                 Ok(client) => Arc::new(ReqwestHttpClient(client)),
                 Err(error) => Arc::new(UnavailableHttpClient(error.to_string())),
             },
         )
         .clone()
+}
+
+/// Maximum number of redirects that the fallback client follows (reqwest's
+/// default).
+const MAX_REDIRECTS: usize = 10;
+
+/// Redirect policy that follows a redirect only when its target passes
+/// `require_https`.
+fn https_redirect_policy() -> reqwest::redirect::Policy {
+    reqwest::redirect::Policy::custom(|attempt| {
+        if attempt.previous().len() >= MAX_REDIRECTS {
+            return attempt.error("too many redirects");
+        }
+        match require_https(attempt.url(), "redirect target") {
+            Ok(()) => attempt.follow(),
+            Err(error) => attempt.error(error),
+        }
+    })
 }
 
 /// HTTP client for the Rust layer.
@@ -86,10 +119,18 @@ impl HttpClient {
     }
 
     /// Send a request and return the full response.
+    ///
+    /// A request to a URL that is not https is refused before it reaches the
+    /// wrapped client. See `crate::https::require_https` for the rule.
     pub async fn send(
         &self,
         request: Request<Vec<u8>>,
     ) -> Result<Response<Vec<u8>>, HttpClientError> {
+        require_https_str(&request.uri().to_string(), "request URL").map_err(|e| {
+            HttpClientError::Other {
+                error: e.to_string(),
+            }
+        })?;
         let request = request_to_native(request)?;
         let response = self.0.http_client(request).await?;
         response_from_native(response)
@@ -318,6 +359,36 @@ mod tests {
         assert_eq!(recorded.body, b"payload");
     }
 
+    #[tokio::test]
+    async fn send_refuses_http_to_a_public_host_before_the_client_sees_it() {
+        let recorder = Arc::new(RecordingClient {
+            requests: Mutex::new(Vec::new()),
+        });
+        let client = HttpClient::from_native(recorder.clone());
+
+        for url in [
+            "http://evil.example/cb",
+            "ftp://evil.example/cb",
+            "http://172.32.0.1/cb",
+        ] {
+            let request = Request::post(url)
+                .body(b"vp_token=secret".to_vec())
+                .unwrap();
+            let error = client.send(request).await.unwrap_err();
+            assert!(
+                matches!(&error, HttpClientError::Other { error }
+                    if error.contains("request URL") && error.contains("https is required")),
+                "unexpected error for {url}: {error:?}"
+            );
+        }
+
+        assert!(recorder
+            .requests
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .is_empty());
+    }
+
     #[test]
     fn response_from_native_rejects_an_invalid_header_name() {
         let response = HttpResponse {
@@ -330,5 +401,61 @@ mod tests {
             response_from_native(response),
             Err(HttpClientError::HeaderKeyParse { key }) if key == "bad header"
         ));
+    }
+
+    /// Debug builds allow http to loopback, so a loopback server can redirect.
+    /// The fallback client must check the redirect target as well.
+    #[cfg(debug_assertions)]
+    #[tokio::test]
+    async fn fallback_client_refuses_a_redirect_to_a_public_http_host() {
+        let server = MockServer::start().await;
+        Mock::given(path("/to-public"))
+            .respond_with(
+                ResponseTemplate::new(307).insert_header("location", "http://evil.example/cb"),
+            )
+            .mount(&server)
+            .await;
+
+        let request = Request::post(format!("{}/to-public", server.uri()))
+            .body(b"vp_token=secret".to_vec())
+            .unwrap();
+        let error = HttpClient::from_native(fallback_client())
+            .send(request)
+            .await
+            .unwrap_err();
+
+        assert!(
+            matches!(&error, HttpClientError::Other { error }
+                // reqwest's message drops the policy's reason. "error following
+                // redirect" comes only from a refused redirect; a fetch of
+                // evil.example would fail with "error sending request".
+                if error.starts_with("error following redirect")),
+            "unexpected error: {error:?}"
+        );
+    }
+
+    #[cfg(debug_assertions)]
+    #[tokio::test]
+    async fn fallback_client_follows_a_redirect_to_loopback() {
+        let server = MockServer::start().await;
+        Mock::given(path("/to-loopback"))
+            .respond_with(
+                ResponseTemplate::new(307)
+                    .insert_header("location", format!("{}/ok", server.uri())),
+            )
+            .mount(&server)
+            .await;
+        Mock::given(path("/ok"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("ok"))
+            .mount(&server)
+            .await;
+
+        let response = HttpClient::from_native(fallback_client())
+            .get(&format!("{}/to-loopback", server.uri()))
+            .await
+            .expect("redirect to loopback is followed");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.body(), b"ok");
     }
 }

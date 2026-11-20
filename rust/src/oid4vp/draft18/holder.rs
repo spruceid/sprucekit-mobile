@@ -6,6 +6,7 @@ use super::permission_request::*;
 use super::presentation::Draft18PresentationSigner;
 use crate::credential::ParsedCredential;
 use crate::http_client::HttpClient;
+use crate::https::{require_https, require_https_request_uri};
 use crate::vdc_collection::VdcCollection;
 
 use std::collections::HashMap;
@@ -181,6 +182,10 @@ impl Draft18Holder {
     ) -> Result<Arc<Draft18PermissionRequest>, Draft18OID4VPError> {
         let request = match req {
             Draft18AuthRequest::Url(mut url) => {
+                // Refuse an insecure `request_uri` before it is fetched.
+                require_https_request_uri(&url)
+                    .map_err(|e| Draft18OID4VPError::RequestValidation(e.to_string()))?;
+
                 // NOTE: Replace the host value with an empty string to remove any
                 // leading host value before the query.
                 url.set_host(Some(""))
@@ -195,6 +200,11 @@ impl Draft18Holder {
 
         match request.response_mode() {
             ResponseMode::DirectPost | ResponseMode::DirectPostJwt => {
+                // The wallet POSTs the response to `response_uri`, and the
+                // consent screen shows its host as the verifier. The draft-13
+                // path of the OID4VP facade comes through here too.
+                require_https(request.return_uri(), "response_uri")
+                    .map_err(|e| Draft18OID4VPError::RequestValidation(e.to_string()))?;
                 self.permission_request(request).await
             }
             mode => Err(Draft18OID4VPError::UnsupportedResponseMode(
