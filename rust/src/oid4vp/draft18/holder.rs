@@ -6,6 +6,7 @@ use super::permission_request::*;
 use super::presentation::Draft18PresentationSigner;
 use crate::credential::ParsedCredential;
 use crate::http_client::HttpClient;
+use crate::oid4vp::client_auth;
 use crate::vdc_collection::VdcCollection;
 
 use std::collections::HashMap;
@@ -29,7 +30,6 @@ use openidvp_draft18::{
     wallet::Wallet as OID4VPWallet,
 };
 
-use ssi::dids::DIDKey;
 use ssi::dids::DIDWeb;
 use ssi::dids::VerificationMethodDIDResolver;
 use ssi::prelude::AnyJwkMethod;
@@ -312,10 +312,11 @@ impl Draft18Holder {
             ])
             .map_err(|e| Draft18OID4VPError::MetadataInitialization(format!("{e:?}")))?;
 
-        metadata
-            // Allow unencoded requested.
-            .add_request_object_signing_alg_values_supported(ssi::jwk::Algorithm::None)
-            .map_err(|e| Draft18OID4VPError::MetadataInitialization(format!("{e:?}")))?;
+        // `request_object_signing_alg_values_supported` is ES256 only, from
+        // the static metadata. `none` is not a signing algorithm: unsigned
+        // requests are only accepted for the `redirect_uri` scheme, which
+        // `Draft18Holder::redirect_uri` checks itself, and listing it let
+        // `did` requests skip their signature check.
 
         Ok(metadata)
     }
@@ -467,6 +468,11 @@ impl RequestVerifier for Draft18Holder {
 
         let request_jwt = request_jwt.context("request JWT is required for did verification")?;
 
+        // The `did` scheme authenticates the verifier by the Request Object's
+        // signature (OID4VP draft 18 §5.7). The `openid4vp` crate skips every
+        // check for `alg: none`, so refuse it before calling it.
+        client_auth::ensure_signed(&request_jwt)?;
+
         let resolver: VerificationMethodDIDResolver<DIDWeb, AnyJwkMethod> =
             VerificationMethodDIDResolver::new(DIDWeb);
 
@@ -488,6 +494,10 @@ impl RequestVerifier for Draft18Holder {
     }
 
     /// Performs verification on Authorization Request Objects when `client_id_scheme` is `redirect_uri`.
+    ///
+    /// The request is unsigned (OID4VP draft 18 §5.7), as plain parameters or
+    /// as an `alg: none` Request Object, and its response URI must be the
+    /// Client Identifier.
     async fn redirect_uri(
         &self,
         decoded_request: &AuthorizationRequestObject,
@@ -495,26 +505,7 @@ impl RequestVerifier for Draft18Holder {
     ) -> anyhow::Result<()> {
         log::debug!("Verifying redirect_uri request.");
 
-        let request_jwt = request_jwt.context("request JWT is required for did verification")?;
-
-        let resolver: VerificationMethodDIDResolver<DIDKey, AnyJwkMethod> =
-            VerificationMethodDIDResolver::new(DIDKey);
-
-        let trusted_dids = match self.trusted_dids.as_slice() {
-            [] => None,
-            dids => Some(dids),
-        };
-
-        verify_with_resolver(
-            &self.metadata,
-            decoded_request,
-            request_jwt,
-            trusted_dids,
-            &resolver,
-        )
-        .await?;
-
-        Ok(())
+        client_auth::verify_redirect_uri_draft18(decoded_request, request_jwt.as_deref())
     }
 }
 
@@ -527,5 +518,331 @@ impl OID4VPWallet for Draft18Holder {
 
     fn metadata(&self) -> &WalletMetadata {
         &self.metadata
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::oid4vp::draft18::presentation::Draft18PresentationError;
+    use base64::prelude::{Engine as _, BASE64_URL_SAFE_NO_PAD};
+    use serde_json::{json, Value as Json};
+    use ssi::{claims::data_integrity::CryptosuiteString, crypto::Algorithm};
+
+    /// Client authentication runs before any presentation is signed, so these
+    /// tests never call the signer.
+    #[derive(Debug)]
+    struct UnusedSigner;
+
+    #[async_trait::async_trait]
+    impl Draft18PresentationSigner for UnusedSigner {
+        async fn sign(
+            &self,
+            _key_id: String,
+            _payload: Vec<u8>,
+        ) -> Result<Vec<u8>, Draft18PresentationError> {
+            unreachable!()
+        }
+
+        fn algorithm(&self) -> Algorithm {
+            Algorithm::ES256
+        }
+
+        async fn verification_method(&self, _key_id: String) -> String {
+            unreachable!()
+        }
+
+        fn did(&self, _key_id: String) -> String {
+            unreachable!()
+        }
+
+        fn cryptosuite(&self) -> CryptosuiteString {
+            unreachable!()
+        }
+
+        fn jwk(&self, _key_id: String) -> String {
+            unreachable!()
+        }
+    }
+
+    async fn holder() -> Arc<Draft18Holder> {
+        Draft18Holder::new_with_credentials(
+            vec![],
+            vec![],
+            Box::new(UnusedSigner),
+            String::new(),
+            None,
+        )
+        .await
+        .expect("failed to construct holder")
+    }
+
+    fn request(claims: &Json) -> AuthorizationRequestObject {
+        serde_json::from_value(claims.clone()).expect("invalid draft-18 request")
+    }
+
+    fn jwt(header: Json, claims: &Json) -> String {
+        format!(
+            "{}.{}.",
+            BASE64_URL_SAFE_NO_PAD.encode(header.to_string()),
+            BASE64_URL_SAFE_NO_PAD.encode(claims.to_string())
+        )
+    }
+
+    fn redirect_uri_claims(response_uri: &str) -> Json {
+        json!({
+            "client_id": "https://verifier.example/post",
+            "client_id_scheme": "redirect_uri",
+            "response_uri": response_uri,
+            "response_type": "vp_token",
+            "response_mode": "direct_post",
+            "nonce": "n",
+            "presentation_definition": { "id": "pd", "input_descriptors": [] }
+        })
+    }
+
+    #[test]
+    fn metadata_does_not_advertise_unsigned_request_objects() {
+        let metadata = serde_json::to_value(Draft18Holder::metadata().unwrap()).unwrap();
+        assert_eq!(
+            metadata["request_object_signing_alg_values_supported"],
+            json!(["ES256"])
+        );
+    }
+
+    #[tokio::test]
+    async fn did_refuses_unsigned_request_objects() {
+        let holder = holder().await;
+        let claims = json!({
+            "client_id": "did:web:verifier.example",
+            "client_id_scheme": "did",
+            "response_uri": "https://attacker.example/post",
+            "response_type": "vp_token",
+            "response_mode": "direct_post",
+            "nonce": "n",
+            "presentation_definition": { "id": "pd", "input_descriptors": [] }
+        });
+        let unsigned = jwt(
+            json!({ "alg": "none", "kid": "did:web:verifier.example#key-1" }),
+            &claims,
+        );
+
+        let err = holder
+            .did(&request(&claims), Some(unsigned.clone()))
+            .await
+            .expect_err("an unsigned did request must be refused");
+        assert!(format!("{err:#}").contains("unsigned"), "{err:#}");
+
+        // Without `none` in the metadata, the crate check refuses it too.
+        let resolver: VerificationMethodDIDResolver<DIDWeb, AnyJwkMethod> =
+            VerificationMethodDIDResolver::new(DIDWeb);
+        assert!(verify_with_resolver(
+            &holder.metadata,
+            &request(&claims),
+            unsigned,
+            None,
+            &resolver
+        )
+        .await
+        .is_err());
+    }
+
+    #[tokio::test]
+    async fn redirect_uri_requests_are_bound_to_the_response_uri() {
+        let holder = holder().await;
+
+        let bound = redirect_uri_claims("https://verifier.example/post");
+        assert!(holder.redirect_uri(&request(&bound), None).await.is_ok());
+        let unsigned = jwt(json!({ "alg": "none" }), &bound);
+        assert!(holder
+            .redirect_uri(&request(&bound), Some(unsigned))
+            .await
+            .is_ok());
+
+        let unbound = redirect_uri_claims("https://attacker.example/post");
+        assert!(holder.redirect_uri(&request(&unbound), None).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn redirect_uri_refuses_signed_request_objects() {
+        let holder = holder().await;
+        let bound = redirect_uri_claims("https://verifier.example/post");
+        let signed = jwt(json!({ "alg": "ES256" }), &bound);
+        assert!(holder
+            .redirect_uri(&request(&bound), Some(signed))
+            .await
+            .is_err());
+    }
+
+    // ---- Client authentication through `authorization_request` ----
+
+    /// An `openid4vp://` Authorization Request URL with these parameters.
+    fn request_url(params: &[(&str, &str)]) -> Url {
+        Url::parse_with_params("openid4vp://", params).expect("invalid request URL")
+    }
+
+    async fn refused(holder: &Draft18Holder, url: Url) -> Draft18OID4VPError {
+        match holder
+            .authorization_request(Draft18AuthRequest::Url(url))
+            .await
+        {
+            Ok(_) => panic!("the request must be refused"),
+            Err(err) => err,
+        }
+    }
+
+    /// Asserts that client authentication refused the request.
+    fn assert_refused_by_client_auth(err: &Draft18OID4VPError, reason: &str) {
+        match err {
+            Draft18OID4VPError::RequestValidation(msg) => assert!(msg.contains(reason), "{msg}"),
+            err => panic!("expected a RequestValidation error, got {err:?}"),
+        }
+    }
+
+    fn unsigned_did_request_object() -> String {
+        let claims = json!({
+            "client_id": "did:web:verifier.example",
+            "client_id_scheme": "did",
+            "response_uri": "https://attacker.example/post",
+            "response_type": "vp_token",
+            "response_mode": "direct_post",
+            "nonce": "n",
+            "presentation_definition": { "id": "pd", "input_descriptors": [] }
+        });
+        jwt(
+            json!({ "alg": "none", "kid": "did:web:verifier.example#key-1" }),
+            &claims,
+        )
+    }
+
+    #[tokio::test]
+    async fn an_unsigned_did_request_object_by_value_is_refused() {
+        let holder = holder().await;
+        let url = request_url(&[
+            ("client_id", "did:web:verifier.example"),
+            ("request", &unsigned_did_request_object()),
+        ]);
+        assert_refused_by_client_auth(&refused(&holder, url).await, "unsigned");
+    }
+
+    #[tokio::test]
+    async fn an_unsigned_did_request_object_by_reference_is_refused() {
+        use wiremock::{
+            matchers::{method, path},
+            Mock, MockServer, ResponseTemplate,
+        };
+
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/request"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(unsigned_did_request_object()))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let holder = holder().await;
+        let url = request_url(&[
+            ("client_id", "did:web:verifier.example"),
+            ("request_uri", &format!("{}/request", server.uri())),
+        ]);
+        assert_refused_by_client_auth(&refused(&holder, url).await, "unsigned");
+    }
+
+    fn redirect_uri_url(response_uri: &str) -> Url {
+        let presentation_definition = json!({ "id": "pd", "input_descriptors": [] }).to_string();
+        request_url(&[
+            ("client_id", "https://verifier.example/post"),
+            ("client_id_scheme", "redirect_uri"),
+            ("response_uri", response_uri),
+            ("response_type", "vp_token"),
+            ("response_mode", "direct_post"),
+            ("nonce", "n"),
+            ("presentation_definition", &presentation_definition),
+        ])
+    }
+
+    #[tokio::test]
+    async fn a_bound_redirect_uri_request_passes_client_auth() {
+        let holder = holder().await;
+        let url = redirect_uri_url("https://verifier.example/post");
+
+        // The presentation definition is resolved after client
+        // authentication. Plain URL parameters are strings, and the draft-18
+        // crate does not parse a JSON string as a presentation definition.
+        let err = refused(&holder, url).await;
+        assert!(
+            matches!(err, Draft18OID4VPError::PresentationDefinitionResolution(_)),
+            "{err:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn an_unbound_redirect_uri_request_is_refused() {
+        let holder = holder().await;
+        let url = redirect_uri_url("https://attacker.example/post");
+        assert_refused_by_client_auth(&refused(&holder, url).await, "does not match");
+    }
+
+    /// The crate compares the URL's `client_id` with the Request Object's
+    /// after client authentication (`AuthorizationRequest::validate`).
+    #[tokio::test]
+    async fn a_request_object_with_another_client_id_than_the_url_is_refused() {
+        let holder = holder().await;
+        // Self-consistent on its own: it posts to its own Client Identifier.
+        let claims = json!({
+            "client_id": "https://attacker.example/post",
+            "client_id_scheme": "redirect_uri",
+            "response_uri": "https://attacker.example/post",
+            "response_type": "vp_token",
+            "response_mode": "direct_post",
+            "nonce": "n",
+            "presentation_definition": { "id": "pd", "input_descriptors": [] }
+        });
+        let url = request_url(&[
+            ("client_id", "https://verifier.example/post"),
+            ("request", &jwt(json!({ "alg": "none" }), &claims)),
+        ]);
+        assert_refused_by_client_auth(&refused(&holder, url).await, "different client ids");
+    }
+
+    /// The holder resolves `did:web`, which needs the network, so this calls
+    /// the draft-18 crate's `verify_with_resolver` directly with a `did:key`
+    /// resolver, and the holder's metadata.
+    #[tokio::test]
+    async fn a_did_signed_request_object_is_accepted_and_a_tampered_one_refused() {
+        use crate::oid4vp::holder::tests::{sign_with_did_key, tamper_signature};
+
+        let metadata = Draft18Holder::metadata().unwrap();
+        let resolver: VerificationMethodDIDResolver<ssi::dids::DIDKey, AnyJwkMethod> =
+            VerificationMethodDIDResolver::new(ssi::dids::DIDKey);
+        let (claims, signed) = sign_with_did_key(|did| {
+            json!({
+                "client_id": did,
+                "client_id_scheme": "did",
+                "response_uri": "https://verifier.example/post",
+                "response_type": "vp_token",
+                "response_mode": "direct_post",
+                "nonce": "n",
+                "presentation_definition": { "id": "pd", "input_descriptors": [] }
+            })
+        })
+        .await;
+
+        client_auth::ensure_signed(&signed).expect("the Request Object is signed");
+        verify_with_resolver(
+            &metadata,
+            &request(&claims),
+            signed.clone(),
+            None,
+            &resolver,
+        )
+        .await
+        .expect("a correctly signed request must be accepted");
+
+        let tampered = tamper_signature(&signed);
+        let err = verify_with_resolver(&metadata, &request(&claims), tampered, None, &resolver)
+            .await
+            .expect_err("a tampered signature must be refused");
+        assert!(format!("{err:#}").contains("signature"), "{err:#}");
     }
 }
