@@ -437,9 +437,9 @@ public class CredentialPack {
                         case 0:
                             res[credentialId] = CredentialStatusList.valid
                         case 1:
-                            res[credentialId] = CredentialStatusList.suspended
-                        case 2:
                             res[credentialId] = CredentialStatusList.revoked
+                        case 2:
+                            res[credentialId] = CredentialStatusList.suspended
                         default:
                             res[credentialId] = CredentialStatusList.undefined
                         }
