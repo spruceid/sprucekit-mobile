@@ -30,6 +30,8 @@ The Rust layer sends its HTTP requests through the native HTTP client of the pla
 
 Pass your own `AsyncHttpClient` to `configure` to control the transport. Without the call, the Rust layer uses a built-in client that does not read the device proxy settings. Requests made by `did:web` resolution and by the VCALM crate use their own HTTP client and do not obey the registration yet.
 
+On Android, Rust HTTPS clients that check certificates with `rustls-platform-verifier` (reqwest's `rustls` backend from reqwest 0.13) need the application context. The SDK passes it at app startup with an androidx.startup initializer. If your app turns off androidx.startup's automatic initialization, or uses the SDK in a process other than the main one, call `RustlsPlatformVerifier.init(context)` from `com.spruceid.mobile.sdk.rs` in `Application.onCreate`.
+
 ## Architecture
 
 Our Mobile SDKs use shared code, with most of the logic being written once in Rust, and when not possible, native APIs (e.g. Bluetooth, OS Keychain) are called in native SDKs.
