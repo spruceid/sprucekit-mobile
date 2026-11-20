@@ -18,7 +18,7 @@ pluginManagement {
 }
 
 // Local-only: build the SpruceKit Android SDK from source instead of consuming
-// the published Maven Central artifact. Lets you iterate on `android/MobileSdk`
+// the published artifact. Lets you iterate on `android/MobileSdk`
 // (and `android/MobileSdkRs`) and have `flutter run` pick up the changes
 // without `publishToMavenLocal`. Set SPRUCEKIT_SDK_FROM_SOURCE=false to use
 // the published artifact instead. CI uses the source build, so a PR that
