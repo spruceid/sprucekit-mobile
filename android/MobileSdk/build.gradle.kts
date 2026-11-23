@@ -174,7 +174,7 @@ dependencies {
 
     // DC-API dependencies
     val androidxCredentialsVersion = "1.6.0-rc02"
-    val androidxRegistryVersion = "1.0.0-alpha04"
+    val androidxRegistryVersion = "1.0.0-SNAPSHOT"
     implementation("androidx.credentials:credentials:$androidxCredentialsVersion")
     implementation("androidx.credentials:credentials-play-services-auth:$androidxCredentialsVersion")
     implementation("androidx.credentials.registry:registry-digitalcredentials-mdoc:$androidxRegistryVersion")
