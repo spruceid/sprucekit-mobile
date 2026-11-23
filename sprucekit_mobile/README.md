@@ -33,6 +33,29 @@ Releases before the plugin moved to `sprucekit_mobile/` use
 `path: flutter`. With the old path on a new release, `flutter pub get`
 fails with `Could not find a file named "flutter/pubspec.yaml"`.
 
+## Android installation
+
+The plugin depends on the SpruceKit Mobile SDK from
+`https://maven.spruceid.com`. Your app resolves this dependency with its own
+repositories, so add the repository to `android/build.gradle.kts` (or to
+`android/settings.gradle.kts` if your app uses
+`dependencyResolutionManagement`):
+
+```kotlin
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        maven {
+            url = uri("https://maven.spruceid.com")
+            content { includeGroupByRegex("com\\.spruceid\\..*") }
+        }
+    }
+}
+```
+
+Without it, the build fails with `Could not find com.spruceid.mobile.sdk:mobilesdk`.
+
 ## iOS installation
 
 The plugin supports Swift Package Manager and CocoaPods. Flutter selects

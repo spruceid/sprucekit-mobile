@@ -386,8 +386,12 @@ kls_database.db
 
 *.hprof
 # MobileSdkRs sources are generated (UniFFI Kotlin bindings + cargo-ndk .so
-# outputs), except the hand-written compat re-exports in ToolkitTypes.kt.
+# outputs), except the hand-written compat re-exports in ToolkitTypes.kt and
+# the rustls-platform-verifier setup in RustlsPlatformVerifier.kt.
 MobileSdkRs/src/main/jniLibs/
 MobileSdkRs/src/main/java/uniffi/
 MobileSdkRs/src/main/java/com/spruceid/mobile/toolkit/
 MobileSdkRs/src/main/java/com/spruceid/mobile/sdk/rs/mobile_sdk_rs.kt
+# rustls-platform-verifier's Kotlin classes, shipped inside the MobileSdkRs AAR
+# (see update-rustls-platform-verifier.sh).
+!MobileSdkRs/libs/rustls-platform-verifier-*.jar

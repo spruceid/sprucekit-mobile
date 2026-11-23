@@ -35,7 +35,17 @@ jobs:
         working-directory: ./android
     permissions:
       contents: read
-      packages: write
+    # Two CD runs at the same time would each rewrite maven-metadata.xml and lose a version.
+    concurrency: publish-android
+    # The R2 credentials are set only on the rclone steps, not on the Gradle build.
+    env:
+      RCLONE_CONFIG_R2_TYPE: s3
+      RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+      RCLONE_CONFIG_R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+      # The token is scoped to the bucket and cannot create it.
+      RCLONE_CONFIG_R2_NO_CHECK_BUCKET: "true"
+      R2_BUCKET: spruceid-maven
+      MAVEN_URL: https://maven.spruceid.com
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -64,19 +74,82 @@ jobs:
         with:
           gpg_private_key: ${{ secrets.MAVEN_GPG_KEY }}
 
+      - name: Install rclone
+        run: sudo apt-get update && sudo apt-get install -y rclone
+
       - name: Populate local.properties
         run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
-      # Package is tied to spruceid/mobile-sdk-rs, and it was unused so ignoring it for now
-      # - name: Publish package to GHCR
-      #   run: ./gradlew publishReleasePublicationToGitHubPackagesRepository
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #     VERSION: ${{ github.event.inputs.version }}
-      - name: Publish package to Central
-        run: ./gradlew publishAggregationToCentralPortal
+      # Builds the libraries the AAR ships (stripped) and zips their unstripped
+      # copies; the publish step below reuses that build.
+      - name: Zip native debug symbols
+        run: ./gradlew :MobileSdkRs:zipNativeSymbols
         env:
-          MAVEN_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
-          MAVEN_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          VERSION: ${{ github.event.inputs.version }}
+      # The AAR's libraries must be stripped and carry the build ID of their copy
+      # in the zip, or crash reporters can't pair them.
+      - name: Check native libraries against their symbols
+        run: |
+          ls MobileSdkRs/build/rust/symbols/*/libmobile_sdk_rs.so
+          for symbols in MobileSdkRs/build/rust/symbols/*/libmobile_sdk_rs.so; do
+            abi=$(basename "$(dirname "$symbols")")
+            packaged="MobileSdkRs/src/main/jniLibs/$abi/libmobile_sdk_rs.so"
+            id=$(readelf -n "$packaged" | awk '/Build ID/ {print $3}')
+            if [ -z "$id" ] || [ "$id" != "$(readelf -n "$symbols" | awk '/Build ID/ {print $3}')" ]; then
+              echo "$abi: build ID missing or different between the AAR and symbols libraries"
+              exit 1
+            fi
+            if readelf -S -W "$packaged" | grep -q '\.symtab'; then
+              echo "$abi: the AAR library is not stripped"
+              exit 1
+            fi
+            if ! readelf -S -W "$symbols" | grep -q '\.symtab'; then
+              echo "$abi: the symbols library has no symbol table"
+              exit 1
+            fi
+            echo "$abi: stripped, build ID $id"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-native-symbols
+          path: android/MobileSdkRs/build/distributions/MobileSdkRs-native-symbols-${{ github.event.inputs.version }}.zip
+          if-no-files-found: error
+
+      # Gradle adds the new version to the existing maven-metadata.xml. Without
+      # this step, the upload would replace the version list with only the new version.
+      - name: Download existing Maven metadata
+        run: rclone copy "r2:$R2_BUCKET" build/r2-staging --include "**/maven-metadata.xml*"
+        env:
+          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+
+      - name: Publish to the staging repository
+        run: ./gradlew publishReleasePublicationToR2StagingRepository
+        env:
+          VERSION: ${{ github.event.inputs.version }}
+
+      # --immutable makes rclone fail instead of overwriting a published file.
+      - name: Upload version files to R2
+        run: rclone copy build/r2-staging "r2:$R2_BUCKET" --exclude "**/maven-metadata.xml*" --immutable
+        env:
+          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+
+      # Metadata is uploaded last so consumers never see a partially uploaded version.
+      - name: Upload Maven metadata to R2
+        run: rclone copy build/r2-staging "r2:$R2_BUCKET" --include "**/maven-metadata.xml*"
+        env:
+          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+
+      - name: Check the published artifacts
+        run: |
+          for path in com/spruceid/mobile/sdk/mobilesdk/$VERSION/mobilesdk-$VERSION \
+                      com/spruceid/mobile/sdk/rs/mobilesdkrs/$VERSION/mobilesdkrs-$VERSION; do
+            for ext in pom aar aar.asc; do
+              curl -fsSI "$MAVEN_URL/$path.$ext" > /dev/null
+            done
+          done
+        env:
           VERSION: ${{ github.event.inputs.version }}
 
   ios:
@@ -153,6 +226,10 @@ jobs:
         with:
           name: rust-xcframework
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: android-native-symbols
+
       - name: Update Swift Package definition
         run: |
           sed -i '' 's/binaryTarget.*/binaryTarget(name: "MobileSdkRsFFI", url: "https:\/\/github.com\/spruceid\/sprucekit-mobile\/releases\/download\/${{ github.event.inputs.version }}\/MobileSdkRsFFI.xcframework.zip", checksum: "${{ needs.ios.outputs.checksum }}"),/' Package.swift
@@ -191,10 +268,10 @@ jobs:
           git tag ${{ github.event.inputs.version }} -m "${{ github.event.inputs.version }}"
           git push --tags
 
-      - name: Create release and attach XCFramework binary artifact
+      - name: Create release and attach XCFramework and Android native symbols
         uses: ncipollo/release-action@v1
         with:
-          artifacts: "MobileSdkRsFFI.xcframework.zip"
+          artifacts: "MobileSdkRsFFI.xcframework.zip,MobileSdkRs-native-symbols-${{ github.event.inputs.version }}.zip"
           tag: ${{ github.event.inputs.version }}
           name: ${{ github.event.inputs.version }}
 

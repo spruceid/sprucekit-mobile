@@ -250,6 +250,23 @@ impl JsonVc {
         })
     }
 
+    /// Whether a proof secures the full credential: an
+    /// `ACCEPTED_CRYPTOSUITES` suite, or a proof type without a cryptosuite.
+    fn has_full_disclosure_proof(&self) -> bool {
+        let proofs = match self.raw.get("proof") {
+            Some(Json::Array(proofs)) => proofs.as_slice(),
+            Some(proof) => std::slice::from_ref(proof),
+            None => return false,
+        };
+
+        proofs.iter().any(
+            |proof| match proof.get("cryptosuite").and_then(Json::as_str) {
+                Some(suite) => ACCEPTED_CRYPTOSUITES.contains(&suite),
+                None => true,
+            },
+        )
+    }
+
     /// Derive a selectively disclosed credential from the `ecdsa-sd-2023` base
     /// proof, revealing exactly the selected fields plus whatever the base
     /// proof itself marks mandatory. The wallet volunteers nothing else:
@@ -384,14 +401,17 @@ impl CredentialPresentation for JsonVc {
         let id = UriBuf::new(format!("urn:uuid:{}", Uuid::new_v4()).as_bytes().to_vec())
             .map_err(|e| CredentialEncodingError::VpToken(format!("Error parsing ID: {e:?}")))?;
 
-        // Check the signer supports the requested vp format crypto suite.
-        options.supports_security_method(ClaimFormatDesignation::LdpVc)?;
+        let holder = if options.require_holder_binding {
+            Some(presentation_holder(options)?)
+        } else {
+            None
+        };
 
         let unsigned_presentation = match self.parsed.clone() {
             AnyJsonCredential::V1(cred_v1) => {
-                let holder_id: UriBuf = options.subject().parse().map_err(|e| {
-                    CredentialEncodingError::VpToken(format!("Error parsing DID: {e:?}"))
-                })?;
+                let Some(holder_id) = holder else {
+                    return credential_item(&cred_v1);
+                };
 
                 let unsigned_presentation_v1 =
                     JsonPresentationV1::new(Some(id.clone()), Some(holder_id), vec![cred_v1]);
@@ -399,10 +419,6 @@ impl CredentialPresentation for JsonVc {
                 AnyJsonPresentation::V1(unsigned_presentation_v1)
             }
             AnyJsonCredential::V2(cred_v2) => {
-                let holder_id = IdOr::Id(options.subject().parse().map_err(|e| {
-                    CredentialEncodingError::VpToken(format!("Error parsing DID: {e:?}"))
-                })?);
-
                 // A dual-proof credential has two conformant `ldp_vc`
                 // presentations, and the wallet picks the proof. When the
                 // verifier lists claims and accepts `ecdsa-sd-2023`, we
@@ -415,9 +431,14 @@ impl CredentialPresentation for JsonVc {
                 // for the full credential. Presenting the SD proof here would
                 // shrink the disclosure to the issuer's mandatory pointers,
                 // which is not what a verifier asking for the credential wants.
+                // Secured only by the SD base proof, a credential asked for
+                // no claims derives the mandatory pointers alone.
                 // https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#section-6.4.1
                 let selected = match selected_fields {
-                    Some(fields) if !fields.is_empty() && self.should_derive(options)? => {
+                    Some(fields)
+                        if (!fields.is_empty() || !self.has_full_disclosure_proof())
+                            && self.should_derive(options)? =>
+                    {
                         Some(fields)
                     }
                     _ => None,
@@ -431,8 +452,12 @@ impl CredentialPresentation for JsonVc {
                         .derive_selective(options.context_map.as_ref(), &fields)
                         .await?;
 
+                    let Some(holder_id) = holder else {
+                        return credential_item(&derived);
+                    };
+
                     let presentation =
-                        JsonPresentationV2::new(Some(id), vec![holder_id], vec![derived]);
+                        JsonPresentationV2::new(Some(id), vec![IdOr::Id(holder_id)], vec![derived]);
                     let signed = options.sign_derived_presentation(presentation).await?;
 
                     let signed = serde_json::to_value(&signed).map_err(|e| {
@@ -476,8 +501,12 @@ impl CredentialPresentation for JsonVc {
                         .collect::<Vec<_>>();
                 }
 
+                let Some(holder_id) = holder else {
+                    return credential_item(&cred_v2);
+                };
+
                 let unsigned_presentation_v2 =
-                    JsonPresentationV2::new(Some(id), vec![holder_id], vec![cred_v2]);
+                    JsonPresentationV2::new(Some(id), vec![IdOr::Id(holder_id)], vec![cred_v2]);
 
                 AnyJsonPresentation::V2(unsigned_presentation_v2)
             }
@@ -486,6 +515,30 @@ impl CredentialPresentation for JsonVc {
         let signed_presentation = options.sign_presentation(unsigned_presentation).await?;
 
         Ok(VpTokenItem::from(signed_presentation))
+    }
+}
+
+fn presentation_holder(options: &PresentationOptions<'_>) -> Result<UriBuf, OID4VPError> {
+    options.supports_security_method(ClaimFormatDesignation::LdpVc)?;
+    options
+        .subject()
+        .parse()
+        .map_err(|e| CredentialEncodingError::VpToken(format!("Error parsing DID: {e:?}")).into())
+}
+
+/// The credential itself as a `vp_token` item, for a query that does not
+/// require Holder Binding (OID4VP 1.0 Appendix B.1).
+fn credential_item(credential: &impl serde::Serialize) -> Result<VpTokenItem, OID4VPError> {
+    match serde_json::to_value(credential) {
+        Ok(Json::Object(object)) => Ok(VpTokenItem::JsonObject(object)),
+        Ok(_) => Err(CredentialEncodingError::VpToken(
+            "credential is not a JSON object".to_string(),
+        )
+        .into()),
+        Err(e) => Err(CredentialEncodingError::VpToken(format!(
+            "Error encoding credential: {e:?}"
+        ))
+        .into()),
     }
 }
 

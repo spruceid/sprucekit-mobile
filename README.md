@@ -14,7 +14,42 @@ Import `https://github.com/spruceid/sprucekit-mobile` and use the product `Spruc
 
 ### Android
 
-See https://central.sonatype.com/artifact/com.spruceid.mobile.sdk/mobilesdk.
+The Android SDK is published to `https://maven.spruceid.com`. Add the repository to `settings.gradle.kts` (or to `allprojects` in `build.gradle.kts`):
+
+```kotlin
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+        maven {
+            url = uri("https://maven.spruceid.com")
+            content { includeGroupByRegex("com\\.spruceid\\..*") }
+        }
+    }
+}
+```
+
+Then add the dependency:
+
+```kotlin
+implementation("com.spruceid.mobile.sdk:mobilesdk:<version>")
+```
+
+#### Native crash symbols
+
+The `mobilesdkrs` AAR ships stripped `libmobile_sdk_rs.so` files, so native crashes in the Rust layer show addresses only. To get Rust function names back, upload the unstripped libraries to your crash reporter. Starting with the release after 0.27.1, each [GitHub release](https://github.com/spruceid/sprucekit-mobile/releases) has them as `MobileSdkRs-native-symbols-<version>.zip`, laid out as `<abi>/libmobile_sdk_rs.so`. Use the zip of the version your app depends on: the build ID of each library must match the one in the AAR.
+
+- **Google Play Console**: upload the zip as the native debug symbols of the app version (App bundle explorer, Downloads tab, Assets). Your app's own `ndk.debugSymbolLevel` setting can't add them, because the AAR has none.
+- **Firebase Crashlytics**: unzip it, point the Crashlytics Gradle plugin at the folder in your release build type, then run the `uploadCrashlyticsSymbolFile<Variant>` task:
+
+  ```kotlin
+  configure<CrashlyticsExtension> {
+      nativeSymbolUploadEnabled = true
+      unstrippedNativeLibsDir = file("path/to/MobileSdkRs-native-symbols")
+  }
+  ```
+
+- **Sentry**: `sentry-cli debug-files upload path/to/MobileSdkRs-native-symbols`.
 
 ### Flutter
 
@@ -29,6 +64,8 @@ The Rust layer sends its HTTP requests through the native HTTP client of the pla
 - Flutter: the plugin registers the client when it attaches to the engine.
 
 Pass your own `AsyncHttpClient` to `configure` to control the transport. Without the call, the Rust layer uses a built-in client that does not read the device proxy settings. Requests made by `did:web` resolution and by the VCALM crate use their own HTTP client and do not obey the registration yet.
+
+On Android, Rust HTTPS clients that check certificates with `rustls-platform-verifier` (reqwest's `rustls` backend from reqwest 0.13) need the application context. The SDK passes it at app startup with an androidx.startup initializer. If your app turns off androidx.startup's automatic initialization, or uses the SDK in a process other than the main one, call `RustlsPlatformVerifier.init(context)` from `com.spruceid.mobile.sdk.rs` in `Application.onCreate`.
 
 ## Architecture
 

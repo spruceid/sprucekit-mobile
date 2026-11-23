@@ -1,6 +1,8 @@
 uniffi::setup_scaffolding!();
 
 pub mod aamva;
+#[cfg(target_os = "android")]
+mod android;
 pub mod big_stack;
 pub mod cborld;
 pub mod common;

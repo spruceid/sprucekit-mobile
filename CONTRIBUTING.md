@@ -202,7 +202,7 @@ The database changes every day, so the check can also fail on a PR that changes 
 ### SDKs
 Use the [`cd` Github Action](https://github.com/spruceid/sprucekit-mobile/actions/workflows/cd.yml) which is a manually triggered action, and provide the version in the `x.y.z` format.
 
-The Android SDK is published to Maven Central. The iOS pods are published to the private [`spruceid/cocoapods-specs`](https://github.com/spruceid/cocoapods-specs) Specs repo.
+The Android SDK is published to `https://maven.spruceid.com`, a Cloudflare R2 bucket (`spruceid-maven`) managed in [`spruceid/terraform`](https://github.com/spruceid/terraform) (`prod/cloudflare/r2_maven.tf`). The R2 settings are in the repository secrets `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY`. Released versions are immutable (R2 bucket lock): if an upload fails part of the way, release a new patch version. Releases up to 0.27.1 were also published to Maven Central and are copied to R2. The iOS pods are published to the private [`spruceid/cocoapods-specs`](https://github.com/spruceid/cocoapods-specs) Specs repo.
 
 ### Flutter plugin
 The `cd` workflow sets the plugin version, adds an entry to `sprucekit_mobile/CHANGELOG.md`, and pushes the release tag. The tag push starts the [`publish-flutter` workflow](.github/workflows/publish-flutter.yml), which publishes `sprucekit_mobile` to pub.dev. The workflow authenticates with the GitHub OIDC token, so the repository holds no pub.dev secret.
