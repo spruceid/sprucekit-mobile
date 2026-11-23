@@ -189,8 +189,27 @@ Install it with `brew install typos-cli` or `cargo install typos-cli`. When a fl
 
 ## Releases
 
+### Versioning
+All SDKs and the Flutter plugin share one version. While the version is 0.x:
+
+- A new patch version (for example 0.28.1) has no breaking change.
+- A new minor version (for example 0.29.0) can have breaking changes. Its release notes start with a "Breaking release" line.
+
+### Release notes
+The `cd` workflow writes the release notes. Nobody writes them by hand. They have two parts:
+
+- The PRs merged since the previous release, from the notes that GitHub generates. `.github/release.yml` puts the Dependabot PRs in a separate group. The PR title is the line in the notes, so give each PR a title that a consumer of the SDK understands.
+- The upstream git dependencies that moved since the previous release, with a compare link and the commit subjects, from `rust/scripts/upstream-changes.py`.
+
+The notes become the body of the GitHub release and the new entry in `sprucekit_mobile/CHANGELOG.md`. The `cd` job summary shows them too. To preview the upstream part before a release:
+
+```bash
+git show <last tag>:rust/Cargo.lock > /tmp/old.lock
+rust/scripts/upstream-changes.py /tmp/old.lock rust/Cargo.lock --commits
+```
+
 ### SDKs
-Use the [`cd` Github Action](https://github.com/spruceid/sprucekit-mobile/actions/workflows/cd.yml) which is a manually triggered action, and provide the version in the `x.y.z` format.
+Use the [`cd` Github Action](https://github.com/spruceid/sprucekit-mobile/actions/workflows/cd.yml) which is a manually triggered action, and provide the version in the `x.y.z` format. Choose the version with the rule in [Versioning](#versioning).
 
 The Android SDK is published to `https://maven.spruceid.com`, a Cloudflare R2 bucket (`spruceid-maven`) managed in [`spruceid/terraform`](https://github.com/spruceid/terraform) (`prod/cloudflare/r2_maven.tf`). The R2 settings are in the repository secrets `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY`. Released versions are immutable (R2 bucket lock): if an upload fails part of the way, release a new patch version. Releases up to 0.27.1 were also published to Maven Central and are copied to R2. The iOS pods are published to the private [`spruceid/cocoapods-specs`](https://github.com/spruceid/cocoapods-specs) Specs repo.
 

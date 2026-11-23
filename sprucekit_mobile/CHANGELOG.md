@@ -1,8 +1,8 @@
 # Changelog
 
 All SpruceKit Mobile SDKs and this plugin share one version. The `cd`
-workflow adds an entry for each release, with a link to the changes since
-the release before it.
+workflow adds an entry for each release, with the same notes as the GitHub
+release: the merged PRs and the upstream dependencies that moved.
 
 ## 0.28.0
 

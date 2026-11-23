@@ -222,6 +222,39 @@ jobs:
             exit 1
           fi
 
+      # The release body: the PRs merged since the previous release (notes
+      # that GitHub generates, grouped by .github/release.yml), then the git
+      # dependencies that moved (rust/scripts/upstream-changes.py). The
+      # CHANGELOG step below and the release step use the same file.
+      - name: Write the release notes
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          V: ${{ github.event.inputs.version }}
+        run: |
+          P=$( { git ls-remote --tags --refs origin | sed 's|.*refs/tags/||' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$'; echo "$V"; } | sort -V | grep -B1 -x "$V" | head -1)
+          if [ -z "$P" ] || [ "$P" = "$V" ]; then
+            echo "::error::No release tag before $V"
+            exit 1
+          fi
+          echo "Previous release: $P"
+          git fetch --depth=1 origin "refs/tags/$P:refs/tags/$P"
+          git show "$P:rust/Cargo.lock" > "$RUNNER_TEMP/previous-Cargo.lock"
+
+          NOTES="$RUNNER_TEMP/notes.md"
+          {
+            # While the SDK is on 0.x, a new minor version is a breaking
+            # release and a new patch version is not (see CONTRIBUTING.md).
+            if [ "${P%.*}" != "${V%.*}" ]; then
+              printf '**Breaking release.** Read the changes below before you upgrade from %s.\n\n' "$P"
+            fi
+            gh api -X POST "repos/$GITHUB_REPOSITORY/releases/generate-notes" \
+              -f tag_name="$V" -f target_commitish="$GITHUB_SHA" -f previous_tag_name="$P" \
+              --jq .body
+            echo
+            python3 rust/scripts/upstream-changes.py "$RUNNER_TEMP/previous-Cargo.lock" rust/Cargo.lock --commits
+          } > "$NOTES"
+          cat "$NOTES" >> "$GITHUB_STEP_SUMMARY"
+
       - uses: actions/download-artifact@v4
         with:
           name: rust-xcframework
@@ -250,14 +283,23 @@ jobs:
           sed -i '' "s/s.dependency 'SpruceIDMobileSdk'.*/s.dependency 'SpruceIDMobileSdk', '~> ${{ github.event.inputs.version }}'/" sprucekit_mobile/ios/sprucekit_mobile.podspec
           sed -i '' "s/exact: \"[0-9.]*\"/exact: \"${{ github.event.inputs.version }}\"/" sprucekit_mobile/ios/sprucekit_mobile/Package.swift
 
-      # pub.dev shows the CHANGELOG entry for each version. The first entry in
-      # the file is the release before this one.
+      # pub.dev shows the CHANGELOG entry for each version. The entry is the
+      # release notes, with each heading one level down, above the newest entry.
       - name: Add Flutter plugin CHANGELOG entry
         env:
           V: ${{ github.event.inputs.version }}
         run: |
-          P=$(sed -n 's/^## \([0-9][0-9.]*\)$/\1/p' sprucekit_mobile/CHANGELOG.md | head -1)
-          P="$P" perl -0pi -e 's/\n## /\n## $ENV{V}\n\n- [Changes since $ENV{P}](https:\/\/github.com\/spruceid\/sprucekit-mobile\/compare\/$ENV{P}...$ENV{V})\n\n## /' sprucekit_mobile/CHANGELOG.md
+          python3 - <<'EOF'
+          import os, re
+          path = "sprucekit_mobile/CHANGELOG.md"
+          with open(os.path.join(os.environ["RUNNER_TEMP"], "notes.md")) as f:
+              notes = re.sub(r"^(#+) ", r"#\1 ", f.read().strip(), flags=re.M)
+          with open(path) as f:
+              text = f.read()
+          i = text.index("\n## ")
+          with open(path, "w") as f:
+              f.write(f"{text[:i]}\n## {os.environ['V']}\n\n{notes}\n{text[i:]}")
+          EOF
 
       - name: Push changes and tag
         id: commit
@@ -274,6 +316,7 @@ jobs:
           artifacts: "MobileSdkRsFFI.xcframework.zip,MobileSdkRs-native-symbols-${{ github.event.inputs.version }}.zip"
           tag: ${{ github.event.inputs.version }}
           name: ${{ github.event.inputs.version }}
+          bodyFile: ${{ runner.temp }}/notes.md
 
       - uses: webfactory/ssh-agent@v0.9.0
         if: steps.commit.outcome == 'success'
