@@ -299,6 +299,13 @@ impl Holder {
             .await
             .map_err(|e| OID4VPError::ResponseSubmission(format!("{e:?}")))
     }
+
+    pub async fn deny_permission(
+        &self,
+        request: Arc<PermissionRequest>,
+    ) -> Result<Option<Url>, OID4VPError> {
+        self.submit_permission_denial(&request.request).await
+    }
 }
 
 // Internal methods for the Holder.
@@ -2482,5 +2489,108 @@ pub(crate) mod tests {
         let (other_certificate, other_key) = self_signed_leaf("verifier.example");
         let other = sign_with_leaf(&other_certificate, &other_key, &claims);
         assert!(holder.x509_hash(&request, Some(other)).await.is_err());
+    }
+
+    pub(crate) async fn denial_verifier(
+        reply: serde_json::Value,
+    ) -> (wiremock::MockServer, serde_json::Value) {
+        use wiremock::{
+            matchers::{method, path},
+            Mock, MockServer, ResponseTemplate,
+        };
+
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/response"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(reply))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let response_uri = format!("{}/response", server.uri());
+        let request = json!({
+            "client_id": format!("redirect_uri:{response_uri}"),
+            "response_uri": response_uri,
+            "response_type": "vp_token",
+            "response_mode": "direct_post",
+            "state": "transaction-state",
+            "nonce": "nonce-denial",
+            "client_metadata": {
+                "vp_formats_supported": {
+                    "ldp_vc": { "proof_type_values": ["ecdsa-rdfc-2019"] }
+                }
+            },
+            "dcql_query": {
+                "credentials": [{
+                    "id": "credential",
+                    "format": "ldp_vc"
+                }]
+            }
+        });
+        (server, request)
+    }
+
+    pub(crate) async fn assert_access_denied_posted(server: &wiremock::MockServer) {
+        let received = server.received_requests().await.unwrap();
+        assert_eq!(received.len(), 1);
+        let body = String::from_utf8(received[0].body.clone()).unwrap();
+        assert!(
+            body.contains("error=access_denied"),
+            "unexpected body: {body}"
+        );
+        assert!(
+            body.contains("state=transaction-state"),
+            "unexpected body: {body}"
+        );
+        assert!(!body.contains("vp_token"), "unexpected body: {body}");
+    }
+
+    async fn deny(reply: serde_json::Value) -> (wiremock::MockServer, Option<Url>) {
+        let (server, request) = denial_verifier(reply).await;
+        let alumni =
+            JsonVc::new_from_json(include_str!("../../tests/examples/alumni_vc.json").into())
+                .expect("failed to parse credential");
+        let holder = Holder::new_with_credentials(
+            vec![ParsedCredential::new_ldp_vc(alumni)],
+            vec![],
+            Box::new(KeySigner {
+                jwk: JWK::generate_p256(),
+            }),
+            String::new(),
+            Some(default_ld_json_context()),
+            None,
+        )
+        .await
+        .expect("failed to construct holder");
+        let request: AuthorizationRequestObject =
+            serde_json::from_value(request).expect("failed to parse request");
+        let permission_request = holder
+            .authorization_request(AuthRequest::Request(Box::new(request)))
+            .await
+            .expect("failed to build permission request");
+
+        let redirect = holder
+            .deny_permission(permission_request)
+            .await
+            .expect("failed to deny permission");
+        (server, redirect)
+    }
+
+    #[tokio::test]
+    async fn deny_permission_posts_access_denied_with_state() {
+        let (server, redirect) = deny(json!({})).await;
+        assert_eq!(redirect, None);
+        assert_access_denied_posted(&server).await;
+    }
+
+    #[tokio::test]
+    async fn deny_permission_returns_the_verifier_redirect_uri() {
+        let (server, redirect) =
+            deny(json!({ "redirect_uri": "https://verifier.example/denied" })).await;
+        assert_eq!(
+            redirect,
+            Some(Url::parse("https://verifier.example/denied").unwrap())
+        );
+        assert_access_denied_posted(&server).await;
     }
 }

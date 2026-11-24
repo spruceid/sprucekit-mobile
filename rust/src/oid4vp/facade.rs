@@ -2196,39 +2196,9 @@ mod tests {
 
     #[tokio::test]
     async fn facade_v1_denial_posts_access_denied_with_state() {
-        use wiremock::matchers::{method, path};
-        use wiremock::{Mock, MockServer, ResponseTemplate};
+        use crate::oid4vp::holder::tests::{assert_access_denied_posted, denial_verifier};
 
-        let server = MockServer::start().await;
-        Mock::given(method("POST"))
-            .and(path("/response"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(json!({})))
-            .expect(1)
-            .mount(&server)
-            .await;
-
-        let response_uri = format!("{}/response", server.uri());
-        let request = json!({
-            "client_id": format!("redirect_uri:{response_uri}"),
-            "response_uri": response_uri,
-            "response_type": "vp_token",
-            "response_mode": "direct_post",
-            "state": "transaction-state",
-            "nonce": "nonce-denial",
-            "client_metadata": {
-                "vp_formats_supported": {
-                    "ldp_vc": { "proof_type_values": ["ecdsa-rdfc-2019"] }
-                }
-            },
-            "dcql_query": {
-                "credentials": [{
-                    "id": "credential",
-                    "format": "ldp_vc"
-                }]
-            }
-        })
-        .to_string();
-
+        let (server, request) = denial_verifier(json!({})).await;
         let holder = Oid4vpHolder::new_with_credentials(
             vec![alumni_credential()],
             Vec::new(),
@@ -2241,24 +2211,12 @@ mod tests {
         .unwrap();
 
         let session = holder
-            .start_with_supported_versions(request, vec![Oid4vpVersion::V1])
+            .start_with_supported_versions(request.to_string(), vec![Oid4vpVersion::V1])
             .await
             .unwrap();
 
         assert_eq!(session.deny_permission().await.unwrap(), None);
-
-        let received = server.received_requests().await.unwrap();
-        assert_eq!(received.len(), 1);
-        let body = String::from_utf8(received[0].body.clone()).unwrap();
-        assert!(
-            body.contains("error=access_denied"),
-            "unexpected body: {body}"
-        );
-        assert!(
-            body.contains("state=transaction-state"),
-            "unexpected body: {body}"
-        );
-        assert!(!body.contains("vp_token"), "unexpected body: {body}");
+        assert_access_denied_posted(&server).await;
     }
 
     #[tokio::test]
