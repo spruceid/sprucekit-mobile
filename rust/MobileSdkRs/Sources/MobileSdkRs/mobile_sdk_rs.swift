@@ -5215,6 +5215,8 @@ public protocol HolderProtocol: AnyObject, Sendable {
      */
     func authorizationRequest(req: AuthRequest) async throws  -> PermissionRequest
     
+    func denyPermission(request: PermissionRequest) async throws  -> Url?
+    
     func submitPermissionResponse(response: PermissionResponse) async throws  -> Url?
     
 }
@@ -5384,6 +5386,23 @@ open func authorizationRequest(req: AuthRequest)async throws  -> PermissionReque
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_u64,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_u64,
             liftFunc: FfiConverterTypePermissionRequest_lift,
+            errorHandler: FfiConverterTypeOID4VPError_lift
+        )
+}
+    
+open func denyPermission(request: PermissionRequest)async throws  -> Url?  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_holder_deny_permission(
+                    self.uniffiCloneHandle(),
+                    FfiConverterTypePermissionRequest_lower(request)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterOptionTypeUrl.lift,
             errorHandler: FfiConverterTypeOID4VPError_lift
         )
 }
@@ -38402,6 +38421,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_holder_authorization_request() != 13006) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_holder_deny_permission() != 37955) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_holder_submit_permission_response() != 15226) {
