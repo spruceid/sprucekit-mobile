@@ -825,15 +825,14 @@ public struct CredentialPackContents {
         let files: [Key]
         do {
             files = try await storageManager.list()
-        } catch let error as CancellationError {
-            throw error
         } catch {
+            try rethrowIfCancelled(error)
             throw CredentialPackError.listing(reason: error)
         }
 
         var packs: [CredentialPackContents] = []
         for file in files where Self.matches(key: file, prefix: prefix, scope: scope) {
-            // Log the pack id only: a scoped key embeds the scope (a user hash).
+            // Log the pack id only: a scoped key embeds the scope, which can identify the user.
             let packId = file.dropFirst(prefix.count)
             do {
                 guard let contents = try await storageManager.get(key: file)
@@ -929,8 +928,6 @@ private func errorType(_ error: Error) -> String {
 }
 
 enum CredentialPackError: Error, Sendable {
-    /// CredentialPackContents file missing from storage.
-    case missing(file: String)
     /// Failed to list CredentialPackContents from storage.
     case listing(reason: Error)
     /// Failed to clear CredentialPacks from storage.
@@ -957,10 +954,6 @@ enum CredentialPackError: Error, Sendable {
     case credentialIdsNotArray(value: GenericJSON)
     /// A CredentialPackContents credential ID could not be parsed as a JSON String when loading from storage.
     case credentialIdNotString(value: GenericJSON)
-    /// The credential could not be found in storage.
-    case credentialNotFound(id: Uuid)
-    /// The credential could not be loaded from storage.
-    case credentialLoading(reason: Error)
     /// The raw credential could not be parsed.
     case credentialParsing(reason: String)
     /// Failed to add identity document to store

@@ -566,7 +566,8 @@ class CredentialPack {
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
-                        // Log the pack id only: a scoped key embeds the scope (a user hash).
+                        // Log the pack id only: a scoped key embeds the scope, which can
+                        // identify the user.
                         val packId = key.substringAfter(CredentialPackContents.STORAGE_PREFIX)
                         Log.w(
                             "sprucekit", "skipping CredentialPack '$packId' that could not be" +
@@ -722,7 +723,7 @@ class CredentialPackContents {
                     } catch (e: Exception) {
                         Log.w(
                             "sprucekit", "credential '$it' could not be loaded from" +
-                                    " storage"
+                                    " storage: ${e.javaClass.name}"
                         )
                         unloadedCredentialIds.add(it)
                         return@mapNotNull null
@@ -732,13 +733,6 @@ class CredentialPackContents {
                             "sprucekit", "credential '$it' in pack '${id}'" +
                                     " could not be found"
                         )
-                        try {
-                            Log.d("sprucekit", "VdcCollection: ${vdcCollection.allEntries()}")
-                        } catch (e: CancellationException) {
-                            throw e
-                        } catch (e: Exception) {
-                            Log.d("sprucekit", "could not list the VdcCollection")
-                        }
                         return@mapNotNull null
                     }
                     try {

@@ -169,6 +169,23 @@ final class CredentialPackLoadingTests: XCTestCase {
         }
     }
 
+    func testListFailureInCancelledTaskThrowsCancellation() async throws {
+        let storage = FakeStorageManager()
+        storage.failList(with: FakeStorageManager.InjectedError())
+
+        let task = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            return try await CredentialPackContents.list(storageManager: storage)
+        }
+
+        do {
+            _ = try await task.value
+            XCTFail("expected list to throw")
+        } catch is CancellationError {
+            // Expected: a list failure in a cancelled task surfaces as the cancellation.
+        }
+    }
+
     // MARK: - CredentialPack.loadAll
 
     func testLoadAllSkipsMissingCredentialAndLoadsOtherPacks() async throws {

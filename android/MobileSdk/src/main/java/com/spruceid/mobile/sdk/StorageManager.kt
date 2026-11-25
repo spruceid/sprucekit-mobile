@@ -33,9 +33,12 @@ class StorageManager(val context: Context) : StorageManagerInterface {
     ///
     /// Retrieves the value from storage identified by key.
     ///
+    /// Reads both stored formats: hybrid values, and legacy `<iv>;<ciphertext>` values, which
+    /// SDK versions before 0.11.2 wrote and which are never rewritten.
+    ///
     /// Returns null if no value is stored under the key. Throws
-    /// StorageManagerException.CouldNotDecryptValue if the stored value is not in the hybrid
-    /// format or cannot be decrypted.
+    /// StorageManagerException.CouldNotDecryptValue if the stored value is in neither format or
+    /// cannot be decrypted.
     ///
     /// Arguments:
     /// key - The key to retrieve
@@ -51,9 +54,13 @@ class StorageManager(val context: Context) : StorageManagerInterface {
         }
 
         try {
-            return decryptHybrid(bytes)
+            return if (isHybridFormat(bytes)) {
+                decryptHybrid(bytes)
+            } else {
+                decrypt(bytes)
+            }
         } catch (e: Exception) {
-            // The key is not logged: keys can embed a scope (a user hash).
+            // The key is not logged: a scoped key embeds the scope, which can identify the user.
             Log.w(TAG, "could not decrypt a stored value: ${e.javaClass.name}")
             throw StorageManagerException.CouldNotDecryptValue()
         }
@@ -90,6 +97,31 @@ class StorageManager(val context: Context) : StorageManagerInterface {
         private const val HYBRID_PREFIX = "HYBRID|"
         private const val TAG = "sprucekit"
 
+        /// Function: isHybridFormat
+        ///
+        /// Efficiently detects if the encrypted data uses hybrid format by checking the prefix.
+        /// Only converts the minimum necessary bytes to string for performance.
+        ///
+        /// Arguments:
+        /// bytes - The encrypted data to analyze
+        ///
+        /// Returns:
+        /// true if hybrid format, false if not hybrid format
+        private fun isHybridFormat(bytes: ByteArray): Boolean {
+            if (bytes.size < HYBRID_PREFIX.length) {
+                return false
+            }
+
+            val prefixBytes = bytes.sliceArray(0 until HYBRID_PREFIX.length)
+            val prefixString = try {
+                prefixBytes.decodeToString()
+            } catch (e: Exception) {
+                return false
+            }
+
+            return prefixString == HYBRID_PREFIX
+        }
+
         /// Function: encryptHybrid
         ///
         /// Encrypts large payloads using hybrid encryption (envelope pattern).
@@ -122,6 +154,31 @@ class StorageManager(val context: Context) : StorageManagerInterface {
 
                 val result = "HYBRID|$keyIvB64|$encKeyB64|$dataIvB64|$encDataB64".toByteArray()
                 continuation.resume(result)
+            }
+        }
+
+        /// Function: decrypt
+        ///
+        /// Decrypts the legacy `<iv>;<ciphertext>` format.
+        /// Throws an Exception if the value does not have exactly two parts, a part is not valid
+        /// Base64, or decryption fails, so that `get` can report it as CouldNotDecryptValue.
+        ///
+        /// Arguments:
+        /// value - The byte array to be decrypted
+        private suspend fun decrypt(value: ByteArray): ByteArray {
+            return suspendCoroutine { continuation ->
+                val keyManager = KeyManager()
+                if (!keyManager.keyExists(KEY_NAME)) {
+                    throw Exception("Cannot retrieve values before creating encryption keys")
+                }
+                val decoded = value.decodeToString().split(";")
+                if (decoded.size != 2) {
+                    throw Exception("Invalid legacy format - expected 2 parts, got ${decoded.size}")
+                }
+                val iv = Base64.decode(decoded[0], B64_FLAGS)
+                val encrypted = Base64.decode(decoded[1], B64_FLAGS)
+                val decrypted = keyManager.decryptPayload(KEY_NAME, iv, encrypted)
+                continuation.resume(decrypted)
             }
         }
 
