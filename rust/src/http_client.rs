@@ -21,6 +21,8 @@ use http::{
     Method, Request, Response, StatusCode,
 };
 
+use crate::https::{require_https, require_https_str};
+
 pub use mobile_toolkit::http_client::{
     AsyncHttpClient, HttpClientError, HttpRequest, HttpResponse,
 };
@@ -56,13 +58,33 @@ fn registered_client() -> Option<Arc<dyn AsyncHttpClient>> {
 
 fn fallback_client() -> Arc<dyn AsyncHttpClient> {
     FALLBACK_HTTP_CLIENT
-        .get_or_init(
-            || match reqwest::Client::builder().use_rustls_tls().build() {
+        .get_or_init(|| {
+            match reqwest::Client::builder()
+                .use_rustls_tls()
+                .redirect(https_redirect_policy())
+                .build()
+            {
                 Ok(client) => Arc::new(ReqwestHttpClient(client)),
                 Err(error) => Arc::new(UnavailableHttpClient(error.to_string())),
-            },
-        )
+            }
+        })
         .clone()
+}
+
+/// Redirect policy of the fallback client: every target must pass
+/// `require_https`, then reqwest's default limit applies.
+///
+/// `HttpClient::send` checks only the first URL, and a 307 or 308 resends the
+/// request body to the target, so each target is checked here. reqwest's
+/// `https_only` is not used: it has no dev-host exception, and the setting can
+/// change after the client is built.
+fn https_redirect_policy() -> reqwest::redirect::Policy {
+    reqwest::redirect::Policy::custom(|attempt| {
+        match require_https(attempt.url(), "redirect target") {
+            Ok(()) => reqwest::redirect::Policy::default().redirect(attempt),
+            Err(error) => attempt.error(error),
+        }
+    })
 }
 
 /// HTTP client for the Rust layer.
@@ -86,10 +108,18 @@ impl HttpClient {
     }
 
     /// Send a request and return the full response.
+    ///
+    /// A URL that is not https is refused before it reaches the wrapped
+    /// client; see `crate::https::require_https`.
     pub async fn send(
         &self,
         request: Request<Vec<u8>>,
     ) -> Result<Response<Vec<u8>>, HttpClientError> {
+        require_https_str(&request.uri().to_string(), "request URL").map_err(|e| {
+            HttpClientError::Other {
+                error: e.to_string(),
+            }
+        })?;
         let request = request_to_native(request)?;
         let response = self.0.http_client(request).await?;
         response_from_native(response)
@@ -237,6 +267,7 @@ mod tests {
     };
 
     use super::*;
+    use crate::https::test_support::DevHttp;
 
     /// Records every request, then forwards it to the fallback client so
     /// other tests that run at the same time keep a working transport.
@@ -257,6 +288,7 @@ mod tests {
 
     #[tokio::test]
     async fn fallback_client_sends_get_and_returns_the_response() {
+        let _dev = DevHttp::set(true).await;
         let server = MockServer::start().await;
         Mock::given(method("GET"))
             .and(path("/status"))
@@ -280,6 +312,7 @@ mod tests {
 
     #[tokio::test]
     async fn registered_client_receives_every_request() {
+        let _dev = DevHttp::set(true).await;
         let server = MockServer::start().await;
         Mock::given(method("POST"))
             .and(path("/echo"))
@@ -318,6 +351,58 @@ mod tests {
         assert_eq!(recorded.body, b"payload");
     }
 
+    #[tokio::test]
+    async fn send_refuses_http_to_a_public_host_before_the_client_sees_it() {
+        let recorder = Arc::new(RecordingClient {
+            requests: Mutex::new(Vec::new()),
+        });
+        let client = HttpClient::from_native(recorder.clone());
+
+        for url in [
+            "http://evil.example/cb",
+            "ftp://evil.example/cb",
+            "http://172.32.0.1/cb",
+        ] {
+            let request = Request::post(url)
+                .body(b"vp_token=secret".to_vec())
+                .unwrap();
+            let error = client.send(request).await.unwrap_err();
+            assert!(
+                matches!(&error, HttpClientError::Other { error }
+                    if error.contains("request URL") && error.contains("https is required")),
+                "unexpected error for {url}: {error:?}"
+            );
+        }
+
+        assert!(recorder
+            .requests
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .is_empty());
+    }
+
+    #[tokio::test]
+    async fn send_follows_the_dev_http_setting_after_the_client_is_built() {
+        let server = MockServer::start().await;
+        Mock::given(path("/ok"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("ok"))
+            .mount(&server)
+            .await;
+        let client = HttpClient::from_native(fallback_client());
+        let url = format!("{}/ok", server.uri());
+
+        let dev = DevHttp::set(false).await;
+        let error = client.get(&url).await.unwrap_err();
+        assert!(
+            matches!(&error, HttpClientError::Other { error } if error.contains("https is required")),
+            "unexpected error: {error:?}"
+        );
+        drop(dev);
+
+        let _dev = DevHttp::set(true).await;
+        assert_eq!(client.get(&url).await.unwrap().body(), b"ok");
+    }
+
     #[test]
     fn response_from_native_rejects_an_invalid_header_name() {
         let response = HttpResponse {
@@ -330,5 +415,104 @@ mod tests {
             response_from_native(response),
             Err(HttpClientError::HeaderKeyParse { key }) if key == "bad header"
         ));
+    }
+
+    /// With dev http allowed, a loopback server can redirect; the target is
+    /// checked too.
+    #[tokio::test]
+    async fn fallback_client_refuses_a_redirect_to_a_public_http_host() {
+        let _dev = DevHttp::set(true).await;
+        let server = MockServer::start().await;
+        Mock::given(path("/to-public"))
+            .respond_with(
+                ResponseTemplate::new(307).insert_header("location", "http://evil.example/cb"),
+            )
+            .mount(&server)
+            .await;
+
+        let request = Request::post(format!("{}/to-public", server.uri()))
+            .body(b"vp_token=secret".to_vec())
+            .unwrap();
+        let error = HttpClient::from_native(fallback_client())
+            .send(request)
+            .await
+            .unwrap_err();
+
+        assert!(
+            matches!(&error, HttpClientError::Other { error }
+                // reqwest's message drops the policy's reason. "error following
+                // redirect" comes only from a refused redirect; a fetch of
+                // evil.example would fail with "error sending request".
+                if error.starts_with("error following redirect")),
+            "unexpected error: {error:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn fallback_client_follows_a_redirect_to_loopback() {
+        let _dev = DevHttp::set(true).await;
+        let server = MockServer::start().await;
+        Mock::given(path("/to-loopback"))
+            .respond_with(
+                ResponseTemplate::new(307)
+                    .insert_header("location", format!("{}/ok", server.uri())),
+            )
+            .mount(&server)
+            .await;
+        Mock::given(path("/ok"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("ok"))
+            .mount(&server)
+            .await;
+
+        let response = HttpClient::from_native(fallback_client())
+            .get(&format!("{}/to-loopback", server.uri()))
+            .await
+            .expect("redirect to loopback is followed");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.body(), b"ok");
+    }
+
+    async fn redirect_chain(server: &MockServer, hops: u32) {
+        for n in 1..=hops {
+            Mock::given(path(format!("/chain/{n}")))
+                .respond_with(
+                    ResponseTemplate::new(307)
+                        .insert_header("location", format!("{}/chain/{}", server.uri(), n - 1)),
+                )
+                .mount(server)
+                .await;
+        }
+        Mock::given(path("/chain/0"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("ok"))
+            .mount(server)
+            .await;
+    }
+
+    #[tokio::test]
+    async fn fallback_client_follows_ten_redirects() {
+        let _dev = DevHttp::set(true).await;
+        let server = MockServer::start().await;
+        redirect_chain(&server, 10).await;
+        let response = HttpClient::from_native(fallback_client())
+            .get(&format!("{}/chain/10", server.uri()))
+            .await
+            .expect("ten redirects are followed");
+        assert_eq!(response.body(), b"ok");
+    }
+
+    #[tokio::test]
+    async fn fallback_client_refuses_an_eleventh_redirect() {
+        let _dev = DevHttp::set(true).await;
+        let server = MockServer::start().await;
+        redirect_chain(&server, 11).await;
+        let error = HttpClient::from_native(fallback_client())
+            .get(&format!("{}/chain/11", server.uri()))
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(&error, HttpClientError::Other { error } if error.starts_with("error following redirect")),
+            "unexpected error: {error:?}"
+        );
     }
 }

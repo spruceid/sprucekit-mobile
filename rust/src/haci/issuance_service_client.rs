@@ -265,6 +265,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_successful_new_issuance() -> Result<(), IssuanceServiceError> {
+        let _dev = crate::https::test_support::DevHttp::set(true).await;
         let (mock_server, base_url) = setup_mock_server().await;
         let client = IssuanceServiceClient::new(base_url);
         let wallet_attestation = "test_attestation".to_string();
@@ -309,6 +310,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_successful_check_status() {
+        let _dev = crate::https::test_support::DevHttp::set(true).await;
         let (mock_server, base_url) = setup_mock_server().await;
         let client = IssuanceServiceClient::new(base_url);
         let issuance_id = "5431d6df-63da-4803-a9fc-d92e5c36b9f8".to_string();
@@ -352,6 +354,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_successful_check_status_proofing_required() {
+        let _dev = crate::https::test_support::DevHttp::set(true).await;
         let (mock_server, base_url) = setup_mock_server().await;
         let client = IssuanceServiceClient::new(base_url);
         let issuance_id = "5431d6df-63da-4803-a9fc-d92e5c36b9f8".to_string();
@@ -408,6 +411,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_server_error_new_issuance() -> Result<(), IssuanceServiceError> {
+        let _dev = crate::https::test_support::DevHttp::set(true).await;
         let (mock_server, base_url) = setup_mock_server().await;
         let client = IssuanceServiceClient::new(base_url);
         let wallet_attestation = "test_attestation".to_string();
@@ -459,6 +463,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_server_error_check_status() {
+        let _dev = crate::https::test_support::DevHttp::set(true).await;
         let (mock_server, base_url) = setup_mock_server().await;
         let client = IssuanceServiceClient::new(base_url);
         let issuance_id = "5431d6df-63da-4803-a9fc-d92e5c36b9f8".to_string();
@@ -503,6 +508,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_invalid_json_response() -> Result<(), IssuanceServiceError> {
+        let _dev = crate::https::test_support::DevHttp::set(true).await;
         let (mock_server, base_url) = setup_mock_server().await;
         let client = IssuanceServiceClient::new(base_url);
         let wallet_attestation = "test_attestation".to_string();

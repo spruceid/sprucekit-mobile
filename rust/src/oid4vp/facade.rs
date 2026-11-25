@@ -6,6 +6,7 @@ use std::sync::Arc;
 use crate::credential::{ParsedCredential, PresentableCredential};
 use crate::crypto::KeyStore;
 use crate::http_client::HttpClient;
+use crate::https::require_https_str;
 use crate::vdc_collection::VdcCollection;
 
 use super::draft18::{
@@ -1031,6 +1032,8 @@ async fn draft13_resolve_indirection(
     }
 
     if let Some(Value::String(request_uri)) = map.get("request_uri") {
+        require_https_str(request_uri, "request_uri")
+            .map_err(|e| Oid4vpFacadeError::RequestParsing(e.to_string()))?;
         let response = HttpClient::shared()
             .get(request_uri)
             .await
@@ -1139,6 +1142,7 @@ mod tests {
     use crate::context::default_ld_json_context;
     use crate::credential::json_vc::JsonVc;
     use crate::did::DidMethod;
+    use crate::https::test_support::assert_refused;
     use crate::tests::load_jwk;
     use serde_json::json;
     use ssi::claims::jws::JwsSigner;
@@ -2103,6 +2107,7 @@ mod tests {
     /// assertion the create-only test cannot make — it inspects the actual bytes.
     #[tokio::test]
     async fn facade_draft13_submits_post_response_to_redirect_uri() {
+        let _dev = crate::https::test_support::DevHttp::set(true).await;
         use wiremock::matchers::{method, path};
         use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -2196,6 +2201,7 @@ mod tests {
 
     #[tokio::test]
     async fn facade_v1_denial_posts_access_denied_with_state() {
+        let _dev = crate::https::test_support::DevHttp::set(true).await;
         use wiremock::matchers::{method, path};
         use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -2263,6 +2269,7 @@ mod tests {
 
     #[tokio::test]
     async fn facade_draft18_denial_posts_access_denied_with_state() {
+        let _dev = crate::https::test_support::DevHttp::set(true).await;
         use wiremock::matchers::{method, path};
         use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -2309,6 +2316,7 @@ mod tests {
 
     #[tokio::test]
     async fn facade_draft13_denial_posts_access_denied_with_state() {
+        let _dev = crate::https::test_support::DevHttp::set(true).await;
         use wiremock::matchers::{method, path};
         use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -2360,6 +2368,7 @@ mod tests {
     /// draft-13 flow, which fetches the `request_uri` exactly once.
     #[tokio::test]
     async fn facade_bare_request_uri_resolves_to_draft13_when_draft18_excluded() {
+        let _dev = crate::https::test_support::DevHttp::set(true).await;
         use wiremock::matchers::{method, path};
         use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -2461,6 +2470,109 @@ mod tests {
             result,
             Err(Oid4vpFacadeError::ConflictingVersions)
         ));
+    }
+
+    // ---- https-only request_uri and response_uri ----
+
+    const EVIL_CB: &str = "http://evil.example/cb";
+
+    async fn start_error(request: String, version: Oid4vpVersion) -> Oid4vpFacadeError {
+        let holder = Oid4vpHolder::new_with_credentials(
+            vec![alumni_credential()],
+            Vec::new(),
+            Box::new(TestSigner { jwk: load_jwk() }),
+            String::new(),
+            Some(default_ld_json_context()),
+            None,
+        )
+        .await
+        .unwrap();
+
+        match holder
+            .start_with_supported_versions(request, vec![version])
+            .await
+        {
+            Ok(_) => panic!("the {version:?} request should be refused"),
+            Err(error) => error,
+        }
+    }
+
+    #[tokio::test]
+    async fn facade_v1_refuses_an_http_response_uri() {
+        let mut request: Value = serde_json::from_str(&v1_request()).unwrap();
+        request["client_id"] = json!(format!("redirect_uri:{EVIL_CB}"));
+        request["response_uri"] = json!(EVIL_CB);
+
+        let error = start_error(request.to_string(), Oid4vpVersion::V1).await;
+        let Oid4vpFacadeError::V1(OID4VPError::RequestValidation(message)) = &error else {
+            panic!("unexpected error: {error:?}");
+        };
+        assert_refused(message, "response_uri", EVIL_CB);
+    }
+
+    #[tokio::test]
+    async fn facade_draft18_refuses_an_http_response_uri() {
+        let mut request: Value = serde_json::from_str(&draft18_request()).unwrap();
+        request["client_id"] = json!(EVIL_CB);
+        request["response_uri"] = json!(EVIL_CB);
+
+        let error = start_error(request.to_string(), Oid4vpVersion::Draft18).await;
+        let Oid4vpFacadeError::Draft18(Draft18OID4VPError::RequestValidation(message)) = &error
+        else {
+            panic!("unexpected error: {error:?}");
+        };
+        assert_refused(message, "response_uri", EVIL_CB);
+    }
+
+    #[tokio::test]
+    async fn facade_draft18_refuses_an_http_request_uri() {
+        let link = format!(
+            "openid4vp://?client_id={}&request_uri={}",
+            urlencoding::encode("did:web:evil.example"),
+            urlencoding::encode("http://evil.example/request?profile=OID4VP-draft18")
+        );
+
+        let error = start_error(link, Oid4vpVersion::Draft18).await;
+        let Oid4vpFacadeError::Draft18(Draft18OID4VPError::RequestValidation(message)) = &error
+        else {
+            panic!("unexpected error: {error:?}");
+        };
+        assert_refused(
+            message,
+            "request_uri",
+            "http://evil.example/request?profile=OID4VP-draft18",
+        );
+    }
+
+    #[tokio::test]
+    async fn facade_draft13_refuses_an_http_redirect_uri() {
+        // Draft 13 names it `redirect_uri`; the translation moves it to
+        // `response_uri`, which the draft-18 holder checks.
+        let mut request: Value = serde_json::from_str(&draft13_request()).unwrap();
+        request["client_id"] = json!(EVIL_CB);
+        request["redirect_uri"] = json!(EVIL_CB);
+
+        let error = start_error(request.to_string(), Oid4vpVersion::Draft13).await;
+        let Oid4vpFacadeError::Draft18(Draft18OID4VPError::RequestValidation(message)) = &error
+        else {
+            panic!("unexpected error: {error:?}");
+        };
+        assert_refused(message, "response_uri", EVIL_CB);
+    }
+
+    #[tokio::test]
+    async fn facade_draft13_refuses_an_http_request_uri_before_fetching_it() {
+        let link = format!(
+            "openid4vp://?client_id={}&request_uri={}",
+            urlencoding::encode(EVIL_CB),
+            urlencoding::encode("http://evil.example/request")
+        );
+
+        let error = start_error(link, Oid4vpVersion::Draft13).await;
+        let Oid4vpFacadeError::RequestParsing(message) = &error else {
+            panic!("unexpected error: {error:?}");
+        };
+        assert_refused(message, "request_uri", "http://evil.example/request");
     }
 
     use crate::oid4vp::dynamic_credential::{

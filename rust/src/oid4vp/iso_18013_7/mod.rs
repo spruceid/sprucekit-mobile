@@ -32,6 +32,7 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::http_client::HttpClient;
+use crate::https::{require_https, require_https_request_uri};
 use crate::{credential::mdoc::Mdoc, crypto::KeyStore};
 
 /// Handler for OpenID4VP requests according to the profile in ISO/IEC 18013-7 Annex B.
@@ -117,6 +118,8 @@ impl OID4VP180137 {
 
 impl OID4VP180137 {
     async fn process_request_inner(&self, url: Url) -> Result<InProgressRequest180137> {
+        require_https_request_uri(&url)?;
+
         let request = self
             .validate_request(url)
             .await
@@ -125,6 +128,8 @@ impl OID4VP180137 {
         if request.response_mode() != &ResponseMode::DirectPostJwt {
             bail!("cannot respond to {} with a JWE", request.response_mode())
         }
+
+        require_https(request.return_uri(), "response_uri")?;
 
         let dcql_query: DcqlQuery = request
             .get()

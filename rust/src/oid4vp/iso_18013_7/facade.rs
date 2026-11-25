@@ -71,6 +71,7 @@ use super::{
     ApprovedResponse180137,
 };
 use crate::http_client::HttpClient;
+use crate::https::{require_https, require_https_request_uri, require_https_str};
 use crate::{credential::mdoc::Mdoc, crypto::KeyStore};
 
 #[deprecated(
@@ -309,6 +310,8 @@ impl Oid4vp180137Facade {
             bail!("cannot respond to {} with a JWE", request.response_mode())
         }
 
+        require_https(request.return_uri(), "response_uri")?;
+
         let dcql_query = request
             .dcql_query()
             .parsing_error()
@@ -351,6 +354,8 @@ impl Oid4vp180137Facade {
         if request.response_mode() != &Draft18ResponseMode::DirectPostJwt {
             bail!("cannot respond to {} with a JWE", request.response_mode())
         }
+
+        require_https(request.return_uri(), "response_uri")?;
 
         let (request_kind, request_matches) =
             if let Some(dcql_query) = request.get::<Draft18DcqlQuery>().transpose()? {
@@ -689,6 +694,7 @@ async fn resolve_v1_request(
     request: &str,
 ) -> Result<AuthorizationRequestObject> {
     if let Ok(url) = Url::parse(request) {
+        require_https_request_uri(&url)?;
         return OpenId4vpWallet::validate_request(wallet, url)
             .await
             .context("unable to validate authorization request");
@@ -723,6 +729,7 @@ async fn resolve_draft18_request(
     request: &str,
 ) -> Result<Draft18AuthorizationRequestObject> {
     if let Ok(url) = Url::parse(request) {
+        require_https_request_uri(&url)?;
         return Draft18Wallet::validate_request(wallet, url)
             .await
             .context("unable to validate authorization request");
@@ -1387,6 +1394,8 @@ async fn resolve_url_request_once<H: AsyncHttpClient>(
         .map(|(_, value)| value.into_owned())
         .context("missing request or request_uri in authorization request")?;
 
+    require_https_str(&request_uri, "request_uri")?;
+
     let request = http::Request::builder()
         .method("GET")
         .uri(request_uri.clone())
@@ -1547,6 +1556,7 @@ impl<T> Draft18ParsingExt<T> for Option<Result<T>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::https::test_support::assert_refused;
     use crate::{
         crypto::{KeyAlias, RustTestKeyManager},
         mdl::util::generate_test_mdl,
@@ -1729,6 +1739,7 @@ mod tests {
 
     #[tokio::test]
     async fn resolves_request_uri_once_for_v1_jwt() {
+        let _dev = crate::https::test_support::DevHttp::set(true).await;
         let server = MockServer::start().await;
         let payload: Json = serde_json::from_str(&detect_v1_request_json()).unwrap();
         let jwt = request_jwt(payload, Some("oauth-authz-req+jwt"));
@@ -1760,6 +1771,7 @@ mod tests {
 
     #[tokio::test]
     async fn resolves_request_uri_once_for_draft18_jwt() {
+        let _dev = crate::https::test_support::DevHttp::set(true).await;
         let server = MockServer::start().await;
         let payload: Json = serde_json::from_str(&draft18_request_json()).unwrap();
         let jwt = request_jwt(payload, None);
@@ -1787,5 +1799,83 @@ mod tests {
             DetectedIsoRequestVersion::Draft18
         );
         server.verify().await;
+    }
+
+    // ---- https-only request_uri and response_uri ----
+
+    const EVIL_CB: &str = "http://evil.example/cb";
+    const EVIL_REQUEST: &str = "http://evil.example/request.jwt";
+
+    fn with_evil_response_uri(request: String) -> String {
+        let mut request: Json = serde_json::from_str(&request).unwrap();
+        request["client_id"] = json!(format!("redirect_uri:{EVIL_CB}"));
+        request["response_uri"] = json!(EVIL_CB);
+        request.to_string()
+    }
+
+    fn evil_request_uri_link() -> String {
+        format!(
+            "mdoc-openid4vp://?client_id={}&request_uri={}",
+            urlencoding::encode(&format!("redirect_uri:{EVIL_CB}")),
+            urlencoding::encode(EVIL_REQUEST)
+        )
+    }
+
+    #[tokio::test]
+    async fn refuses_an_http_response_uri_in_every_mode() {
+        let facade = test_facade().await;
+        for (request, mode) in [
+            (v1_request_json(), Oid4vp180137CompatibilityMode::Auto),
+            (v1_request_json(), Oid4vp180137CompatibilityMode::V1),
+            (draft18_request_json(), Oid4vp180137CompatibilityMode::Auto),
+            (
+                draft18_request_json(),
+                Oid4vp180137CompatibilityMode::Draft18,
+            ),
+        ] {
+            let error = facade
+                .process_request_with_compatibility_mode(with_evil_response_uri(request), mode)
+                .await
+                .unwrap_err();
+            let Oid4vp180137FacadeError::InvalidRequest(message) = &error else {
+                panic!("unexpected error in {mode:?}: {error:?}");
+            };
+            assert_refused(message, "response_uri", EVIL_CB);
+        }
+    }
+
+    #[tokio::test]
+    async fn refuses_an_http_request_uri_in_every_mode_before_fetching_it() {
+        let facade = test_facade().await;
+        for mode in [
+            Oid4vp180137CompatibilityMode::Auto,
+            Oid4vp180137CompatibilityMode::V1,
+            Oid4vp180137CompatibilityMode::Draft18,
+        ] {
+            let error = facade
+                .process_request_with_compatibility_mode(evil_request_uri_link(), mode)
+                .await
+                .unwrap_err();
+            let Oid4vp180137FacadeError::InvalidRequest(message) = &error else {
+                panic!("unexpected error in {mode:?}: {error:?}");
+            };
+            assert_refused(message, "request_uri", EVIL_REQUEST);
+        }
+    }
+
+    #[tokio::test]
+    async fn annex_b_handler_refuses_an_http_request_uri() {
+        let facade = test_facade().await;
+        let handler =
+            super::super::OID4VP180137::new(facade.credentials.clone(), facade.keystore.clone())
+                .unwrap();
+
+        let result = handler
+            .process_request(Url::parse(&evil_request_uri_link()).unwrap())
+            .await;
+        let Err(super::super::OID4VP180137Error::InvalidRequest(message)) = result else {
+            panic!("the request should be refused as invalid");
+        };
+        assert_refused(&message, "request_uri", EVIL_REQUEST);
     }
 }

@@ -9,6 +9,7 @@ use super::type_values;
 use crate::credential::*;
 use crate::crypto::KeyStore;
 use crate::http_client::HttpClient;
+use crate::https::{require_https, require_https_request_uri};
 use crate::vdc_collection::VdcCollection;
 use openid4vp::core::dcql_query::CredentialTypes;
 
@@ -269,6 +270,9 @@ impl Holder {
     ) -> Result<Arc<PermissionRequest>, OID4VPError> {
         let request = match req {
             AuthRequest::Url(mut url) => {
+                require_https_request_uri(&url)
+                    .map_err(|e| OID4VPError::RequestValidation(e.to_string()))?;
+
                 // NOTE: Replace the host value with an empty string to remove any
                 // leading host value before the query.
                 url.set_host(Some(""))
@@ -283,6 +287,8 @@ impl Holder {
 
         match request.response_mode() {
             ResponseMode::DirectPost | ResponseMode::DirectPostJwt => {
+                require_https(request.return_uri(), "response_uri")
+                    .map_err(|e| OID4VPError::RequestValidation(e.to_string()))?;
                 self.permission_request(request).await
             }
             mode => Err(OID4VPError::UnsupportedResponseMode(mode.to_string())),
@@ -2167,6 +2173,7 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn an_unsigned_did_request_object_by_reference_is_refused() {
+        let _dev = crate::https::test_support::DevHttp::set(true).await;
         use wiremock::{
             matchers::{method, path},
             Mock, MockServer, ResponseTemplate,
@@ -2482,5 +2489,66 @@ pub(crate) mod tests {
         let (other_certificate, other_key) = self_signed_leaf("verifier.example");
         let other = sign_with_leaf(&other_certificate, &other_key, &claims);
         assert!(holder.x509_hash(&request, Some(other)).await.is_err());
+    }
+
+    // ---- https-only request_uri and response_uri ----
+
+    async fn https_test_holder() -> Arc<Holder> {
+        Holder::new_with_credentials_and_providers(
+            vec![],
+            vec![],
+            Box::new(KeySigner {
+                jwk: JWK::generate_p256(),
+            }),
+            String::new(),
+            None,
+            None,
+            vec![Arc::new(MockProvider)],
+        )
+        .await
+        .expect("failed to construct holder")
+    }
+
+    fn assert_refused(error: OID4VPError, what: &str, url: &str) {
+        let OID4VPError::RequestValidation(message) = &error else {
+            panic!("expected RequestValidation, got {error:?}");
+        };
+        crate::https::test_support::assert_refused(message, what, url);
+    }
+
+    #[tokio::test]
+    async fn authorization_request_refuses_an_http_response_uri() {
+        let mut request = serde_json::to_value(dynamic_request()).unwrap();
+        request["client_id"] = json!("redirect_uri:http://evil.example/cb");
+        request["response_uri"] = json!("http://evil.example/cb");
+        let request: AuthorizationRequestObject = serde_json::from_value(request).unwrap();
+
+        let error = https_test_holder()
+            .await
+            .authorization_request(AuthRequest::Request(Box::new(request)))
+            .await
+            .unwrap_err();
+
+        assert_refused(error, "response_uri", "http://evil.example/cb");
+    }
+
+    #[tokio::test]
+    async fn authorization_request_refuses_an_http_request_uri_before_fetching_it() {
+        // `evil.example` does not resolve, so a fetch would fail with a
+        // transport error instead. The message shows the request was refused
+        // as a `request_uri`, before `validate_request` fetched it.
+        let url = Url::parse(
+            "openid4vp://?client_id=redirect_uri%3Ahttp%3A%2F%2Fevil.example%2Fcb\
+             &request_uri=http%3A%2F%2Fevil.example%2Frequest",
+        )
+        .unwrap();
+
+        let error = https_test_holder()
+            .await
+            .authorization_request(AuthRequest::Url(url))
+            .await
+            .unwrap_err();
+
+        assert_refused(error, "request_uri", "http://evil.example/request");
     }
 }

@@ -355,6 +355,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_nonce() {
+        let _dev = crate::https::test_support::DevHttp::set(true).await;
         let (mock_server, base_url) = setup_mock_server().await;
         let client = WalletServiceClient::new(base_url);
 
@@ -388,6 +389,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_nonce_server_error() {
+        let _dev = crate::https::test_support::DevHttp::set(true).await;
         let (mock_server, base_url) = setup_mock_server().await;
         let client = WalletServiceClient::new(base_url);
 
@@ -429,6 +431,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_successful_login() {
+        let _dev = crate::https::test_support::DevHttp::set(true).await;
         let (mock_server, base_url) = setup_mock_server().await;
         let client = WalletServiceClient::new(base_url);
 
@@ -475,6 +478,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_invalid_json() {
+        let _dev = crate::https::test_support::DevHttp::set(true).await;
         let (mock_server, base_url) = setup_mock_server().await;
         let client = WalletServiceClient::new(base_url);
 
@@ -506,6 +510,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_server_error() {
+        let _dev = crate::https::test_support::DevHttp::set(true).await;
         let (mock_server, base_url) = setup_mock_server().await;
         let client = WalletServiceClient::new(base_url);
 
@@ -544,6 +549,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_empty_attestation() {
+        let _dev = crate::https::test_support::DevHttp::set(true).await;
         let (mock_server, base_url) = setup_mock_server().await;
         let client = WalletServiceClient::new(base_url);
 
@@ -584,6 +590,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_malformed_attestation() {
+        let _dev = crate::https::test_support::DevHttp::set(true).await;
         let (mock_server, base_url) = setup_mock_server().await;
         let client = WalletServiceClient::new(base_url);
 
@@ -631,6 +638,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_auth_header() -> Result<(), WalletServiceError> {
+        let _dev = crate::https::test_support::DevHttp::set(true).await;
         let (mock_server, base_url) = setup_mock_server().await;
         let client = WalletServiceClient::new(base_url);
 

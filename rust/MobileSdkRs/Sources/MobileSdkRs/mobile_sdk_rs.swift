@@ -37027,6 +37027,37 @@ public func configureHttpClient(client: AsyncHttpClient)  {try! rustCall() {
     )
 }
 }
+/**
+ * Whether the SDK would send a request to `url`: `https`, or plain http to a development
+ * host after [`set_allow_dev_http`]. A string that is not a URL is refused.
+ *
+ * Native HTTP clients call this to check the redirects they follow on their own.
+ */
+public func isAllowedRequestUrl(url: String) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_func_is_allowed_request_url(
+        FfiConverterString.lower(url),$0
+    )
+})
+}
+/**
+ * Allow plain http to development hosts: `localhost`, loopback and private LAN addresses
+ * (IPv4 `127.0.0.0/8`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, IPv6 `::1` and
+ * `fc00::/7`).
+ *
+ * Off by default, in debug and release builds alike. Set it once, at startup, before any
+ * request. It applies to the requests that go through the Rust layer's HTTP client (OID4VP
+ * `request_uri` and `response_uri` included; OID4VCI calls its native client directly and is
+ * not covered) and to the redirects that the SDK's iOS clients and the Rust fallback follow.
+ * Enable it only in development builds that talk to a local verifier: plain http can be read
+ * and changed by anyone on the network.
+ */
+public func setAllowDevHttp(allow: Bool)  {try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_func_set_allow_dev_http(
+        FfiConverterBool.lower(allow),$0
+    )
+}
+}
 public func jwkFromPublicP256(x: Data, y: Data) -> Jwk  {
     return try!  FfiConverterTypeJwk_lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_func_jwk_from_public_p256(
@@ -37523,6 +37554,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_configure_http_client() != 19711) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_func_is_allowed_request_url() != 59198) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_func_set_allow_dev_http() != 48731) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_jwk_from_public_p256() != 27776) {
