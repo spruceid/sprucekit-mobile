@@ -244,13 +244,16 @@ internal class SpruceUtilsAdapter(
         }
     }
 
-    /** Returns a [KeyManager] with a signing key generated for [alias] if one doesn't exist yet. */
+    /**
+     * Returns a [KeyManager] with a signing key generated for [alias] if one doesn't exist yet.
+     * A new key gets the DeviceKeyAuth policy, since it becomes the mock mDL's device key.
+     */
     private fun signingKeyManager(alias: String): KeyManager {
         val keyManager = KeyManager()
 
         // Generate or retrieve the signing key
         if (!keyManager.keyExists(alias)) {
-            keyManager.generateSigningKey(alias)
+            keyManager.generateSigningKey(alias, userAuthentication = DeviceKeyAuthState.policy)
         }
         return keyManager
     }

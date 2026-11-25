@@ -54,3 +54,43 @@ Task {
     counter.leave()
 }
 counter.wait()
+
+// A foreign JwsSigner that throws an error other than JwsSignatureError must
+// reach Rust as JwsSignatureError::Other with the error's description, not panic.
+struct UndeclaredSignerError: Error, CustomStringConvertible {
+    let description: String
+}
+
+final class ThrowingJwsSigner: JwsSigner, @unchecked Sendable {
+    func fetchInfo() async throws -> JwsSignerInfo {
+        return JwsSignerInfo(keyId: nil, algorithm: .es256)
+    }
+
+    func signBytes(signingBytes: Data) async throws -> Data {
+        throw UndeclaredSignerError(description: "User authentication required: test key")
+    }
+}
+
+counter.enter()
+Task {
+    do {
+        _ = try await createJwtProof(
+            issuer: nil,
+            audience: "https://issuer.example.com",
+            expireInSecs: nil,
+            nonce: nil,
+            signer: ThrowingJwsSigner()
+        )
+        assertionFailure("createJwtProof should fail when the signer throws")
+    } catch let error as Oid4vciError {
+        let message = String(describing: error)
+        assert(
+            message.contains("User authentication required: test key"),
+            "unexpected error: \(message)")
+    } catch {
+        // A Rust panic (e.g. uniffi failing to lift the callback error) lands here.
+        assertionFailure("expected Oid4vciError, got \(error)")
+    }
+    counter.leave()
+}
+counter.wait()

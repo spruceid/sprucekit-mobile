@@ -3,6 +3,8 @@ package com.spruceid.sprucekit_mobile
 import android.content.Context
 import com.spruceid.mobile.sdk.KeyManager
 import com.spruceid.mobile.sdk.Oid4vciAsyncHttpClient
+import com.spruceid.mobile.sdk.UserAuthenticationRequiredException
+import com.spruceid.mobile.sdk.UserAuthenticationUnavailableException
 import com.spruceid.mobile.sdk.rs.CredentialFormat as RsCredentialFormat
 import com.spruceid.mobile.sdk.rs.CredentialOrConfigurationId
 import com.spruceid.mobile.sdk.rs.CredentialResponse
@@ -26,6 +28,15 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+
+/**
+ * Thrown by the OID4VCI JWS signer.
+ *
+ * `JwsSignatureException` is a flat error, which uniffi can't lift when a Kotlin callback throws
+ * it (the Rust side panics). Rust receives any other exception as `JwsSignatureError::Other`
+ * with the exception's `toString()` (class name and message), so the signer throws this type.
+ */
+internal class Oid4vciSignerException(message: String) : Exception(message)
 
 /**
  * OID4VCI Pigeon Adapter
@@ -271,20 +282,45 @@ internal class Oid4vciAdapter(private val context: Context) : Oid4vci {
 
     private fun derivedClientId(keyId: String): String {
         val keyManager = KeyManager()
-        val jwk = keyManager.getOrInsertJwk(keyId)
+        val jwk = keyManager.getOrInsertJwk(keyId, DeviceKeyAuthState.policy)
         return generateDidJwkUrl(jwk).did().toString()
     }
 
     private fun buildJwsSigner(keyId: String): JwsSigner {
         val keyManager = KeyManager()
-        val jwk = keyManager.getOrInsertJwk(keyId)
+        val jwk = keyManager.getOrInsertJwk(keyId, DeviceKeyAuthState.policy)
         val didUrl = generateDidJwkUrl(jwk)
         jwk.setKid(didUrl.toString())
         return object : JwsSigner {
-            override suspend fun fetchInfo(): JwsSignerInfo = jwk.fetchInfo()
-            override suspend fun signBytes(signingBytes: ByteArray): ByteArray =
-                decodeDerSignature(keyManager.signPayload(keyId, signingBytes)
-                    ?: throw IllegalStateException("signing failed for key: $keyId"))
+            override suspend fun fetchInfo(): JwsSignerInfo = try {
+                jwk.fetchInfo()
+            } catch (e: Exception) {
+                throw Oid4vciSignerException("failed to read signer info: $e")
+            }
+
+            // Throws only Oid4vciSignerException (see there). An authentication failure keeps
+            // the "User authentication required" (retry) or "User authentication unavailable"
+            // marker, which reaches Dart inside the error message.
+            override suspend fun signBytes(signingBytes: ByteArray): ByteArray {
+                val der = try {
+                    keyManager.signPayload(keyId, signingBytes)
+                } catch (e: UserAuthenticationRequiredException) {
+                    throw Oid4vciSignerException(
+                        e.message ?: UserAuthenticationRequiredException.MESSAGE_PREFIX
+                    )
+                } catch (e: UserAuthenticationUnavailableException) {
+                    throw Oid4vciSignerException(
+                        e.message ?: UserAuthenticationUnavailableException.MESSAGE_PREFIX
+                    )
+                } catch (e: Exception) {
+                    throw Oid4vciSignerException("signing failed for key $keyId: $e")
+                } ?: throw Oid4vciSignerException("signing failed for key: $keyId")
+                return try {
+                    decodeDerSignature(der)
+                } catch (e: Exception) {
+                    throw Oid4vciSignerException("invalid signature: $e")
+                }
+            }
         }
     }
 

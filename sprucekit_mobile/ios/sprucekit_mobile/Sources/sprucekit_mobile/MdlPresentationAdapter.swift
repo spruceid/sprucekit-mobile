@@ -110,8 +110,9 @@ class MdlPresentationAdapter: NSObject, MdlPresentation {
             return
         }
 
-        // Submit the response
+        // Submit the response, signing with the context from DeviceKeyAuth.authenticate if any
         updateState(MdlPresentationStateUpdate(state: .sendingResponse))
+        presentationManager?.authenticationContext = DeviceKeyAuthState.shared.currentContext()
         request.approve(items: selectedNamespaces)
         currentRequest = nil
 

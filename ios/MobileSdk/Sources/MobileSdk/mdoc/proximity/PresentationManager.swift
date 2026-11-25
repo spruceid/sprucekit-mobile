@@ -1,4 +1,5 @@
 import Foundation
+import LocalAuthentication
 import SpruceIDMobileSdkRs
 
 /// Entrypoint to mdoc close proximity presentation.
@@ -9,6 +10,16 @@ public class MdocProximityPresentationManager {
 
     private var handle: DelegateWrapper?
 
+    /// Authentication context used to sign the response.
+    ///
+    /// If the mdoc's device key was generated with a `UserAuthenticationPolicy`, set this before
+    /// approving the request to the policy's `makeContext()`, evaluated with the policy's
+    /// `evaluationPolicy`, so the signature doesn't prompt again. When nil, the system prompts on
+    /// its own for protected keys.
+    public var authenticationContext: LAContext? {
+        didSet { handle?.authenticationContext = authenticationContext }
+    }
+
     // TODO: Support multiple mdocs (requires changes in isomdl).
     public init(
         mdoc: Mdoc,
@@ -18,12 +29,14 @@ public class MdocProximityPresentationManager {
         transmissionModes: [TransmissionOption] = [
             .bleMdocCentralMode(L2CAPUsage.disableL2CAP),
             .bleMdocPeripheralMode(L2CAPUsage.disableL2CAP)
-        ]
+        ],
+        authenticationContext: LAContext? = nil
     ) {
         self.mdoc = mdoc
         self.delegate = delegate
         self.engagement = engagement
         self.transmissionModes = transmissionModes
+        self.authenticationContext = authenticationContext
         reset()
     }
 
@@ -40,6 +53,7 @@ public class MdocProximityPresentationManager {
         var central: CentralManager?
         var peripheral: PeripheralManager?
         let handle = DelegateWrapper(delegate: delegate, mdoc: mdoc, engagement: engagement)
+        handle.authenticationContext = authenticationContext
 
         switch engagement {
         case .QRCode:
@@ -102,6 +116,7 @@ public class MdocProximityPresentationManager {
         private let inner: Delegate
         private let mdoc: Mdoc
         private let engagement: DeviceEngagement
+        var authenticationContext: LAContext?
 
         private let backgroundQueue = DispatchQueue(
             label: "com.spruceid.mobilesdk.mdoc.proximity.presentationmanager",
@@ -337,6 +352,7 @@ public class MdocProximityPresentationManager {
         }
 
         fileprivate func approve(items: [String: [String: [String]]]) {
+            let authenticationContext = self.authenticationContext
             backgroundQueue.async {
                 guard case let .connected(connected) = self.state else {
                     print("ignoring an approved response while in an invalid state: \(self.state)")
@@ -354,7 +370,9 @@ public class MdocProximityPresentationManager {
 
                 let signature: Data
                 do {
-                    signature = try KeyManager().getSigningKey(alias: self.mdoc.keyAlias()).sign(payload: payload)
+                    signature = try KeyManager(context: authenticationContext)
+                        .getSigningKey(alias: self.mdoc.keyAlias())
+                        .sign(payload: payload)
                 } catch {
                     print("response signing failed: \(error)")
                     self.state = .error

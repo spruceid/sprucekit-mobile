@@ -9,12 +9,12 @@ import android.nfc.NfcAdapter
 import android.nfc.cardemulation.CardEmulation
 import android.os.Bundle
 import android.util.Log
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import androidx.fragment.app.FragmentActivity
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.spruceid.mobile.sdk.ConnectionLiveData
@@ -38,8 +38,9 @@ import kotlinx.coroutines.launch
 
 const val DEFAULT_SIGNING_KEY_ID = "reference-app/default-signing"
 
+// FragmentActivity (a ComponentActivity) so BiometricPrompt can be shown before signing.
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     private lateinit var navController: NavHostController
     private lateinit var connectionLiveData: ConnectionLiveData
     private lateinit var hacApplicationsViewModel: HacApplicationsViewModel

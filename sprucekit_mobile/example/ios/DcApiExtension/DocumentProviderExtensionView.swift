@@ -7,6 +7,7 @@
 #if canImport(IdentityDocumentServices) && canImport(IdentityDocumentServicesUI)
 import IdentityDocumentServices
 import IdentityDocumentServicesUI
+import LocalAuthentication
 import SwiftUI
 import SpruceIDMobileSdk
 import SpruceIDMobileSdkRs
@@ -149,20 +150,47 @@ public struct DocumentProviderExtensionView: View {
         origin: URL,
         approvedResponse: ApprovedResponse180137
     ) async {
+        var trimmedOrigin = origin.absoluteString
+        if trimmedOrigin.last == "/" {
+            trimmedOrigin.removeLast()
+        }
+        let originString = trimmedOrigin
+
+        // Authenticate before sendResponse, so nothing is signed unless it succeeds. The context,
+        // built from the device key's policy, lets a protected key sign without a second prompt.
+        // The extension can't read the policy the app sets with DeviceKeyAuth.setPolicy, so an
+        // app that sets one must use the same values here.
+        let policy = UserAuthenticationPolicy()
+        let authContext = policy.makeContext()
+        do {
+            try await authContext.evaluatePolicy(
+                policy.evaluationPolicy,
+                localizedReason: "Share your data with \(originString)"
+            )
+        } catch {
+            if isUserCancellation(error) {
+                // Like the Cancel button: the system closes the sheet and the website learns
+                // the request was canceled.
+                context.cancel()
+            } else {
+                state = .error(
+                    title: "Failed to authenticate",
+                    details: error.localizedDescription
+                )
+            }
+            return
+        }
+
+        let keyStore = KeyManager(context: authContext)
         do {
             try await context.sendResponse { rawRequest in
-                var originString = origin.absoluteString
-                if originString.last == "/" {
-                    originString.removeLast()
-                }
-
                 let responseData = try await buildAnnexCResponse(
                     request: rawRequest.requestData,
                     origin: originString,
                     selectedMatch: match,
                     parsedCredentials: credentials,
                     approvedResponse: approvedResponse,
-                    keyStore: KeyManager()
+                    keyStore: keyStore
                 )
 
                 return ISO18013MobileDocumentResponse(responseData: responseData)
@@ -174,6 +202,12 @@ public struct DocumentProviderExtensionView: View {
             )
         }
     }
+}
+
+/// Whether authentication ended because the user (or the system) canceled it, rather than failed.
+private func isUserCancellation(_ error: Error) -> Bool {
+    guard let error = error as? LAError else { return false }
+    return [.userCancel, .systemCancel, .appCancel, .userFallback].contains(error.code)
 }
 
 // MARK: - Credential Loading

@@ -17,6 +17,7 @@ export 'src/mdl_presentation_nfc.dart';
 export 'pigeon/mdl_reader.g.dart' hide wrapResponse;
 export 'pigeon/spruce_utils.g.dart';
 export 'pigeon/dc_api.g.dart';
+export 'pigeon/device_key_auth.g.dart';
 
 // Dart-side helpers
 export 'src/mock_mdl_data_defaults.dart';

@@ -70,6 +70,7 @@ targets:
         NSBluetoothAlwaysUsageDescription: "Secure transmission of mobile DL data"
         NSCameraUsageDescription: "We need to access your camera for scanning"
         NFCReaderUsageDescription: "Used to read mobile driver's license credentials over NFC."
+        NSFaceIDUsageDescription: "Confirm it's you before sharing your credentials."
         # AIDs the iOS pre-poller will try before delivering the tag. NDEF
         # comes first because the ISO 18013-5 NFC engagement starts by
         # reading the static handover from the holder's NDEF application
@@ -225,6 +226,7 @@ targets:
         CFBundleDisplayName: "Showcase DC API Extension"
         EXAppExtensionAttributes:
           EXExtensionPointIdentifier: com.apple.identity-document-services.document-provider-ui
+        NSFaceIDUsageDescription: "Confirm it's you before sharing your credentials."
         storageAppGroup: group.com.spruceid.mobile # custom property to know what the app group is, because the app cannot access entitlements
     entitlements:
       path: Targets/AppDcApi/App.entitlements

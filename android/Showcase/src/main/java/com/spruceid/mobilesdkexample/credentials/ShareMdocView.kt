@@ -48,6 +48,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,10 +63,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.viewModelScope
 import com.spruceid.mobile.sdk.CredentialPresentData
 import com.spruceid.mobile.sdk.CredentialsViewModel
+import com.spruceid.mobile.sdk.KeyManager
 import com.spruceid.mobile.sdk.PresentmentState
+import com.spruceid.mobile.sdk.UserAuthenticationRequiredException
+import com.spruceid.mobile.sdk.authenticateUser
 import com.spruceid.mobile.sdk.getBluetoothManager
 import com.spruceid.mobile.sdk.getPermissions
 import com.spruceid.mobile.sdk.rs.Mdoc
@@ -94,6 +99,9 @@ fun QrShareMdocView(
     val error by credentialViewModel.error.collectAsState()
     val bluetoothPermissionsGranted by credentialViewModel.bluetoothPermissionsGranted.collectAsState()
     var forceRefresh by remember { mutableStateOf(true) }
+    // Set when sharing ends before a response is sent (canceled authentication or a failure).
+    // The session is already ended; this keeps the message up until the user starts again.
+    var sharingEndedMessage by remember { mutableStateOf<String?>(null) }
 
     var isBluetoothEnabled by remember {
         mutableStateOf(getBluetoothManager(context)!!.adapter.isEnabled)
@@ -118,6 +126,17 @@ fun QrShareMdocView(
         onDispose {
             context.unregisterReceiver(receiver)
         }
+    }
+
+    val endedMessage = sharingEndedMessage
+    if (endedMessage != null) {
+        // Before the state branches: the ended session is UNINITIALIZED, which would start a new
+        // one right away.
+        SharingEndedView(message = endedMessage, buttonLabel = "Refresh QR Code") {
+            sharingEndedMessage = null
+            forceRefresh = !forceRefresh
+        }
+        return
     }
 
     when (currentState) {
@@ -204,7 +223,11 @@ fun QrShareMdocView(
             ShareMdocSelectiveDisclosureView(
                 credentialViewModel = credentialViewModel,
                 mdoc = mdoc,
-                onCancel = onCancel
+                onCancel = onCancel,
+                onSharingEnded = { message ->
+                    sharingEndedMessage = message
+                    onCancel()
+                }
             )
         }
         PresentmentState.SUCCESS ->
@@ -226,6 +249,47 @@ fun QrShareMdocView(
     }
 }
 
+/** The share screen after sharing ended early: the message and a way to start again. */
+@Composable
+private fun SharingEndedView(message: String, buttonLabel: String, onStartAgain: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 48.dp),
+    ) {
+        Text(
+            text = message,
+            fontFamily = Inter,
+            fontWeight = FontWeight.Normal,
+            fontSize = 16.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(bottom = 20.dp)
+        )
+        Button(
+            onClick = onStartAgain,
+            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+            border = BorderStroke(width = 1.dp, color = Color.Black)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Refresh,
+                contentDescription = buttonLabel,
+                modifier = Modifier
+                    .size(24.dp),
+                tint = Color.Black,
+            )
+            Text(
+                text = buttonLabel,
+                fontFamily = Inter,
+                fontWeight = FontWeight.Normal,
+                fontSize = 16.sp,
+                modifier = Modifier.padding(vertical = 12.dp, horizontal = 4.dp),
+                color = Color.Black,
+            )
+        }
+    }
+}
+
 @Composable
 fun NfcShareMdocView(
     credentialViewModel: CredentialsViewModel,
@@ -238,6 +302,8 @@ fun NfcShareMdocView(
     val credentials by credentialViewModel.credentials.collectAsState()
     val error by credentialViewModel.error.collectAsState()
     val bluetoothPermissionsGranted by credentialViewModel.bluetoothPermissionsGranted.collectAsState()
+    // See QrShareMdocView.
+    var sharingEndedMessage by remember { mutableStateOf<String?>(null) }
 
     var isBluetoothEnabled by remember {
         mutableStateOf(getBluetoothManager(context)!!.adapter.isEnabled)
@@ -248,6 +314,8 @@ fun NfcShareMdocView(
         NfcListenManager.userRequested = true
         NfcPresentationService.shareScreenCallback = { carrierInfo: NegotiatedCarrierInfo ->
             if(isBluetoothEnabled && bluetoothPermissionsGranted) {
+                // A new tap starts a new session, so the previous one's message goes away.
+                sharingEndedMessage = null
                 credentialViewModel.viewModelScope.launch {
                     @SuppressLint("MissingPermission")
                     credentialViewModel.present(
@@ -278,6 +346,14 @@ fun NfcShareMdocView(
             context.unregisterReceiver(receiver)
             NfcListenManager.userRequested = false
         }
+    }
+
+    val endedMessage = sharingEndedMessage
+    if (endedMessage != null) {
+        SharingEndedView(message = endedMessage, buttonLabel = "Start again") {
+            sharingEndedMessage = null
+        }
+        return
     }
 
     when (currentState) {
@@ -333,7 +409,11 @@ fun NfcShareMdocView(
             ShareMdocSelectiveDisclosureView(
                 credentialViewModel = credentialViewModel,
                 mdoc = mdoc,
-                onCancel = onCancel
+                onCancel = onCancel,
+                onSharingEnded = { message ->
+                    sharingEndedMessage = message
+                    onCancel()
+                }
             )
         }
         PresentmentState.SUCCESS ->
@@ -362,9 +442,14 @@ fun ShareMdocSelectiveDisclosureView(
     credentialViewModel: CredentialsViewModel,
     mdoc: Mdoc,
     onCancel: () -> Unit,
+    // Ends the session like onCancel and shows the message on the share screen.
+    onSharingEnded: (message: String) -> Unit,
 ) {
     val itemsRequests by credentialViewModel.itemsRequest.collectAsState()
     val allowedNamespaces by credentialViewModel.allowedNamespaces.collectAsState()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var isSubmitting by remember { mutableStateOf(false) }
 
     val selectNamespacesSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -477,11 +562,51 @@ fun ShareMdocSelectiveDisclosureView(
                 }
 
                 Button(
+                    // One approval at a time: a second tap would show a second prompt and submit
+                    // twice.
+                    enabled = !isSubmitting,
                     onClick = {
-                        try {
-                            credentialViewModel.submitNamespaces(allowedNamespaces)
-                        } catch (e: Error) {
-                            Log.e("SelectiveDisclosureView", e.stackTraceToString())
+                        if (isSubmitting) return@Button
+                        isSubmitting = true
+                        scope.launch {
+                            var submitted = false
+                            try {
+                                // A device key with a UserAuthenticationPolicy only signs shortly
+                                // after a strong authentication, so prompt before signing.
+                                if (KeyManager().isUserAuthenticationRequired(mdoc.keyAlias())) {
+                                    val activity = context as? FragmentActivity
+                                        ?: throw IllegalStateException("not a FragmentActivity")
+                                    val authenticated = authenticateUser(
+                                        activity,
+                                        title = "Verify your identity",
+                                        subtitle = "Approve sharing your data with the reader",
+                                    )
+                                    if (!authenticated) {
+                                        // End the session like Cancel does, so the reader
+                                        // learns the request was declined.
+                                        Log.w("SelectiveDisclosureView", "authentication canceled")
+                                        onSharingEnded("Sharing canceled.")
+                                        return@launch
+                                    }
+                                }
+                                submitted = true
+                                credentialViewModel.submitNamespaces(allowedNamespaces)
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (e: UserAuthenticationRequiredException) {
+                                // The authentication window ran out before the key signed.
+                                Log.w("SelectiveDisclosureView", e.toString())
+                                onSharingEnded("Authentication expired. Please try again.")
+                            } catch (e: Throwable) {
+                                Log.e("SelectiveDisclosureView", e.stackTraceToString())
+                                // submitNamespaces reports its own failures through the
+                                // presentment state; anything before it gets a message here.
+                                if (!submitted) {
+                                    onSharingEnded("Sharing failed. Please try again.")
+                                }
+                            } finally {
+                                isSubmitting = false
+                            }
                         }
                     },
                     shape = RoundedCornerShape(6.dp),

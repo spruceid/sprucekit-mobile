@@ -2,17 +2,22 @@ package com.spruceid.mobile.sdk
 
 import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyInfo
 import android.security.keystore.KeyProperties
-import android.util.Base64
+import android.security.keystore.KeyPermanentlyInvalidatedException
+import android.security.keystore.UserNotAuthenticatedException
 import android.util.Log
 import androidx.annotation.RequiresApi
 import com.spruceid.mobile.sdk.rs.CryptoCurveUtils
 import com.spruceid.mobile.sdk.rs.Jwk
+import com.spruceid.mobile.toolkit.CryptoException
 import com.spruceid.mobile.toolkit.KeyAlias
 import com.spruceid.mobile.toolkit.KeyStore as SpruceKitKeyStore
 import com.spruceid.mobile.toolkit.SigningKey
 import com.spruceid.mobile.sdk.rs.coseKeyEc2P256PublicKey
 import com.spruceid.mobile.sdk.rs.jwkFromPublicP256
+import java.security.InvalidAlgorithmParameterException
+import java.security.KeyFactory
 import java.security.KeyPairGenerator
 import java.security.KeyStore
 import java.security.SecureRandom
@@ -73,21 +78,44 @@ class KeyManager : SpruceKitKeyStore {
      * Generates a secp256r1 signing key by id/alias in the Keystore with Strongbox when min SDK and
      * hardware requirements are met, otherwise using TEE.
      * @property id of the secret key.
+     * @property userAuthentication when set, the key can only sign shortly after the user
+     * authenticates (see [UserAuthenticationPolicy]). If the device has no secure lock screen (or
+     * no strong biometric when the policy doesn't allow the device credential), a
+     * [UserAuthenticationUnavailableException] is thrown; other keystore failures are thrown as
+     * they are. No key without the policy is created.
      * @returns KeyManagerEnvironment indicating the environment used to generate the key.
      */
-    fun generateSigningKey(id: String, challenge: ByteArray? = null): KeyManagerEnvironment {
+    fun generateSigningKey(
+        id: String,
+        challenge: ByteArray? = null,
+        userAuthentication: UserAuthenticationPolicy? = null,
+    ): KeyManagerEnvironment {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                generateSigningKeyWithStrongbox(id, challenge)
+                generateSigningKeyWithStrongbox(id, challenge, userAuthentication)
 
                 return KeyManagerEnvironment.Strongbox
             } else {
-                generateSigningKeyTEE(id, challenge)
+                generateSigningKeyTEE(id, challenge, userAuthentication)
 
                 return KeyManagerEnvironment.TEE
             }
         } catch (e: Exception) {
-            generateSigningKeyTEE(id, challenge)
+            if (userAuthentication == null) {
+                generateSigningKeyTEE(id, challenge)
+
+                return KeyManagerEnvironment.TEE
+            }
+            // The TEE attempt keeps the policy: a key is never created without it.
+            try {
+                generateSigningKeyTEE(id, challenge, userAuthentication)
+            } catch (teeError: Exception) {
+                teeError.addSuppressed(e)
+                if (isUserAuthenticationSetupError(teeError)) {
+                    throw UserAuthenticationUnavailableException(id, teeError)
+                }
+                throw teeError
+            }
 
             return KeyManagerEnvironment.TEE
         }
@@ -96,9 +124,14 @@ class KeyManager : SpruceKitKeyStore {
     /**
      * Generates a secp256r1 signing key by id/alias in the Keystore with Strongbox.
      * @property id of the secret key.
+     * @property userAuthentication see [generateSigningKey].
      */
     @RequiresApi(Build.VERSION_CODES.P)
-    fun generateSigningKeyWithStrongbox(id: String, challenge: ByteArray? = null) {
+    fun generateSigningKeyWithStrongbox(
+        id: String,
+        challenge: ByteArray? = null,
+        userAuthentication: UserAuthenticationPolicy? = null,
+    ) {
         val generator =
             KeyPairGenerator.getInstance(
                 KeyProperties.KEY_ALGORITHM_EC,
@@ -117,6 +150,7 @@ class KeyManager : SpruceKitKeyStore {
                     if (challenge != null) {
                         setAttestationChallenge(challenge)
                     }
+                    userAuthentication?.applyTo(this)
                 }
                 .build()
 
@@ -127,8 +161,13 @@ class KeyManager : SpruceKitKeyStore {
     /**
      * Generates a secp256r1 signing key by id/alias in the Keystore with TEE.
      * @property id of the secret key.
+     * @property userAuthentication see [generateSigningKey].
      */
-    fun generateSigningKeyTEE(id: String, challenge: ByteArray? = null) {
+    fun generateSigningKeyTEE(
+        id: String,
+        challenge: ByteArray? = null,
+        userAuthentication: UserAuthenticationPolicy? = null,
+    ) {
         val generator =
             KeyPairGenerator.getInstance(
                 KeyProperties.KEY_ALGORITHM_EC,
@@ -146,6 +185,7 @@ class KeyManager : SpruceKitKeyStore {
                     if (challenge != null) {
                         setAttestationChallenge(challenge)
                     }
+                    userAuthentication?.applyTo(this)
                 }
                 .build()
 
@@ -193,11 +233,13 @@ class KeyManager : SpruceKitKeyStore {
     /**
      * Returns the given public key as a JWK. Generates a new key if it doesn't exist.
      * @property id of the key pair.
+     * @property userAuthentication applied only when a new key is generated; an existing key
+     * keeps the protection it was created with.
      * @return the JWK.
      */
-    fun getOrInsertJwk(id: String): Jwk {
+    fun getOrInsertJwk(id: String, userAuthentication: UserAuthenticationPolicy? = null): Jwk {
         if (!keyExists(id)) {
-            generateSigningKey(id)
+            generateSigningKey(id, userAuthentication = userAuthentication)
         }
 
         return getJwk(id)!!
@@ -251,23 +293,47 @@ class KeyManager : SpruceKitKeyStore {
     }
 
     /**
+     * Checks whether a key was generated with a [UserAuthenticationPolicy].
+     * @property id of the key pair.
+     * @return true if the key needs a recent user authentication to sign, false if it doesn't or
+     * if no private key exists under [id].
+     */
+    fun isUserAuthenticationRequired(id: String): Boolean {
+        val entry = getKeyStore().getEntry(id, null) as? KeyStore.PrivateKeyEntry ?: return false
+        val factory = KeyFactory.getInstance(entry.privateKey.algorithm, "AndroidKeyStore")
+        return factory.getKeySpec(entry.privateKey, KeyInfo::class.java).isUserAuthenticationRequired
+    }
+
+    /**
      * Signs the provided payload with a SHA256withECDSA private key.
      * @property id of the secret key.
      * @property payload to be signed.
      * @return DER-encoded signature
+     * @throws UserAuthenticationRequiredException if the key requires user authentication and the
+     * user hasn't authenticated within its validity window. Authenticate (for example with
+     * [authenticateUser]) and retry.
+     * @throws UserAuthenticationUnavailableException if the key was permanently invalidated (the
+     * secure lock screen was removed or the enrolled biometrics changed).
      */
     fun signPayload(id: String, payload: ByteArray): ByteArray? {
         val ks = getKeyStore()
-        val entry: KeyStore.Entry = ks.getEntry(id, null)
+        // getEntry returns null when there is no entry under the alias.
+        val entry: KeyStore.Entry? = ks.getEntry(id, null)
         if (entry !is KeyStore.PrivateKeyEntry) {
             Log.w("KEYMAN", "Not an instance of a PrivateKeyEntry")
             return null
         }
 
         return Signature.getInstance("SHA256withECDSA").run {
-            initSign(entry.privateKey)
-            val b = Base64.encodeToString(payload, Base64.DEFAULT)
-            Log.i("KeyManager", "Signing: $b")
+            try {
+                initSign(entry.privateKey)
+            } catch (e: KeyPermanentlyInvalidatedException) {
+                throw UserAuthenticationUnavailableException(
+                    id, e, UserAuthenticationUnavailableException.INVALIDATED_DETAIL
+                )
+            } catch (e: UserNotAuthenticatedException) {
+                throw UserAuthenticationRequiredException(id, e)
+            }
             update(payload)
             sign()
         }
@@ -419,19 +485,60 @@ class KeyManager : SpruceKitKeyStore {
         return cipher.doFinal(encryptedData)
     }
 
+    // CryptoException is the error type the Rust KeyStore trait declares; any other throwable
+    // crossing the callback makes the Rust side panic.
     override fun getSigningKey(alias: KeyAlias): SigningKey {
-        val jwk = this.getJwk(alias) ?: throw Error("key not found")
+        val jwk = this.getJwk(alias) ?: throw CryptoException.General("key '$alias' not found")
         return P256SigningKey(alias, jwk.toString())
     }
 }
+
+/**
+ * Whether a key generation failure means the device can't satisfy a [UserAuthenticationPolicy]:
+ * no secure lock screen, or no strong biometric enrolled when one is needed.
+ *
+ * `KeyPairGenerator.initialize` wraps both in an [InvalidAlgorithmParameterException] around an
+ * `IllegalStateException` with one of [USER_AUTHENTICATION_SETUP_MESSAGES]. The same wrapping is
+ * used when Gatekeeper is unavailable or its call fails, with other messages: those are keystore
+ * failures, not a missing lock screen.
+ */
+internal fun isUserAuthenticationSetupError(error: Throwable): Boolean {
+    if (error !is InvalidAlgorithmParameterException) return false
+    val message = (error.cause as? IllegalStateException)?.message ?: return false
+    return USER_AUTHENTICATION_SETUP_MESSAGES.any { message.startsWith(it) }
+}
+
+/** The platform keystore's messages for a missing secure lock screen or biometric enrollment. */
+private val USER_AUTHENTICATION_SETUP_MESSAGES = listOf(
+    "Secure lock screen must be enabled",
+    "At least one biometric must be enrolled",
+)
 
 class P256SigningKey(private val alias: String, private val jwk: String) : SigningKey {
 
     override fun jwk(): String = this.jwk
 
+    /**
+     * Signs [payload]. When the key requires user authentication and the user hasn't
+     * authenticated recently, throws a [CryptoException] whose message starts with
+     * [UserAuthenticationRequiredException.MESSAGE_PREFIX]; when the key was permanently
+     * invalidated, with [UserAuthenticationUnavailableException.MESSAGE_PREFIX]. The marker
+     * survives the trip through Rust to the caller of the flow.
+     *
+     * Only throws [CryptoException], the error type the Rust trait declares: any other throwable
+     * crossing the callback makes the Rust side panic.
+     */
     override fun sign(payload: ByteArray): ByteArray {
-        val derSignature = KeyManager().signPayload(alias, payload) ?: throw Error("key not found")
+        val derSignature = try {
+            KeyManager().signPayload(alias, payload)
+        } catch (e: UserAuthenticationRequiredException) {
+            throw CryptoException.General(e.message ?: UserAuthenticationRequiredException.MESSAGE_PREFIX)
+        } catch (e: UserAuthenticationUnavailableException) {
+            throw CryptoException.General(e.message ?: UserAuthenticationUnavailableException.MESSAGE_PREFIX)
+        } catch (e: Exception) {
+            throw CryptoException.General("Could not sign with key '$alias': $e")
+        } ?: throw CryptoException.General("key '$alias' not found")
         return CryptoCurveUtils.secp256r1().ensureRawFixedWidthSignatureEncoding(derSignature)
-            ?: throw Error("signature encoding not recognized")
+            ?: throw CryptoException.General("signature encoding from key '$alias' not recognized")
     }
 }

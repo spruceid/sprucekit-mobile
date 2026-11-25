@@ -56,6 +56,7 @@ import com.spruceid.mobile.sdk.getPermissions
 import com.spruceid.mobile.sdk.nfc.rememberNfcReaderEngagement
 import com.spruceid.mobile.sdk.rs.ReaderHandover
 import com.spruceid.mobile.sdk.rs.VerifiedDocument
+import com.spruceid.mobilesdkexample.ErrorView
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.ScanningComponent
@@ -237,7 +238,10 @@ enum class State {
     ENABLE_BLUETOOTH,
     SCANNING,
     TRANSMITTING,
-    DONE
+    DONE,
+
+    /** The holder ended the session without sending a response. */
+    ENDED
 }
 
 @OptIn(
@@ -319,6 +323,9 @@ fun VerifyMDocView(
                     responseProcessingErrors = response.errors
                 }
                 scanProcessState = State.DONE
+            } else if (state.containsKey("sessionEnded")) {
+                // For example, the holder declined the request.
+                scanProcessState = State.ENDED
             }
         }
 
@@ -465,6 +472,13 @@ fun VerifyMDocView(
                     )
                 }
             }
+        )
+
+        State.ENDED -> ErrorView(
+            errorTitle = "The holder declined or ended the session.",
+            errorDetails = "The holder ended the Bluetooth session before sending a response. " +
+                "No data was received.",
+            onClose = ::back
         )
     }
 }

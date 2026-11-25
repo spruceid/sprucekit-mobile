@@ -2,6 +2,15 @@ import Foundation
 import SpruceIDMobileSdk
 import SpruceIDMobileSdkRs
 
+/// Error thrown by `Oid4vciJwsSigner`. Its description is the message.
+///
+/// `JwsSignatureError` is a flat error, which uniffi can't lift when a Swift callback throws it
+/// (the Rust side panics). Rust receives any other error as `JwsSignatureError::Other` with the
+/// error's description (`String(describing:)`), so the signer throws this type instead.
+struct Oid4vciSignerError: Error, CustomStringConvertible {
+    let description: String
+}
+
 /// JWS Signer implementation using KeyManager for OID4VCI proof of possession
 class Oid4vciJwsSigner: JwsSigner, @unchecked Sendable {
     private let keyId: String
@@ -13,20 +22,33 @@ class Oid4vciJwsSigner: JwsSigner, @unchecked Sendable {
     }
 
     func fetchInfo() async throws -> JwsSignerInfo {
-        return try await jwk.fetchInfo()
-    }
-
-    func signBytes(signingBytes: Data) async throws -> Data {
-        guard let signature = KeyManager.signPayload(id: keyId, payload: [UInt8](signingBytes)) else {
-            throw Oid4vciAdapterError.signingFailed
+        do {
+            return try await jwk.fetchInfo()
+        } catch {
+            throw Oid4vciSignerError(description: "Failed to read signer info: \(error)")
         }
-        return try decodeDerSignature(signatureDer: Data(signature))
     }
-}
 
-/// Error types for OID4VCI adapter
-enum Oid4vciAdapterError: Error {
-    case signingFailed
+    // Throws only Oid4vciSignerError (see there). An authentication failure keeps the
+    // "User authentication required" (retry) or "User authentication unavailable" marker, which
+    // reaches Dart inside the error message.
+    func signBytes(signingBytes: Data) async throws -> Data {
+        let signature: [UInt8]
+        do {
+            signature = try KeyManager.signPayloadThrowing(
+                id: keyId, payload: [UInt8](signingBytes),
+                context: DeviceKeyAuthState.shared.currentContext())
+        } catch let error as UserAuthenticationError {
+            throw Oid4vciSignerError(description: error.message)
+        } catch {
+            throw Oid4vciSignerError(description: "Failed to sign: \(error)")
+        }
+        do {
+            return try decodeDerSignature(signatureDer: Data(signature))
+        } catch {
+            throw Oid4vciSignerError(description: "Invalid signature: \(error)")
+        }
+    }
 }
 
 // MARK: - Session Registry
@@ -143,8 +165,8 @@ class Oid4vciAdapter: Oid4vci {
         Task {
             do {
                 let httpClient = Oid4vciAsyncHttpClient()
-                let signer = buildJwsSigner(keyId: keyId)
-                let derivedClientId = derivedClientId(keyId: keyId)
+                let signer = try buildJwsSigner(keyId: keyId)
+                let derivedClientId = try derivedClientId(keyId: keyId)
                 let oid4vciClient = facadeClient(clientId: derivedClientId, supportedVersions: supportedVersions)
                 let offerUrl = normalizeOfferUrl(credentialOffer)
                 let resolved = try await oid4vciClient.resolveOfferUrl(
@@ -323,15 +345,19 @@ class Oid4vciAdapter: Oid4vci {
         }
     }
 
-    private func buildJwsSigner(keyId: String) -> Oid4vciJwsSigner {
-        let jwk = KeyManager.getOrInsertJwk(id: keyId)
+    // Throws when a protected key can't be created (no passcode, or no biometrics enrolled when
+    // the policy doesn't allow the passcode), so Dart gets an error instead of a crash.
+    private func buildJwsSigner(keyId: String) throws -> Oid4vciJwsSigner {
+        let jwk = try KeyManager.getOrInsertJwk(
+            id: keyId, userAuthentication: DeviceKeyAuthState.shared.policy)
         let didUrl = generateDidJwkUrl(jwk: jwk)
         jwk.setKid(kid: didUrl.description)
         return Oid4vciJwsSigner(keyId: keyId, jwk: jwk)
     }
 
-    private func derivedClientId(keyId: String) -> String {
-        let jwk = KeyManager.getOrInsertJwk(id: keyId)
+    private func derivedClientId(keyId: String) throws -> String {
+        let jwk = try KeyManager.getOrInsertJwk(
+            id: keyId, userAuthentication: DeviceKeyAuthState.shared.policy)
         let didUrl = generateDidJwkUrl(jwk: jwk)
         return didUrl.did().description
     }
@@ -464,8 +490,8 @@ class Oid4vciAdapter: Oid4vci {
         supportedVersions: [Oid4vciVersion]
     ) async throws -> Oid4vciResult {
         let httpClient = Oid4vciAsyncHttpClient()
-        let signer = buildJwsSigner(keyId: keyId)
-        let derivedClientId = derivedClientId(keyId: keyId)
+        let signer = try buildJwsSigner(keyId: keyId)
+        let derivedClientId = try derivedClientId(keyId: keyId)
         let oid4vciClient = facadeClient(clientId: derivedClientId, supportedVersions: supportedVersions)
         let offerUrl = normalizeOfferUrl(credentialOffer)
         let offer = try await oid4vciClient.resolveOfferUrl(

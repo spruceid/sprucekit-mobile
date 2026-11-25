@@ -14,7 +14,7 @@ class Oid4vpMdocAdapter: Oid4vpMdoc {
     private var handler: Oid4vp180137?
     private var request: InProgressRequest180137?
     private var matches: [RequestMatch180137] = []
-    private var keyManager: KeyManager?
+    private var keyManager: DeviceKeyStore?
 
     init(credentialPackAdapter: CredentialPackAdapter) {
         self.credentialPackAdapter = credentialPackAdapter
@@ -42,8 +42,8 @@ class Oid4vpMdocAdapter: Oid4vpMdoc {
                     return
                 }
 
-                // Create KeyManager instance
-                let keyMgr = KeyManager()
+                // Key store that signs with the DeviceKeyAuth context current at signing time
+                let keyMgr = DeviceKeyStore()
 
                 // Create the handler
                 let newHandler = try Oid4vp180137(
