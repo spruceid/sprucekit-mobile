@@ -213,6 +213,8 @@ class ShareViewDelegate: ObservableObject, MdocProximityPresentationManager.Dele
     @Published var state: MdocProximityPresentationManager.State = .initializing
     /// Set when the user canceled authentication, so the dismissed request reads as canceled.
     @Published var sharingCanceled = false
+    /// True while an approval runs, so a second tap can't start another prompt and response.
+    @Published private(set) var isApproving = false
 
     private let mdoc: Mdoc
     private var sessionManager: MdocProximityPresentationManager? = nil
@@ -237,6 +239,7 @@ class ShareViewDelegate: ObservableObject, MdocProximityPresentationManager.Dele
     
     func reset() {
         self.sharingCanceled = false
+        self.isApproving = false
         self.sessionManager?.authenticationContext = nil
         self.sessionManager?.reset()
     }
@@ -246,18 +249,26 @@ class ShareViewDelegate: ObservableObject, MdocProximityPresentationManager.Dele
     /// The evaluated context goes to the presentation manager so the signature doesn't prompt a
     /// second time. If the user cancels or fails authentication, the request is dismissed, so the
     /// reader learns it was declined.
+    ///
+    /// A request is approved at most once: `isApproving` stays set after `request.approve`, which
+    /// only queues the signing and sending, until `reset()`.
     @MainActor
     func approve(request: MdocProximityPresentationManager.Request, items: [String: [String: [String]]]) async {
+        guard !isApproving else { return }
+        isApproving = true
         if KeyManager.isUserAuthenticationRequired(id: mdoc.keyAlias()) {
-            let context = LAContext()
+            // The test mdoc key's policy: its evaluation policy matches the key's access control.
+            let policy = TEST_MDOC_KEY_POLICY
+            let context = policy.makeContext()
             do {
                 try await context.evaluatePolicy(
-                    .deviceOwnerAuthentication,
+                    policy.evaluationPolicy,
                     localizedReason: "Approve sharing your data with the reader"
                 )
             } catch {
                 print("authentication canceled or failed: \(error)")
                 sharingCanceled = true
+                isApproving = false
                 request.dismiss()
                 return
             }
@@ -273,7 +284,7 @@ public struct ShareMdocSelectiveDisclosureView: View {
     @State private var showingSDSheet = true
     @State private var itemsSelected: [String: [String: [String: Bool]]]
     @State private var request: MdocProximityPresentationManager.Request
-    private let delegate: ShareViewDelegate
+    @ObservedObject private var delegate: ShareViewDelegate
 
     init(request: MdocProximityPresentationManager.Request, delegate: ShareViewDelegate) {
         self.request = request
@@ -305,6 +316,7 @@ public struct ShareMdocSelectiveDisclosureView: View {
             ShareMdocSDSheetView(
                 itemsSelected: $itemsSelected,
                 itemsRequests: request.items,
+                isApproving: delegate.isApproving,
                 onProceed: {
                     let items = itemsSelected.mapValues {
                         $0.mapValues {
@@ -328,6 +340,8 @@ struct ShareMdocSDSheetView: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var itemsSelected: [String: [String: [String: Bool]]]
     let itemsRequests: [ItemsRequest]
+    /// Disables Approve while an approval runs.
+    var isApproving: Bool = false
     let onProceed: () -> Void
     let onCancel: () -> Void
 
@@ -421,6 +435,8 @@ struct ShareMdocSDSheetView: View {
                 .padding(.vertical, 13)
                 .background(Color("ColorEmerald900"))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
+                .disabled(isApproving)
+                .opacity(isApproving ? 0.5 : 1)
             }
             .fixedSize(horizontal: false, vertical: true)
         }

@@ -59,10 +59,9 @@ class Oid4vpSigner(private val keyId: String) : Oid4vpPresentationSigner {
         ensureKey(keyId)
     }
 
-    // The Rust callback interface declares jwk, did and verificationMethod as non-throwing.
-    // createHolder already created the fallback key (prepareFallbackKey), so creating it here is
-    // only a backstop and doesn't fail in normal use. What's left (a per-credential key that
-    // doesn't exist, or a key deleted after createHolder) can't be reported to Rust from here.
+    // Backs jwk, did and verificationMethod, which the Rust callback interface declares as
+    // non-throwing. The fallback key already exists (prepareFallbackKey), so this fails for a
+    // missing per-credential key, a key deleted since createHolder, or a keystore error.
     private fun jwkFor(keyId: String): String {
         val resolvedId = try {
             ensureKey(keyId)

@@ -7,9 +7,8 @@ import java.util.concurrent.atomic.AtomicBoolean
  *
  * A holder that declines a request ends the session with the transport-specific session
  * termination (0x02 on the State characteristic, ISO 18013-5 section 8.3.3.1.1.7) and then
- * disconnects. Without this, a reader that is waiting for the response keeps waiting: the
- * termination is only logged, and a GATT server reader holds the link, so the disconnect may never
- * arrive either.
+ * disconnects. A GATT server reader holds the link, so the disconnect may never arrive: the
+ * termination alone has to end the wait for the response.
  *
  * Both signals call [holderEnded]. The host gets [BleSessionUpdates.sessionEnded] once, and only
  * if a holder had connected and no response has arrived. After a response, the same signals are

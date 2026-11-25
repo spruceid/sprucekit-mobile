@@ -88,10 +88,9 @@ class Oid4vpSigner: Oid4vpPresentationSigner {
         return "ES256"
     }
 
-    // The Rust callback interface declares verificationMethod, did and jwk as non-throwing.
-    // createHolder already created the fallback key (prepareFallbackKey), so creating it here
-    // is only a backstop and doesn't fail in normal use. What's left (a per-credential key that
-    // doesn't exist, or a key deleted after createHolder) can't be reported to Rust from here.
+    // The Rust callback interface declares verificationMethod, did and jwk as non-throwing. The
+    // fallback key already exists (prepareFallbackKey), so these fail for a missing
+    // per-credential key, a key deleted since createHolder, or a keychain error.
     func verificationMethod(keyId: String) async -> String {
         do {
             let jwk = try resolveJwk(keyId)
@@ -229,9 +228,9 @@ class Oid4vpAdapter: Oid4vp {
                     return
                 }
 
-                // Create signer. Create the fallback key now, so a protected key the device
-                // can't support fails here ("User authentication unavailable") and not in the
-                // signer's non-throwing callbacks.
+                // Create the signer and its fallback key here, so a protected key the device
+                // can't support fails with an error Dart sees ("User authentication
+                // unavailable") and not in the signer's non-throwing callbacks.
                 let signer = Oid4vpSigner(keyId: keyId)
                 do {
                     try signer.prepareFallbackKey()

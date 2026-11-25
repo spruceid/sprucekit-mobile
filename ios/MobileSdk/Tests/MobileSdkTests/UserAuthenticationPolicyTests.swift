@@ -23,8 +23,10 @@ final class UserAuthenticationPolicyTests: XCTestCase {
     }
 
     func testReuseDurationIsCapped() {
+        // A timeout of 0 or less is a precondition failure, like Android's `require`; XCTest
+        // can't catch a trap, so only valid values are tested here.
         XCTAssertEqual(UserAuthenticationPolicy(timeoutSeconds: 30).reuseDuration, 30)
-        XCTAssertEqual(UserAuthenticationPolicy(timeoutSeconds: -5).reuseDuration, 0)
+        XCTAssertEqual(UserAuthenticationPolicy(timeoutSeconds: 1).reuseDuration, 1)
         XCTAssertEqual(
             UserAuthenticationPolicy(timeoutSeconds: 100_000).reuseDuration,
             LATouchIDAuthenticationMaximumAllowableReuseDuration
@@ -90,6 +92,34 @@ final class UserAuthenticationPolicyTests: XCTestCase {
                 is UserAuthenticationUnavailableError)
         let notFound = NSError(domain: NSOSStatusErrorDomain, code: Int(errSecItemNotFound))
         XCTAssertNil(KeyManager.userAuthenticationError(alias: "a", underlying: notFound))
+    }
+
+    func testKeyCreationMapsOnlyUserAuthenticationErrorsToUnavailable() {
+        let policy = UserAuthenticationPolicy()
+        let noPasscode = NSError(domain: LAErrorDomain, code: LAError.Code.passcodeNotSet.rawValue)
+        XCTAssertTrue(
+            KeyManager.keyCreationError(alias: "a", userAuthentication: policy, underlying: noPasscode)
+                is UserAuthenticationUnavailableError)
+        // No prompt is shown at creation, so an auth failure there also means the device can't
+        // satisfy the policy.
+        let authFailed = NSError(domain: NSOSStatusErrorDomain, code: Int(errSecAuthFailed))
+        XCTAssertTrue(
+            KeyManager.keyCreationError(alias: "a", userAuthentication: policy, underlying: authFailed)
+                is UserAuthenticationUnavailableError)
+
+        let param = NSError(domain: NSOSStatusErrorDomain, code: Int(errSecParam))
+        guard
+            case KeyManError.internalError = KeyManager.keyCreationError(
+                alias: "a", userAuthentication: policy, underlying: param)
+        else {
+            return XCTFail("a keychain error unrelated to authentication must stay internal")
+        }
+        guard
+            case KeyManError.internalError = KeyManager.keyCreationError(
+                alias: "a", userAuthentication: nil, underlying: noPasscode)
+        else {
+            return XCTFail("without a policy every failure is internal")
+        }
     }
 
     func testProbeTreatsOnlyAMissingKeyAsUnprotected() {

@@ -47,8 +47,8 @@ private suspend fun generateMockMdoc(
     try {
         val keyManager = KeyManager()
         if (!keyManager.keyExists(TEST_MDOC_KEY_ALIAS)) {
-            // Opt the test device key into user authentication so testers can exercise it.
-            // A key created before this change keeps its old (unprotected) settings.
+            // The test device key requires user authentication, so the prompt can be tried out.
+            // An existing key keeps the settings it was created with.
             keyManager.generateSigningKey(
                 TEST_MDOC_KEY_ALIAS,
                 userAuthentication = UserAuthenticationPolicy()

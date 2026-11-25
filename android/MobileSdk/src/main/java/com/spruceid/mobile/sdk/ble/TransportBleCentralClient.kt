@@ -115,10 +115,10 @@ class TransportBleCentralClient(
                 logger.d("Peer Connected")
                 emitter.connected()
 
-                // Reader as Central: Send the mDL request to Holder after connection
                 if (isReader) {
                     sessionEnd.holderConnected()
                 }
+                // Reader as Central: Send the mDL request to Holder after connection
                 if (isReader && requestData != null) {
                     logger.d("Sending mDL request: ${requestData!!.size} bytes")
                     gattClient.sendMessage(requestData!!)

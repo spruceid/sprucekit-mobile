@@ -4,7 +4,10 @@ import android.os.Build
 import android.security.keystore.KeyProperties
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
 import androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL
+import java.security.InvalidAlgorithmParameterException
+import java.security.ProviderException
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -131,5 +134,33 @@ class UserAuthenticationPolicyTest {
             assertEquals("alias", e.alias)
         }
         assertTrue(invalidated.message!!.contains("invalidated"))
+    }
+
+    @Test
+    fun onlyLockScreenFailuresAreUserAuthenticationSetupErrors() {
+        val noLockScreen = InvalidAlgorithmParameterException(
+            IllegalStateException("Secure lock screen must be enabled to create keys requiring user authentication")
+        )
+        assertTrue(isUserAuthenticationSetupError(noLockScreen))
+        val noBiometric = InvalidAlgorithmParameterException(
+            IllegalStateException(
+                "At least one biometric must be enrolled to create keys requiring user authentication for every use"
+            )
+        )
+        assertTrue(isUserAuthenticationSetupError(noBiometric))
+
+        // Gatekeeper failures are wrapped the same way but are not a missing lock screen.
+        assertFalse(isUserAuthenticationSetupError(
+            InvalidAlgorithmParameterException(IllegalStateException("Gatekeeper service not available"))
+        ))
+        assertFalse(isUserAuthenticationSetupError(
+            InvalidAlgorithmParameterException(
+                IllegalStateException("Failed to obtain secure user ID from gatekeeper", RuntimeException())
+            )
+        ))
+
+        assertFalse(isUserAuthenticationSetupError(InvalidAlgorithmParameterException("unsupported curve")))
+        assertFalse(isUserAuthenticationSetupError(ProviderException("keystore failure")))
+        assertFalse(isUserAuthenticationSetupError(IllegalStateException("not wrapped by the keystore")))
     }
 }

@@ -156,12 +156,15 @@ public struct DocumentProviderExtensionView: View {
         }
         let originString = trimmedOrigin
 
-        // Authenticate before sendResponse, so nothing is signed unless it succeeds. The
-        // evaluated context lets a protected device key sign without a second prompt.
-        let authContext = LAContext()
+        // Authenticate before sendResponse, so nothing is signed unless it succeeds. The context,
+        // built from the device key's policy, lets a protected key sign without a second prompt.
+        // The extension can't read the policy the app sets with DeviceKeyAuth.setPolicy, so an
+        // app that sets one must use the same values here.
+        let policy = UserAuthenticationPolicy()
+        let authContext = policy.makeContext()
         do {
             try await authContext.evaluatePolicy(
-                .deviceOwnerAuthentication,
+                policy.evaluationPolicy,
                 localizedReason: "Share your data with \(originString)"
             )
         } catch {

@@ -16,6 +16,7 @@ import com.spruceid.mobile.toolkit.KeyStore as SpruceKitKeyStore
 import com.spruceid.mobile.toolkit.SigningKey
 import com.spruceid.mobile.sdk.rs.coseKeyEc2P256PublicKey
 import com.spruceid.mobile.sdk.rs.jwkFromPublicP256
+import java.security.InvalidAlgorithmParameterException
 import java.security.KeyFactory
 import java.security.KeyPairGenerator
 import java.security.KeyStore
@@ -78,8 +79,10 @@ class KeyManager : SpruceKitKeyStore {
      * hardware requirements are met, otherwise using TEE.
      * @property id of the secret key.
      * @property userAuthentication when set, the key can only sign shortly after the user
-     * authenticates (see [UserAuthenticationPolicy]). If the device can't satisfy the policy, a
-     * [UserAuthenticationUnavailableException] is thrown; no key without the policy is created.
+     * authenticates (see [UserAuthenticationPolicy]). If the device has no secure lock screen (or
+     * no strong biometric when the policy doesn't allow the device credential), a
+     * [UserAuthenticationUnavailableException] is thrown; other keystore failures are thrown as
+     * they are. No key without the policy is created.
      * @returns KeyManagerEnvironment indicating the environment used to generate the key.
      */
     fun generateSigningKey(
@@ -103,20 +106,15 @@ class KeyManager : SpruceKitKeyStore {
 
                 return KeyManagerEnvironment.TEE
             }
-            if (e is UserAuthenticationUnavailableException) {
-                throw e
-            }
-            // The Strongbox failure may be the policy (no secure lock screen, no strong
-            // biometric) or Strongbox itself. The TEE attempt carries the same policy, so it
-            // either succeeds with it or fails for the same reason; it never drops the policy.
+            // The TEE attempt keeps the policy: a key is never created without it.
             try {
                 generateSigningKeyTEE(id, challenge, userAuthentication)
             } catch (teeError: Exception) {
-                if (teeError is UserAuthenticationUnavailableException) {
-                    teeError.addSuppressed(e)
-                    throw teeError
+                teeError.addSuppressed(e)
+                if (isUserAuthenticationSetupError(teeError)) {
+                    throw UserAuthenticationUnavailableException(id, teeError)
                 }
-                throw UserAuthenticationUnavailableException(id, teeError).apply { addSuppressed(e) }
+                throw teeError
             }
 
             return KeyManagerEnvironment.TEE
@@ -319,7 +317,8 @@ class KeyManager : SpruceKitKeyStore {
      */
     fun signPayload(id: String, payload: ByteArray): ByteArray? {
         val ks = getKeyStore()
-        val entry: KeyStore.Entry = ks.getEntry(id, null)
+        // getEntry returns null when there is no entry under the alias.
+        val entry: KeyStore.Entry? = ks.getEntry(id, null)
         if (entry !is KeyStore.PrivateKeyEntry) {
             Log.w("KEYMAN", "Not an instance of a PrivateKeyEntry")
             return null
@@ -493,6 +492,27 @@ class KeyManager : SpruceKitKeyStore {
         return P256SigningKey(alias, jwk.toString())
     }
 }
+
+/**
+ * Whether a key generation failure means the device can't satisfy a [UserAuthenticationPolicy]:
+ * no secure lock screen, or no strong biometric enrolled when one is needed.
+ *
+ * `KeyPairGenerator.initialize` wraps both in an [InvalidAlgorithmParameterException] around an
+ * `IllegalStateException` with one of [USER_AUTHENTICATION_SETUP_MESSAGES]. The same wrapping is
+ * used when Gatekeeper is unavailable or its call fails, with other messages: those are keystore
+ * failures, not a missing lock screen.
+ */
+internal fun isUserAuthenticationSetupError(error: Throwable): Boolean {
+    if (error !is InvalidAlgorithmParameterException) return false
+    val message = (error.cause as? IllegalStateException)?.message ?: return false
+    return USER_AUTHENTICATION_SETUP_MESSAGES.any { message.startsWith(it) }
+}
+
+/** The platform keystore's messages for a missing secure lock screen or biometric enrollment. */
+private val USER_AUTHENTICATION_SETUP_MESSAGES = listOf(
+    "Secure lock screen must be enabled",
+    "At least one biometric must be enrolled",
+)
 
 class P256SigningKey(private val alias: String, private val jwk: String) : SigningKey {
 

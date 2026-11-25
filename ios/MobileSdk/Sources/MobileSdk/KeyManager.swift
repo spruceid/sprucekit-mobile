@@ -17,10 +17,11 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
 
     /// A key store whose signing keys sign with `context`.
     ///
-    /// Pass a context already evaluated with `.deviceOwnerAuthentication` so that keys generated
-    /// with a `UserAuthenticationPolicy` sign without showing the system prompt again (for
-    /// example in `responder.respond(keyStore:)` or other Rust-driven flows). Without a context,
-    /// the system prompts on its own when a protected key signs.
+    /// For keys generated with a `UserAuthenticationPolicy`, pass the policy's `makeContext()`
+    /// after evaluating it with the policy's `evaluationPolicy`: the keys then sign without
+    /// showing the system prompt again (for example in `responder.respond(keyStore:)` or other
+    /// Rust-driven flows). Without a context, the system prompts on its own when a protected key
+    /// signs.
     public init(context: LAContext?) {
         self.context = context
         super.init()
@@ -197,6 +198,28 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
         id: String, accessGroup: String? = nil,
         userAuthentication: UserAuthenticationPolicy? = nil
     ) -> Bool {
+        do {
+            try generateSigningKeyThrowing(
+                id: id, accessGroup: accessGroup, userAuthentication: userAuthentication)
+            return true
+        } catch {
+            print("generateSigningKey: \(error)")
+            return false
+        }
+    }
+
+    /**
+     * Generates a secp256r1 signing key like `generateSigningKey`, but throws instead of
+     * returning false.
+     *
+     * Throws `UserAuthenticationUnavailableError` when `userAuthentication` is set and the device
+     * can't satisfy it (no passcode set, or no biometrics enrolled when the device passcode isn't
+     * allowed); no key is created then. Throws `KeyManError.internalError` for any other failure.
+     */
+    public static func generateSigningKeyThrowing(
+        id: String, accessGroup: String? = nil,
+        userAuthentication: UserAuthenticationPolicy? = nil
+    ) throws {
         let tag = id.data(using: .utf8)!
 
         let access = SecAccessControlCreateWithFlags(
@@ -224,11 +247,27 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
 
         var error: Unmanaged<CFError>?
         guard SecKeyCreateRandomKey(attributes as CFDictionary, &error) != nil else {
-            let cfError = error?.takeRetainedValue()
-            print("generateSigningKey: could not create key '\(id)': \(cfError.map { "\($0)" } ?? "unknown error")")
-            return false
+            guard let cfError = error?.takeRetainedValue() else {
+                throw KeyManError.internalError("Could not create key '\(id)': unknown error")
+            }
+            throw keyCreationError(
+                alias: id, userAuthentication: userAuthentication,
+                underlying: cfError as Error as NSError)
         }
-        return true
+    }
+
+    /// The error for a failed key creation. With a policy, a user authentication error (see
+    /// `userAuthenticationError`) becomes `UserAuthenticationUnavailableError`: creating a key
+    /// shows no prompt, so such an error means the device can't satisfy the policy, not that the
+    /// user canceled. Anything else is `KeyManError.internalError`.
+    static func keyCreationError(
+        alias: String, userAuthentication: UserAuthenticationPolicy?, underlying: NSError
+    ) -> Error {
+        if userAuthentication != nil,
+            userAuthenticationError(alias: alias, underlying: underlying) != nil {
+            return UserAuthenticationUnavailableError(alias: alias, underlying: underlying)
+        }
+        return KeyManError.internalError("Could not create key '\(alias)': \(underlying)")
     }
 
     /**
@@ -268,22 +307,14 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
      * Returns the public key of the given key pair as a JWK, creating the key if it doesn't exist.
      *
      * `userAuthentication` only applies to a newly created key; an existing key keeps the
-     * protection it was created with. Creating a protected key fails when the device can't
-     * satisfy the policy (no passcode set, or no biometrics enrolled when the device passcode
-     * isn't allowed); this throws `UserAuthenticationUnavailableError` then, and no key is
-     * created. Without a policy, a failure throws `KeyManError.internalError`.
+     * protection it was created with. Key creation errors are those of
+     * `generateSigningKeyThrowing`.
      */
     public static func getOrInsertJwk(
         id: String, userAuthentication: UserAuthenticationPolicy?
     ) throws -> Jwk {
         if !KeyManager.keyExists(id: id) {
-            guard KeyManager.generateSigningKey(id: id, userAuthentication: userAuthentication)
-            else {
-                if userAuthentication != nil {
-                    throw UserAuthenticationUnavailableError(alias: id)
-                }
-                throw KeyManError.internalError("Could not create key '\(id)'")
-            }
+            try KeyManager.generateSigningKeyThrowing(id: id, userAuthentication: userAuthentication)
         }
 
         guard let jwk = KeyManager.getJwk(id: id) else {
@@ -321,9 +352,9 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
     /**
      * Signs the provided payload with a ecdsaSignatureMessageX962SHA256 private key.
      *
-     * For a key generated with a `UserAuthenticationPolicy`, pass a `context` already evaluated
-     * with `.deviceOwnerAuthentication` to sign without another prompt; without one, the system
-     * prompts on its own.
+     * For a key generated with a `UserAuthenticationPolicy`, pass the policy's `makeContext()`,
+     * evaluated with the policy's `evaluationPolicy`, to sign without another prompt; without a
+     * context, the system prompts on its own.
      */
     public static func signPayload(
         id: String, payload: [UInt8], accessGroup: String? = nil, context: LAContext? = nil

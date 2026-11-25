@@ -12,9 +12,10 @@ public class MdocProximityPresentationManager {
 
     /// Authentication context used to sign the response.
     ///
-    /// If the mdoc's device key was generated with a `UserAuthenticationPolicy`, set this to a
-    /// context evaluated with `.deviceOwnerAuthentication` before approving the request, so the
-    /// signature doesn't prompt again. When nil, the system prompts on its own for protected keys.
+    /// If the mdoc's device key was generated with a `UserAuthenticationPolicy`, set this before
+    /// approving the request to the policy's `makeContext()`, evaluated with the policy's
+    /// `evaluationPolicy`, so the signature doesn't prompt again. When nil, the system prompts on
+    /// its own for protected keys.
     public var authenticationContext: LAContext? {
         didSet { handle?.authenticationContext = authenticationContext }
     }

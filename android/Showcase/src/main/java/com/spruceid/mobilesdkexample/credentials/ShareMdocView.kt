@@ -99,8 +99,8 @@ fun QrShareMdocView(
     val error by credentialViewModel.error.collectAsState()
     val bluetoothPermissionsGranted by credentialViewModel.bluetoothPermissionsGranted.collectAsState()
     var forceRefresh by remember { mutableStateOf(true) }
-    // Set when the user cancels the authentication prompt. The session is already ended; this
-    // keeps the message up until the user starts again.
+    // Set when sharing ends before a response is sent (canceled authentication or a failure).
+    // The session is already ended; this keeps the message up until the user starts again.
     var sharingEndedMessage by remember { mutableStateOf<String?>(null) }
 
     var isBluetoothEnabled by remember {
@@ -249,7 +249,7 @@ fun QrShareMdocView(
     }
 }
 
-/** The share screen after the user canceled sharing: the message and a way to start again. */
+/** The share screen after sharing ended early: the message and a way to start again. */
 @Composable
 private fun SharingEndedView(message: String, buttonLabel: String, onStartAgain: () -> Unit) {
     Column(
@@ -449,6 +449,7 @@ fun ShareMdocSelectiveDisclosureView(
     val allowedNamespaces by credentialViewModel.allowedNamespaces.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    var isSubmitting by remember { mutableStateOf(false) }
 
     val selectNamespacesSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -561,8 +562,14 @@ fun ShareMdocSelectiveDisclosureView(
                 }
 
                 Button(
+                    // One approval at a time: a second tap would show a second prompt and submit
+                    // twice.
+                    enabled = !isSubmitting,
                     onClick = {
+                        if (isSubmitting) return@Button
+                        isSubmitting = true
                         scope.launch {
+                            var submitted = false
                             try {
                                 // A device key with a UserAuthenticationPolicy only signs shortly
                                 // after a strong authentication, so prompt before signing.
@@ -582,15 +589,23 @@ fun ShareMdocSelectiveDisclosureView(
                                         return@launch
                                     }
                                 }
+                                submitted = true
                                 credentialViewModel.submitNamespaces(allowedNamespaces)
+                            } catch (e: CancellationException) {
+                                throw e
                             } catch (e: UserAuthenticationRequiredException) {
                                 // The authentication window ran out before the key signed.
                                 Log.w("SelectiveDisclosureView", e.toString())
                                 onSharingEnded("Authentication expired. Please try again.")
-                            } catch (e: Error) {
+                            } catch (e: Throwable) {
                                 Log.e("SelectiveDisclosureView", e.stackTraceToString())
-                            } catch (e: Exception) {
-                                Log.e("SelectiveDisclosureView", e.stackTraceToString())
+                                // submitNamespaces reports its own failures through the
+                                // presentment state; anything before it gets a message here.
+                                if (!submitted) {
+                                    onSharingEnded("Sharing failed. Please try again.")
+                                }
+                            } finally {
+                                isSubmitting = false
                             }
                         }
                     },

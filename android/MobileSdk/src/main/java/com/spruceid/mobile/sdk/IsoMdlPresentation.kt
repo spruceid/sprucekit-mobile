@@ -233,10 +233,6 @@ class IsoMdlPresentation(
     fun submitNamespaces(items: Map<String, Map<String, List<String>>>) {
         val payload = session!!.generateResponse(items)
 
-        if (!KeyManager().keyExists(this.keyAlias)) {
-            throw IllegalStateException("No such private key under the alias <${this.keyAlias}>")
-        }
-
         try {
             val signature = KeyManager().signPayload(this.keyAlias, payload)
                 ?: throw IllegalStateException("No such private key under the alias <${this.keyAlias}>")

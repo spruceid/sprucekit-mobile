@@ -15,9 +15,10 @@ import kotlinx.coroutines.launch
 
 /**
  * Plugin-wide user-authentication policy for the device keys the plugin creates
- * (OID4VCI, OID4VP and mock mDL keys). Null when disabled, the default.
+ * (OID4VCI, OID4VP and mock mDL keys). Null when disabled, the default. Set it only through
+ * `DeviceKeyAuth.setPolicy`.
  */
-object DeviceKeyAuthState {
+internal object DeviceKeyAuthState {
     @Volatile
     var policy: UserAuthenticationPolicy? = null
 }
