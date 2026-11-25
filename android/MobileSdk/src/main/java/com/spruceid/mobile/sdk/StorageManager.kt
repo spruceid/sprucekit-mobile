@@ -2,7 +2,9 @@ package com.spruceid.mobile.sdk
 
 import android.content.Context
 import android.util.Base64
+import android.util.Log
 import com.spruceid.mobile.sdk.KeyManager
+import com.spruceid.mobile.toolkit.StorageManagerException
 import com.spruceid.mobile.toolkit.StorageManagerInterface
 import java.io.File
 import java.io.FileNotFoundException
@@ -31,6 +33,13 @@ class StorageManager(val context: Context) : StorageManagerInterface {
     ///
     /// Retrieves the value from storage identified by key.
     ///
+    /// Reads both stored formats: hybrid values, and legacy `<iv>;<ciphertext>` values, which
+    /// SDK versions before 0.11.2 wrote and which are never rewritten.
+    ///
+    /// Returns null if no value is stored under the key. Throws
+    /// StorageManagerException.CouldNotDecryptValue if the stored value is in neither format or
+    /// cannot be decrypted.
+    ///
     /// Arguments:
     /// key - The key to retrieve
     override suspend fun get(key: String): ByteArray? {
@@ -44,11 +53,16 @@ class StorageManager(val context: Context) : StorageManagerInterface {
             return null
         }
 
-        // Format detection based on structure
-        return if (isHybridFormat(bytes)) {
-            decryptHybrid(bytes)
-        } else {
-            decrypt(bytes)
+        try {
+            return if (isHybridFormat(bytes)) {
+                decryptHybrid(bytes)
+            } else {
+                decrypt(bytes)
+            }
+        } catch (e: Exception) {
+            // The key is not logged: a scoped key embeds the scope, which can identify the user.
+            Log.w(TAG, "could not decrypt a stored value: ${e.javaClass.name}")
+            throw StorageManagerException.CouldNotDecryptValue()
         }
     }
 
@@ -81,6 +95,7 @@ class StorageManager(val context: Context) : StorageManagerInterface {
         private const val B64_FLAGS = Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP
         private const val KEY_NAME = "sprucekit/datastore"
         private const val HYBRID_PREFIX = "HYBRID|"
+        private const val TAG = "sprucekit"
 
         /// Function: isHybridFormat
         ///
@@ -105,26 +120,6 @@ class StorageManager(val context: Context) : StorageManagerInterface {
             }
 
             return prefixString == HYBRID_PREFIX
-        }
-
-        /// Function: encrypt
-        ///
-        /// Encrypts the given string (legacy method).
-        ///
-        /// Arguments:
-        /// value - The byte array value to be encrypted
-        private suspend fun encrypt(value: ByteArray): ByteArray {
-            return suspendCoroutine { continuation ->
-                val keyManager = KeyManager()
-                if (!keyManager.keyExists(KEY_NAME)) {
-                    keyManager.generateEncryptionKey(KEY_NAME)
-                }
-                val encrypted = keyManager.encryptPayload(KEY_NAME, value)
-                val iv = Base64.encodeToString(encrypted.first, B64_FLAGS)
-                val bytes = Base64.encodeToString(encrypted.second, B64_FLAGS)
-                val res = "$iv;$bytes".toByteArray()
-                continuation.resume(res)
-            }
         }
 
         /// Function: encryptHybrid
@@ -164,7 +159,9 @@ class StorageManager(val context: Context) : StorageManagerInterface {
 
         /// Function: decrypt
         ///
-        /// Decrypts the given ByteArray (legacy method).
+        /// Decrypts the legacy `<iv>;<ciphertext>` format.
+        /// Throws an Exception if the value does not have exactly two parts, a part is not valid
+        /// Base64, or decryption fails, so that `get` can report it as CouldNotDecryptValue.
         ///
         /// Arguments:
         /// value - The byte array to be decrypted
@@ -175,9 +172,11 @@ class StorageManager(val context: Context) : StorageManagerInterface {
                     throw Exception("Cannot retrieve values before creating encryption keys")
                 }
                 val decoded = value.decodeToString().split(";")
-                assert(decoded.size == 2)
-                val iv = Base64.decode(decoded.first(), B64_FLAGS)
-                val encrypted = Base64.decode(decoded.last(), B64_FLAGS)
+                if (decoded.size != 2) {
+                    throw Exception("Invalid legacy format - expected 2 parts, got ${decoded.size}")
+                }
+                val iv = Base64.decode(decoded[0], B64_FLAGS)
+                val encrypted = Base64.decode(decoded[1], B64_FLAGS)
                 val decrypted = keyManager.decryptPayload(KEY_NAME, iv, encrypted)
                 continuation.resume(decrypted)
             }
@@ -187,6 +186,7 @@ class StorageManager(val context: Context) : StorageManagerInterface {
         ///
         /// Decrypts hybrid format for maximum performance.
         /// Only the 32-byte AES key is decrypted with Android Keystore, data with software AES.
+        /// Throws if the value is not in the hybrid format or cannot be decrypted.
         ///
         /// Arguments:
         /// value - The byte array to be decrypted

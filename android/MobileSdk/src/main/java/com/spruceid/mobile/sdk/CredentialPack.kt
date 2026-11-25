@@ -18,6 +18,7 @@ import com.spruceid.mobile.sdk.rs.WalletServiceClient
 import org.json.JSONException
 import org.json.JSONObject
 import java.util.UUID
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * A collection of ParsedCredentials with methods to interact with all instances.
@@ -28,19 +29,35 @@ import java.util.UUID
  * - different encodings of the same credential (JwtVC & JsonVC),
  * - multiple instances of the same credential type (vehicle title credentials for more than 1
  *   vehicle).
+ *
+ * A pack loaded from storage remembers the ids of the credentials it could not load, and keeps
+ * them when it is saved or removes them when it is removed. [list] shows only the loaded
+ * credentials.
  */
 class CredentialPack {
     private val id: UUID
     private val credentials: MutableList<ParsedCredential>
 
+    /** Ids of the credentials in the stored pack that could not be loaded. */
+    private val unloadedCredentialIds: List<Uuid>
+
     constructor() {
         id = UUID.randomUUID()
         credentials = mutableListOf()
+        unloadedCredentialIds = emptyList()
     }
 
-    constructor(id: UUID, credentialsArray: MutableList<ParsedCredential>) {
+    constructor(id: UUID, credentialsArray: MutableList<ParsedCredential>) :
+            this(id, credentialsArray, emptyList())
+
+    internal constructor(
+        id: UUID,
+        credentialsArray: MutableList<ParsedCredential>,
+        unloadedCredentialIds: List<Uuid>
+    ) {
         this.id = id
         this.credentials = credentialsArray
+        this.unloadedCredentialIds = unloadedCredentialIds
     }
 
     fun id(): UUID {
@@ -454,6 +471,10 @@ class CredentialPack {
      * If a Credential already exists in the VdcCollection (matching on id), then
      * it will be skipped without updating.
      *
+     * The ids of credentials that could not be loaded with this pack stay in the saved pack, so
+     * a temporary loading failure does not drop them. They are not saved again to the
+     * VdcCollection.
+     *
      * @param scope Optional isolation scope. When non-null, the pack is stored under a
      *   scope-prefixed key so `loadPacks`/`listPacks` filtered by the same scope only enumerate
      *   matching packs. Credentials in the VdcCollection are NOT scoped (they remain in the shared
@@ -487,7 +508,8 @@ class CredentialPack {
     /**
      * Remove this CredentialPack from the StorageManager.
      *
-     * Credentials that are in this pack __are__ removed from the VdcCollection.
+     * Credentials that are in this pack __are__ removed from the VdcCollection, including the
+     * ones that could not be loaded with this pack.
      *
      * @param scope Must match the scope used at save time.
      */
@@ -496,8 +518,9 @@ class CredentialPack {
         intoContents().remove(storage, scope)
     }
 
-    private fun intoContents(): CredentialPackContents =
-        CredentialPackContents(id, list().map { it.id() })
+    /** The loaded credentials' ids, then the ids of those that could not be loaded. */
+    internal fun intoContents(): CredentialPackContents =
+        CredentialPackContents(id, (list().map { it.id() } + unloadedCredentialIds).distinct())
 
     companion object {
         /**
@@ -520,32 +543,64 @@ class CredentialPack {
          * List all CredentialPacks under the given scope.
          *
          * These can then be individually loaded. For eager loading of all packs, see `loadPacks`.
+         *
+         * A pack that cannot be read or parsed is logged and skipped, so one bad entry does not
+         * hide the others. Only a failure to list the storage throws.
          */
         @Throws(LoadingException::class)
         suspend fun listPacks(storage: StorageManagerInterface, scope: String? = null): List<CredentialPackContents> {
-            val contents: Iterable<CredentialPackContents>
+            val prefix = CredentialPackContents.storagePrefix(scope)
+            val keys: List<String>
             try {
-                val prefix = CredentialPackContents.storagePrefix(scope)
-                contents =
-                    storage.list()
-                        .filter { CredentialPackContents.matches(it, prefix, scope) }
-                        .mapNotNull { storage.get(it) }
-                        .map { CredentialPackContents(it) }
+                keys = storage.list()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 throw LoadingException("unable to list CredentialPacks", e)
             }
-            return contents
+            return keys
+                .filter { CredentialPackContents.matches(it, prefix, scope) }
+                .mapNotNull { key ->
+                    try {
+                        storage.get(key)?.let { CredentialPackContents(it) }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        // Log the pack id only: a scoped key embeds the scope, which can
+                        // identify the user.
+                        val packId = key.substringAfter(CredentialPackContents.STORAGE_PREFIX)
+                        Log.w(
+                            "sprucekit", "skipping CredentialPack '$packId' that could not be" +
+                                    " loaded: ${e.javaClass.name}"
+                        )
+                        null
+                    }
+                }
         }
 
         /**
          * Loads all CredentialPacks under the given scope.
+         *
+         * A pack that fails to load is logged and skipped.
          *
          * @param scope When non-null, returns only packs saved under this scope.
          */
         suspend fun loadPacks(storage: StorageManagerInterface, scope: String? = null): List<CredentialPack> {
             val vdcCollection = VdcCollection(storage)
             return listPacks(storage, scope)
-                .map { it.load(vdcCollection) }
+                .mapNotNull {
+                    try {
+                        it.load(vdcCollection)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Log.w(
+                            "sprucekit", "skipping CredentialPack '${it.id}' that could not be" +
+                                    " loaded: ${e.javaClass.name}"
+                        )
+                        null
+                    }
+                }
         }
 
         /**
@@ -561,8 +616,17 @@ class CredentialPack {
             scope: String? = null
         ): CredentialPack? {
             val key = CredentialPackContents.storageKey(id, scope)
-            val bytes = storage.get(key) ?: return null
-            val contents = CredentialPackContents(bytes)
+            val contents: CredentialPackContents
+            try {
+                val bytes = storage.get(key) ?: return null
+                contents = CredentialPackContents(bytes)
+            } catch (e: LoadingException) {
+                throw e
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                throw LoadingException("unable to load CredentialPack '$id'", e)
+            }
             val vdcCollection = VdcCollection(storage)
             return contents.load(vdcCollection)
         }
@@ -609,7 +673,12 @@ class CredentialPackContents {
 
     @Throws(LoadingException::class)
     constructor(byteArray: ByteArray) {
-        val json = JSONObject(byteArray.decodeToString())
+        val json: JSONObject
+        try {
+            json = JSONObject(byteArray.decodeToString())
+        } catch (e: JSONException) {
+            throw LoadingException("CredentialPack contents are not a valid JSON object", e)
+        }
 
         try {
             id = UUID.fromString(json.getString(ID_KEY))
@@ -623,9 +692,9 @@ class CredentialPackContents {
             val array = json.getJSONArray(CREDENTIALS_KEY)
             credentials = List(array.length(), { array.getString(it) })
         } catch (e: JSONException) {
-            throw LoadingException("'$ID_KEY' does not exist, or is not a String", e)
+            throw LoadingException("'$CREDENTIALS_KEY' does not exist, or is not an array of Strings", e)
         } catch (e: IllegalArgumentException) {
-            throw LoadingException("'$ID_KEY' is not a valid UUID", e)
+            throw LoadingException("'$CREDENTIALS_KEY' is not a valid array", e)
         }
     }
 
@@ -636,44 +705,50 @@ class CredentialPackContents {
 
     /**
      * Loads all of the credentials from the VdcCollection into a CredentialPack.
+     *
+     * A credential that is missing from the VdcCollection is logged and dropped. A credential
+     * that cannot be loaded or parsed is logged and skipped, and the returned pack remembers its
+     * id: saving the pack keeps it, and removing the pack removes it.
      */
     @Throws(LoadingException::class)
     suspend fun load(vdcCollection: VdcCollection): CredentialPack {
+        val unloadedCredentialIds = mutableListOf<Uuid>()
         val credentials =
             credentials
                 .mapNotNull {
-                    try {
-                        val credential = vdcCollection.get(it)
-                        if (credential == null) {
-                            Log.w(
-                                "sprucekit", "credential '$it' in pack '${id}'" +
-                                        " could not be found"
-                            )
-                            Log.d("sprucekit", "VdcCollection: ${vdcCollection.allEntries()}")
-                        }
-                        credential
+                    val credential = try {
+                        vdcCollection.get(it)
+                    } catch (e: CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         Log.w(
                             "sprucekit", "credential '$it' could not be loaded from" +
-                                    " storage"
+                                    " storage: ${e.javaClass.name}"
+                        )
+                        unloadedCredentialIds.add(it)
+                        return@mapNotNull null
+                    }
+                    if (credential == null) {
+                        Log.w(
+                            "sprucekit", "credential '$it' in pack '${id}'" +
+                                    " could not be found"
                         )
                         return@mapNotNull null
                     }
-                }
-                .mapNotNull {
                     try {
-                        return@mapNotNull ParsedCredential.parseFromCredential(it)
+                        return@mapNotNull ParsedCredential.parseFromCredential(credential)
                     } catch (e: CredentialDecodingException) {
                         Log.w(
-                            "sprucekit", "failed to parse credential '${it.id}'" +
+                            "sprucekit", "failed to parse credential '${credential.id}'" +
                                     " as a known variant"
                         )
+                        unloadedCredentialIds.add(it)
                         return@mapNotNull null
                     }
                 }
                 .toMutableList()
 
-        return CredentialPack(id, credentials)
+        return CredentialPack(id, credentials, unloadedCredentialIds)
     }
 
     @Throws(SavingException::class)
