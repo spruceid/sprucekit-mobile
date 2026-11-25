@@ -3,7 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
     `maven-publish`
     id("signing")
-    id("org.jetbrains.kotlin.plugin.compose") version "2.1.0"
+    id("org.jetbrains.kotlin.plugin.compose") version "2.4.21"
     id("app.cash.licensee")
 }
 
@@ -146,34 +146,34 @@ dependencies {
     //noinspection GradleCompatible
     implementation("com.android.support:appcompat-v7:28.0.0")
     implementation("androidx.activity:activity-compose:1.10.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     /* Begin UI dependencies */
     implementation("androidx.compose.material3:material3:1.3.2")
-    api("androidx.camera:camera-camera2:1.4.2")
-    api("androidx.camera:camera-lifecycle:1.4.2")
-    api("androidx.camera:camera-view:1.4.2")
-    implementation("com.google.zxing:core:3.5.3")
+    api("androidx.camera:camera-camera2:1.7.0")
+    api("androidx.camera:camera-lifecycle:1.7.0")
+    api("androidx.camera:camera-view:1.7.0")
+    implementation("com.google.zxing:core:3.5.4")
     implementation("com.google.accompanist:accompanist-permissions:0.37.3")
-    implementation("androidx.camera:camera-mlkit-vision:1.4.2")
-    implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.1")
+    implementation("androidx.camera:camera-mlkit-vision:1.7.0")
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.2")
     // MLKit barcode scanning — used only by `MlKitQRCodeScanner` for high-density
     // QR codes (V37+) that ZXing struggles with. The default `QRCodeScanner`
     // continues to use ZXing.
     implementation("com.google.android.gms:play-services-mlkit-barcode-scanning:18.3.1")
     /* End UI dependencies */
-    implementation("androidx.datastore:datastore-preferences:1.1.7")
-    implementation("com.google.android.play:integrity:1.4.0")
-    implementation("org.bitbucket.b_c:jose4j:0.9.6")
-    implementation("io.ktor:ktor-client-core:3.2.2")
-    implementation("io.ktor:ktor-client-okhttp:3.2.2")
+    implementation("androidx.datastore:datastore-preferences:1.3.0")
+    implementation("com.google.android.play:integrity:1.6.0")
+    implementation("org.bitbucket.b_c:jose4j:0.9.7")
+    implementation("io.ktor:ktor-client-core:3.6.1")
+    implementation("io.ktor:ktor-client-okhttp:3.6.1")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20250517")
-    testImplementation("io.mockk:mockk:1.13.17")
+    testImplementation("io.mockk:mockk:1.14.12")
     androidTestImplementation("com.android.support.test:runner:1.0.2")
     androidTestImplementation("com.android.support.test.espresso:espresso-core:3.0.2")
 
     // DC-API dependencies
-    val androidxCredentialsVersion = "1.6.0-rc02"
+    val androidxCredentialsVersion = "1.7.0-alpha03"
     val androidxRegistryVersion = "1.0.0-alpha04"
     implementation("androidx.credentials:credentials:$androidxCredentialsVersion")
     implementation("androidx.credentials:credentials-play-services-auth:$androidxCredentialsVersion")
