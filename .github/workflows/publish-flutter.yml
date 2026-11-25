@@ -19,7 +19,7 @@ jobs:
       run:
         working-directory: sprucekit_mobile
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Fail if the tag is not the plugin version
         run: |
@@ -30,7 +30,7 @@ jobs:
           fi
 
       - name: Read Flutter version from fvm
-        uses: kuhnroyal/flutter-fvm-config-action@v2
+        uses: kuhnroyal/flutter-fvm-config-action@v3
         id: fvm-config
         with:
           path: sprucekit_mobile/.fvmrc

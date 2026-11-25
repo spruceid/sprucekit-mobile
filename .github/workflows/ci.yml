@@ -19,7 +19,7 @@ jobs:
       run:
         working-directory: rust
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
         with:
@@ -70,7 +70,7 @@ jobs:
     runs-on: macos-15 # macos-latest is currently macos-14 and we need iOS 18.2
     if: github.actor != 'sprucekit-mobile-monorepo[bot]' # not running CI on release commits
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: "aarch64-apple-ios-sim,aarch64-apple-ios,x86_64-apple-ios"
@@ -125,7 +125,7 @@ jobs:
         run: python3 ios/check-swift-licenses.py
 
       - name: Read Flutter version from fvm
-        uses: kuhnroyal/flutter-fvm-config-action@v2
+        uses: kuhnroyal/flutter-fvm-config-action@v3
         id: fvm-config
         with:
           path: sprucekit_mobile/.fvmrc
@@ -153,7 +153,7 @@ jobs:
         working-directory: android
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: "aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android"
@@ -168,7 +168,7 @@ jobs:
         with:
           tool: cargo-ndk
       - name: Setup Java JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           java-version: "18"
           distribution: "temurin"
@@ -177,7 +177,7 @@ jobs:
       # gradle-version puts Gradle on the PATH for the Flutter example, which
       # has no committed wrapper script. The SDK builds use ./gradlew.
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: "9.1.0"
       - run: touch local.properties
@@ -193,7 +193,7 @@ jobs:
       # The step above built the release .so (buildCargoNdk), as cd.yml does.
       - name: Measure Android arm64 library size
         run: ../rust/scripts/lib-size.sh aarch64-linux-android "$RUNNER_TEMP/size/aarch64-linux-android.json" "$PWD/MobileSdkRs/src/main/jniLibs/arm64-v8a/libmobile_sdk_rs.so"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: size-aarch64-linux-android
           path: ${{ runner.temp }}/size/
@@ -211,7 +211,7 @@ jobs:
         run: ./gradlew licensee -Prust-target=arm64
 
       - name: Read Flutter version from fvm
-        uses: kuhnroyal/flutter-fvm-config-action@v2
+        uses: kuhnroyal/flutter-fvm-config-action@v3
         id: fvm-config
         with:
           path: sprucekit_mobile/.fvmrc
@@ -241,7 +241,7 @@ jobs:
       run:
         working-directory: rust
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: "aarch64-apple-ios"
@@ -253,7 +253,7 @@ jobs:
           workspaces: "rust -> target"
       - name: Measure iOS device library size
         run: scripts/lib-size.sh aarch64-apple-ios "$RUNNER_TEMP/size/aarch64-apple-ios.json"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: size-aarch64-apple-ios
           path: ${{ runner.temp }}/size/
@@ -275,10 +275,10 @@ jobs:
       SIZE_WARN_BYTES: "100000"
       SIZE_FAIL_PCT: ""
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           sparse-checkout: rust/scripts
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: size-aarch64-*
           path: ${{ runner.temp }}/size
@@ -294,7 +294,7 @@ jobs:
         run: rust/scripts/size-compare.py "$RUNNER_TEMP/size" "$RUNNER_TEMP/baseline.json" size-report.json
       - name: Upload the baseline for pull requests
         if: ${{ !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: size-report-main
           path: size-report.json
@@ -305,10 +305,10 @@ jobs:
     runs-on: ubuntu-latest
     if: github.actor != 'sprucekit-mobile-monorepo[bot]'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Check user-facing copy for British spelling
-        uses: crate-ci/typos@v1.49.0
+        uses: crate-ci/typos@v1.52.2
         with:
           files: |
             android/Showcase/src
@@ -322,9 +322,9 @@ jobs:
       run:
         working-directory: sprucekit_mobile
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Read Flutter version from fvm
-        uses: kuhnroyal/flutter-fvm-config-action@v2
+        uses: kuhnroyal/flutter-fvm-config-action@v3
         id: fvm-config
         with:
           path: sprucekit_mobile/.fvmrc
