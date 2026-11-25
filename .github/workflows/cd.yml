@@ -47,7 +47,7 @@ jobs:
       R2_BUCKET: spruceid-maven
       MAVEN_URL: https://maven.spruceid.com
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: "aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android"
@@ -61,16 +61,16 @@ jobs:
         with:
           tool: cargo-ndk
       - name: Setup Java JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           java-version: "18"
           distribution: "temurin"
           cache: gradle
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Import GPG key
-        uses: crazy-max/ghaction-import-gpg@v6
+        uses: crazy-max/ghaction-import-gpg@v7
         with:
           gpg_private_key: ${{ secrets.MAVEN_GPG_KEY }}
 
@@ -108,7 +108,7 @@ jobs:
             fi
             echo "$abi: stripped, build ID $id"
           done
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: android-native-symbols
           path: android/MobileSdkRs/build/distributions/MobileSdkRs-native-symbols-${{ github.event.inputs.version }}.zip
@@ -158,7 +158,7 @@ jobs:
     outputs:
       checksum: ${{ steps.checksum.outputs.value }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: "aarch64-apple-ios-sim,aarch64-apple-ios,x86_64-apple-ios"
@@ -180,7 +180,7 @@ jobs:
         id: checksum
         run: echo "value=$(swift package compute-checksum MobileSdkRsFFI.xcframework.zip)" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: rust-xcframework
           path: MobileSdkRsFFI.xcframework.zip
@@ -191,7 +191,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/create-github-app-token@v1
+      - uses: actions/create-github-app-token@v3
         id: app-token
         with:
           app-id: ${{ vars.MONOREPO_GH_APP_ID }}
@@ -208,7 +208,7 @@ jobs:
           git config --global user.name '${{ steps.app-token.outputs.app-slug }}[bot]'
           git config --global user.email '${{ steps.get-user-id.outputs.user-id }}+${{ steps.app-token.outputs.app-slug }}[bot]@users.noreply.github.com'
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           token: ${{ steps.app-token.outputs.token }}
           ref: main
@@ -222,11 +222,11 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: rust-xcframework
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: android-native-symbols
 
@@ -275,7 +275,7 @@ jobs:
           tag: ${{ github.event.inputs.version }}
           name: ${{ github.event.inputs.version }}
 
-      - uses: webfactory/ssh-agent@v0.9.0
+      - uses: webfactory/ssh-agent@v0.10.0
         if: steps.commit.outcome == 'success'
         with:
           ssh-private-key: ${{ secrets.COCOAPODS_SPECS_DEPLOY_KEY }}
