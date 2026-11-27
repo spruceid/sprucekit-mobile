@@ -111,7 +111,7 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.navigation:navigation-compose:2.7.7")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.1")
-    implementation("app.rive:rive-android:10.2.1")
+    implementation("app.rive:rive-android:11.16.3")
     implementation("androidx.startup:startup-runtime:1.2.0")
     implementation(project(mapOf("path" to ":MobileSdk")))
     implementation("com.google.zxing:core:3.5.3")
