@@ -128,5 +128,5 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
     // DC-API dependencies
-    implementation("androidx.credentials.registry:registry-provider:1.0.0-alpha01")
+    implementation("androidx.credentials.registry:registry-provider:1.0.0-SNAPSHOT")
 }
